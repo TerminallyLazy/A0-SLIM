@@ -21,7 +21,13 @@ export type Connection = {
   verifiedAt: string | null;
   account?: { subject: string; clientId: string; label: string };
 };
-export type Project = { id: string; name: string; root: string; execution?: 'none' | 'docker' };
+export type Project = {
+  id: string;
+  name: string;
+  root: string;
+  execution?: 'none' | 'docker' | 'vercel';
+  vercelGrant?: { revision: string; approvedAt: string };
+};
 export type Chat = {
   backend?: 'acp';
   id: string;
@@ -35,7 +41,8 @@ export type Chat = {
   parentChatId?: string;
   rootChatId?: string;
   depth?: number;
-  execution?: 'none' | 'docker';
+  execution?: 'none' | 'docker' | 'vercel';
+  executionRevision?: string;
   status: 'idle' | 'running' | 'interrupted';
   lastStop?: string;
   createdAt: string;

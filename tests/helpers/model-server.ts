@@ -7,7 +7,13 @@ export type FixtureRequest = {
 };
 
 export async function startModelFixture(
-  options: { delayMs?: number; tool?: string; toolInput?: unknown; alwaysTool?: boolean } = {},
+  options: {
+    delayMs?: number;
+    tool?: string;
+    toolInput?: unknown;
+    alwaysTool?: boolean;
+    maxRequests?: number;
+  } = {},
 ) {
   const requests: FixtureRequest[] = [];
   const sockets = new Set<import('node:net').Socket>();
@@ -20,6 +26,18 @@ export async function startModelFixture(
     for await (const chunk of request) bytes += chunk;
     const input = JSON.parse(bytes) as FixtureRequest;
     requests.push(input);
+    if (options.maxRequests !== undefined && requests.length > options.maxRequests) {
+      response.writeHead(429, { 'content-type': 'application/json' });
+      response.end(
+        JSON.stringify({
+          error: {
+            message: 'The synthetic model request limit was reached.',
+            type: 'rate_limit_error',
+          },
+        }),
+      );
+      return;
+    }
     response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
     const chunk = (delta: unknown, finish_reason: string | null = null) =>
       response.write(

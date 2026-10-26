@@ -12,7 +12,11 @@ export function environmentStatus(store: Store, active: Record<string, boolean>)
       const configured =
         provider === 'docker' || store.meta(`sandbox:${provider}`) === 'configured';
       const revision = store.meta(`sandbox:${provider}:revision`);
-      const unknown = checks.some((r) => r.cleanup === 'unknown');
+      const unknown = receipts.some(
+        (r) =>
+          (checks.includes(r) || (provider === 'vercel' && r.kind === 'vercel-execution')) &&
+          r.cleanup === 'unknown',
+      );
       return [
         provider,
         {

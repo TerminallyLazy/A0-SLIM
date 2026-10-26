@@ -11,7 +11,9 @@ type ProofSandbox = Pick<
   'name' | 'writeFiles' | 'runCommand' | 'readFileToBuffer' | 'stop'
 >;
 type RecoverableSandbox = Pick<Sandbox, 'name' | 'status' | 'tags' | 'stop' | 'delete'>;
-type Getter = (options: Parameters<typeof Sandbox.get>[0]) => Promise<RecoverableSandbox>;
+export type VercelGetter = (
+  options: Parameters<typeof Sandbox.get>[0],
+) => Promise<RecoverableSandbox>;
 type Factory = (options: Parameters<typeof Sandbox.create>[0]) => Promise<ProofSandbox>;
 type Receipt = Record<string, unknown> & { id: string };
 type AbsenceCheck = (credentials: SandboxCredentials, receipt: Receipt) => Promise<void>;
@@ -45,11 +47,11 @@ export class SandboxProof {
     private store: Store,
     private vault: Vault,
     private create: Factory = (options) => Sandbox.create(options),
-    private get: Getter = (options) => Sandbox.get(options),
+    private get: VercelGetter = (options) => Sandbox.get(options),
     private verify = verifyVercelScope,
     private absence: AbsenceCheck = verifyAbsent,
   ) {}
-  private async credentials(receipt?: Receipt) {
+  async credentials(receipt?: Receipt) {
     const saved = await this.vault.get<SandboxCredentials>('sandbox:vercel');
     if (!saved)
       throw new AppError(400, 'sandbox_missing', 'Save a Vercel Sandbox connection first.');
@@ -81,7 +83,9 @@ export class SandboxProof {
       throw new AppError(409, 'proof_running', 'A sandbox check is already running.');
     const receipt = this.store
       .receipts()
-      .find((r) => r.id === id && r.kind === 'vercel-sandbox-proof') as Receipt | undefined;
+      .find(
+        (r) => r.id === id && ['vercel-sandbox-proof', 'vercel-execution'].includes(String(r.kind)),
+      ) as Receipt | undefined;
     if (!receipt || typeof receipt.environmentId !== 'string')
       throw new AppError(404, 'receipt_missing', 'Sandbox receipt not found.');
     if (receipt.cleanup !== 'unknown')
@@ -134,16 +138,29 @@ export class SandboxProof {
       this.running = false;
     }
   }
-  async reconcile(id: string) {
+  async withLease<T>(task: () => Promise<T>): Promise<T> {
     if (this.running)
-      throw new AppError(409, 'proof_running', 'A sandbox check is already running.');
+      throw new AppError(409, 'proof_running', 'A Vercel sandbox operation is already running.');
+    this.running = true;
+    try {
+      return await task();
+    } finally {
+      this.running = false;
+    }
+  }
+  async reconcile(id: string) {
+    return this.withLease(() => this.reconcileHeld(id));
+  }
+  // Internal callers already hold the provider lease; public recovery always uses reconcile().
+  async reconcileHeld(id: string) {
     const receipt = this.store
       .receipts()
-      .find((r) => r.id === id && r.kind === 'vercel-sandbox-proof') as Receipt | undefined;
+      .find(
+        (r) => r.id === id && ['vercel-sandbox-proof', 'vercel-execution'].includes(String(r.kind)),
+      ) as Receipt | undefined;
     if (!receipt || typeof receipt.environmentId !== 'string')
       throw new AppError(404, 'receipt_missing', 'Sandbox receipt not found.');
     if (receipt.cleanup !== 'unknown' && receipt.cleanup !== 'stopped') return receipt;
-    this.running = true;
     try {
       const credentials = await this.credentials(receipt);
       let sandbox: RecoverableSandbox;
@@ -208,8 +225,6 @@ export class SandboxProof {
       receipt.reconcileMessage = vercelFailure(error);
       this.store.receipt(receipt as { id: string });
       return receipt;
-    } finally {
-      this.running = false;
     }
   }
   async run() {
@@ -218,7 +233,11 @@ export class SandboxProof {
     if (
       this.store
         .receipts()
-        .some((receipt) => receipt.kind === 'vercel-sandbox-proof' && receipt.cleanup === 'unknown')
+        .some(
+          (receipt) =>
+            ['vercel-sandbox-proof', 'vercel-execution'].includes(String(receipt.kind)) &&
+            receipt.cleanup === 'unknown',
+        )
     )
       throw new AppError(
         409,
@@ -257,7 +276,7 @@ export class SandboxProof {
         fetch: async (url, init) => {
           if (
             init?.method === 'POST' &&
-            /^\/v[23]\/sandboxes$/.test(new URL(String(url)).pathname)
+            /^(?:\/api)?\/v[23]\/sandboxes$/.test(new URL(String(url)).pathname)
           ) {
             if (dispatched) throw new Error('Sandbox creation will not be retried.');
             dispatched = true;

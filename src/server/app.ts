@@ -12,7 +12,7 @@ import { Store } from '../storage/store.js';
 import { Vault, systemKeySource } from '../providers/vault.js';
 import { ChatGPTAccounts } from '../providers/chatgpt.js';
 import { Coordinator } from '../runtime/coordinator.js';
-import { SandboxProof } from '../execution/proof.js';
+import type { VercelDependencies } from '../execution/vercel-execution.js';
 import { vercelCredentials } from '../execution/vercel-auth.js';
 import { environmentStatus } from '../execution/status.js';
 import { ModalProof, modalCredentials } from '../execution/modal.js';
@@ -32,6 +32,7 @@ export async function createApp(options: {
   origin: string;
   pairingCode: string;
   staticDir?: string;
+  vercel?: VercelDependencies;
   keySource?: () => Promise<Buffer>;
 }) {
   const origin = new URL(options.origin);
@@ -41,10 +42,10 @@ export async function createApp(options: {
   const store = new Store(options.dataDir);
   const vault = new Vault(store, options.keySource ?? systemKeySource(store.dir));
   const accounts = new ChatGPTAccounts(store, vault);
-  const runtime = new Coordinator(store, vault, accounts);
+  const runtime = new Coordinator(store, vault, accounts, options.vercel);
   const acp = new ACPClient(store);
   const chatRuntime = (id: string) => (store.chat(id).backend === 'acp' ? acp : runtime);
-  const sandbox = new SandboxProof(store, vault);
+  const sandbox = runtime.vercel.proof;
   const space = new SpaceProof(store, vault);
   const modal = new ModalProof(store, vault);
   const additionalClouds = {
@@ -130,6 +131,7 @@ export async function createApp(options: {
     delegations: runtime.delegations.list().map(({ assignment, inputHash, ...record }) => record),
     connections: store.connections(),
     acp: acp.state(),
+    vercelExecution: runtime.vercel.readiness(),
     receipts: store.receipts(),
     environments: {
       ...environmentStatus(store, {
@@ -188,17 +190,34 @@ export async function createApp(options: {
   });
   app.post('/api/v1/projects/:id/execution', async (request) => {
     const project = store.project(idParams.parse(request.params).id);
-    const { execution } = z
-      .object({ execution: z.enum(['none', 'docker']) })
+    const { execution, acknowledgeVercelUsage } = z
+      .object({
+        execution: z.enum(['none', 'docker', 'vercel']),
+        acknowledgeVercelUsage: z.boolean().optional(),
+      })
       .strict()
       .parse(request.body);
+    if (execution === 'vercel') {
+      if (acknowledgeVercelUsage !== true)
+        throw new AppError(
+          400,
+          'cloud_approval',
+          'Confirm that this project may send code and text input to Vercel and use cloud compute.',
+        );
+      runtime.vercel.authorize(project.id);
+      return { ok: true };
+    }
     if (execution === 'docker' && !(await runtime.docker.availability()).available)
       throw new AppError(
         409,
         'sandbox_unavailable',
         'Start your local Docker engine and install the pinned image first.',
       );
-    store.saveProject({ ...project, execution });
+    store.saveProject({ ...store.project(project.id), execution });
+    return { ok: true };
+  });
+  app.post('/api/v1/projects/:id/vercel/revoke', async (request) => {
+    runtime.vercel.revoke(idParams.parse(request.params).id);
     return { ok: true };
   });
   app.post('/api/v1/connections', async (request) => {
@@ -293,6 +312,9 @@ export async function createApp(options: {
       ...input,
       model: connection.model,
       execution: project.execution ?? 'none',
+      ...(project.execution === 'vercel'
+        ? { executionRevision: project.vercelGrant?.revision }
+        : {}),
       sessionId: null,
       capabilitiesVersion: 2 as const,
       delegationVersion: 1 as const,
@@ -410,23 +432,26 @@ export async function createApp(options: {
       .header('x-accel-buffering', 'no')
       .send(Readable.from(events()));
   });
-  app.post('/api/v1/sandbox/vercel', async (request) => {
-    const form = vercelCredentials
-      .partial({ token: true })
-      .extend({ token: z.string().trim().max(8192).optional() })
-      .parse(request.body);
-    const saved = await vault.get<{ token: string }>('sandbox:vercel');
-    const token = form.token || saved?.token;
-    if (!token)
-      throw new AppError(
-        400,
-        'sandbox_missing',
-        'Enter a Vercel access token for the first connection.',
-      );
-    const input = vercelCredentials.parse({ ...form, token });
-    await saveSandboxConnection('vercel', input);
-    return { ok: true };
-  });
+  app.post('/api/v1/sandbox/vercel', async (request) =>
+    sandbox.withLease(async () => {
+      // Include token fallback reads in the same lease as credential writes and execution.
+      const form = vercelCredentials
+        .partial({ token: true })
+        .extend({ token: z.string().trim().max(8192).optional() })
+        .parse(request.body);
+      const saved = await vault.get<{ token: string }>('sandbox:vercel');
+      const token = form.token || saved?.token;
+      if (!token)
+        throw new AppError(
+          400,
+          'sandbox_missing',
+          'Enter a Vercel access token for the first connection.',
+        );
+      const input = vercelCredentials.parse({ ...form, token });
+      await saveSandboxConnection('vercel', input);
+      return { ok: true };
+    }),
+  );
   app.get('/api/v1/sandbox/vercel/connection', async () => {
     const saved = await vault.get<{ token: string; teamId: string; projectId: string }>(
       'sandbox:vercel',

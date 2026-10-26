@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, Check, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight, Check } from 'lucide-react';
 import type { Project } from '../src/domain.js';
 import type { EnvironmentStatus } from '../src/execution/status.js';
 import { api } from './api.js';
 import { SpaceEnvironment } from './space.js';
+import { ExecutionChoice, type VercelReadiness } from './execution-choice.js';
 import { Heading } from './workspace.js';
 
 type Actions = { refresh: () => Promise<void>; act: (fn: () => Promise<unknown>) => Promise<void> };
@@ -22,6 +23,7 @@ export function Environments({
   receipts,
   project,
   statuses,
+  vercelExecution,
   refresh,
   act,
 }: Actions & {
@@ -29,6 +31,7 @@ export function Environments({
   receipts: Record<string, any>[];
   project?: Project;
   statuses: EnvironmentStatus;
+  vercelExecution: VercelReadiness;
 }) {
   const [busy, setBusy] = useState(false),
     [editing, setEditing] = useState(''),
@@ -56,6 +59,16 @@ export function Environments({
         Use local Docker, a cloud sandbox, or your own SPACE server. Connection checks and cleanup
         receipts show what is ready and what needs attention.
       </Heading>
+      {project && (
+        <ExecutionChoice
+          key={project.id}
+          project={project}
+          dockerAvailable={!!local?.available}
+          vercel={vercelExecution}
+          refresh={refresh}
+          act={act}
+        />
+      )}
       <section className="environment-card">
         <div className="environment-heading">
           <ProviderMark id="docker" />
@@ -98,45 +111,7 @@ export function Environments({
             Run local check
           </button>
         </div>
-        {project && (
-          <div className="environment-choice">
-            <label>
-              Execution for new chats in {project.name}
-              <select
-                aria-label="Execution for new chats"
-                value={project.execution ?? 'none'}
-                disabled={busy}
-                onChange={(event) => {
-                  const execution = event.target.value;
-                  perform(async () => {
-                    await api(`/projects/${project.id}/execution`, { execution });
-                    await refresh();
-                  });
-                }}
-              >
-                <option value="none">No code execution</option>
-                <option value="docker" disabled={!local?.available}>
-                  Local Docker · isolated Node.js
-                </option>
-              </select>
-            </label>
-            <p className="fine">
-              Existing chats keep their environment. Every project file change still requires your
-              review.
-            </p>
-          </div>
-        )}
       </section>
-      <div className="notice">
-        <ShieldCheck size={18} />
-        <div>
-          <strong>Cloud connections begin with a synthetic check.</strong>
-          <p>
-            No project files or model keys leave your computer during these checks. Cloud agent
-            execution stays off until its adapter is validated.
-          </p>
-        </div>
-      </div>
       <SpaceEnvironment refresh={refresh} act={act} />
       <div className="environment-grid">
         {clouds.map((cloud) => {
@@ -170,7 +145,9 @@ export function Environments({
                 {statuses[cloud.id]?.checkedAt && (
                   <> Last check: {new Date(statuses[cloud.id]!.checkedAt!).toLocaleString()}.</>
                 )}{' '}
-                Cloud execution is not enabled for chats yet.
+                {cloud.id === 'vercel'
+                  ? 'Choose Vercel above for code execution in new chats.'
+                  : 'This provider currently supports sandbox tests only.'}
               </p>
               <p>
                 <strong>{cloud.allowance}</strong> {cloud.detail}
@@ -328,14 +305,19 @@ export function Environments({
       <h2>Execution receipts ({otherReceipts.length})</h2>
       {!otherReceipts.length && <p className="empty-row">Your first check will appear here.</p>}
       {otherReceipts.map((receipt) => {
-        const cloud = clouds.find((c) => receipt.kind === `${c.id}-sandbox-proof`);
+        const cloud = clouds.find(
+          (c) =>
+            receipt.kind === `${c.id}-sandbox-proof` ||
+            (c.id === 'vercel' && receipt.kind === 'vercel-execution'),
+        );
         const provider = receipt.kind === 'docker-sandbox' ? 'docker' : cloud?.id;
         return (
           <div className="receipt" key={receipt.id}>
             <div>
               <Check size={16} />
               <strong>
-                {provider === 'docker' ? 'Local Docker' : (cloud?.name ?? 'Sandbox')} ·{' '}
+                {provider === 'docker' ? 'Local Docker' : (cloud?.name ?? 'Sandbox')}
+                {receipt.kind === 'vercel-execution' ? ' code call' : ''} ·{' '}
                 {receipt.status === 'passed'
                   ? 'Completed'
                   : receipt.status === 'pending'

@@ -230,41 +230,39 @@ test('Vercel missing-resource review requires original scope, elapsed lifetime, 
   }
 });
 
-test('Vercel SDK creation retries cannot issue a second resource request', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'slim-vercel-retry-')),
-    store = new Store(dir),
-    vault = new Vault(store, async () => Buffer.alloc(32, 6));
-  await vault.set('sandbox:vercel', credentials);
-  const original = globalThis.fetch;
-  let requests = 0;
-  globalThis.fetch = async () => {
-    requests++;
-    return new Response(null, { status: 503 });
-  };
-  try {
-    const proof = new SandboxProof(
-      store,
-      vault,
-      async (options) => {
-        const transport = options!.fetch!;
-        assert.equal(
-          (await transport('https://api.vercel.com/v3/sandboxes', { method: 'POST' })).status,
-          503,
-        );
-        await assert.rejects(
-          transport('https://api.vercel.com/v3/sandboxes', { method: 'POST' }),
-          /not be retried/,
-        );
-        throw new Error('ambiguous creation');
-      },
-      undefined,
-      async (c) => c,
-    );
-    assert.equal((await proof.run()).cleanup, 'unknown');
-    assert.equal(requests, 1);
-  } finally {
-    globalThis.fetch = original;
-    store.close();
-    await rm(dir, { recursive: true, force: true });
-  }
-});
+for (const origin of ['https://api.vercel.com', 'https://vercel.com/api'])
+  test(`Vercel SDK creation retries cannot issue a second resource request at ${origin}`, async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'slim-vercel-retry-')),
+      store = new Store(dir),
+      vault = new Vault(store, async () => Buffer.alloc(32, 6));
+    await vault.set('sandbox:vercel', credentials);
+    const original = globalThis.fetch;
+    let requests = 0;
+    globalThis.fetch = async () => {
+      requests++;
+      return new Response(null, { status: 503 });
+    };
+    try {
+      const proof = new SandboxProof(
+        store,
+        vault,
+        async (options) => {
+          const transport = options!.fetch!;
+          assert.equal((await transport(`${origin}/v3/sandboxes`, { method: 'POST' })).status, 503);
+          await assert.rejects(
+            transport(`${origin}/v3/sandboxes`, { method: 'POST' }),
+            /not be retried/,
+          );
+          throw new Error('ambiguous creation');
+        },
+        undefined,
+        async (c) => c,
+      );
+      assert.equal((await proof.run()).cleanup, 'unknown');
+      assert.equal(requests, 1);
+    } finally {
+      globalThis.fetch = original;
+      store.close();
+      await rm(dir, { recursive: true, force: true });
+    }
+  });

@@ -27,6 +27,7 @@ import { api } from './api.js';
 import { Connections } from './settings.js';
 import { AgentConnections, AgentPermissions, type ACPState } from './agents.js';
 import { Environments } from './environments.js';
+import type { VercelReadiness } from './execution-choice.js';
 import { ExtensionWorkspace, PluginHubView } from './extensions.js';
 import { MemoryWorkspace } from './memory.js';
 import { Markdown } from './markdown.js';
@@ -43,6 +44,7 @@ type State = {
   modalConfigured: boolean;
   cloudConfigured: Record<string, boolean>;
   environments: EnvironmentStatus;
+  vercelExecution: VercelReadiness;
   delegations: DelegationSummary[];
 };
 type Line = { cursor: number; event: Record<string, any> };
@@ -56,6 +58,11 @@ type View =
   | 'hub'
   | 'memory';
 const empty: State = {
+  vercelExecution: {
+    available: false,
+    reason: 'Save a Vercel connection first.',
+    revision: 'legacy',
+  },
   acp: { profiles: [], permissions: [], holds: [], connected: [] },
   projects: [],
   chats: [],
@@ -114,6 +121,18 @@ export function App() {
   );
   const running = chat?.status === 'running';
   const execution = chat ? (chat.execution ?? 'none') : (project?.execution ?? 'none');
+  const vercelActivity =
+    state.environments.vercel?.activity === 'working'
+      ? 'working'
+      : state.environments.vercel?.activity === 'unknown'
+        ? 'needs review'
+        : !project?.vercelGrant ||
+            project.vercelGrant.revision !== state.vercelExecution.revision ||
+            (chat && chat.executionRevision !== state.vercelExecution.revision)
+          ? 'permission needed'
+          : !state.vercelExecution.available
+            ? 'check needed'
+            : 'ready';
   const refresh = async () => {
     const next = await api<State>('/state');
     setState(next);
@@ -506,19 +525,23 @@ export function App() {
                   ? 'The external agent controls its execution environment and permissions.'
                   : execution === 'docker'
                     ? 'This chat uses disposable Docker containers for code calls. Open Environments for readiness and cleanup.'
-                    : 'No sandbox is enabled for this chat. Open Environments to configure one.'
+                    : execution === 'vercel'
+                      ? 'This chat runs code in temporary Vercel sandboxes. Docker is not used.'
+                      : 'No sandbox is enabled for this chat. Open Environments to configure one.'
               }
             >
               <Terminal size={14} />
               {external
                 ? `${agent?.name ?? 'Agent'} · ${state.acp.connected.includes(chatId) ? 'connected' : 'disconnected'}`
-                : execution !== 'docker'
-                  ? 'Sandbox off'
-                  : state.environments.docker?.activity === 'working'
-                    ? 'Docker · working'
-                    : state.environments.docker?.activity === 'unknown'
-                      ? 'Docker · needs review'
-                      : 'Docker · no active sandbox'}
+                : execution === 'vercel'
+                  ? `Vercel · ${vercelActivity}`
+                  : execution !== 'docker'
+                    ? 'Sandbox off'
+                    : state.environments.docker?.activity === 'working'
+                      ? 'Docker · working'
+                      : state.environments.docker?.activity === 'unknown'
+                        ? 'Docker · needs review'
+                        : 'Docker · no active sandbox'}
             </button>
             <span className="pill">Local alpha</span>
             <button
@@ -797,7 +820,11 @@ export function App() {
                     ? 'Execution managed by the agent'
                     : execution === 'docker'
                       ? 'Docker starts per code call'
-                      : 'No sandbox enabled'}
+                      : execution === 'vercel'
+                        ? vercelActivity === 'ready'
+                          ? 'Vercel starts per code call'
+                          : `Vercel · ${vercelActivity}`
+                        : 'No sandbox enabled'}
                 </span>
               </div>
             </div>
@@ -816,6 +843,7 @@ export function App() {
                 project={project}
                 receipts={state.receipts}
                 statuses={state.environments}
+                vercelExecution={state.vercelExecution}
                 refresh={refresh}
                 act={act}
               />
@@ -947,7 +975,13 @@ export function App() {
                 </div>
                 <div className="detail">
                   <span>Execution</span>
-                  <span>{execution === 'docker' ? 'Local Docker' : 'Off'}</span>
+                  <span>
+                    {execution === 'docker'
+                      ? 'Local Docker'
+                      : execution === 'vercel'
+                        ? 'Vercel Sandbox'
+                        : 'Off'}
+                  </span>
                 </div>
                 <div className="detail">
                   <span>Files</span>
@@ -1062,7 +1096,7 @@ function Transcript({ lines, agentName }: { lines: Line[]; agentName?: string })
     if (event.type === 'tool_start')
       entries.push({
         type: 'tool',
-        text: `${event.name === 'write_file' ? 'Drafting artifact' : event.name === 'list_dir' ? 'Inspecting folder' : event.name === 'read_file' ? 'Reading file' : event.name === 'call_subordinate' ? 'Delegating task' : event.name}${typeof event.input?.path === 'string' ? ` · ${event.input.path}` : event.name === 'call_subordinate' && event.input?.name ? ` · ${event.input.name}` : ''}`,
+        text: `${event.name === 'write_file' ? 'Drafting artifact' : event.name === 'list_dir' ? 'Inspecting folder' : event.name === 'read_file' ? 'Reading file' : event.name === 'run_javascript' ? 'Running Node.js' : event.name === 'call_subordinate' ? 'Delegating task' : event.name}${typeof event.input?.path === 'string' ? ` · ${event.input.path}` : event.name === 'call_subordinate' && event.input?.name ? ` · ${event.input.name}` : ''}`,
         key: cursor,
       });
     if (event.type === 'acp_plan')

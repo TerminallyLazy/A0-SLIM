@@ -109,3 +109,11 @@ The libfx stream initialization/cancel race receives a small checked installatio
 - Separate read-only connection evidence from resource activity and synthetic execution. Background checks persist create/command/delete intents; no mutation is retried automatically. Lost create responses use exact owned-resource discovery; delete retries reuse the original key/body within 24 hours. Keep a provider-wide hold for unknown cleanup across restart or changed settings.
 - Require complete bounded output and a matching zero-exit process event. A successful matching delete operation is the cleanup proof; 404 is not. Operator review records reviewed absence without rewriting the failed result and requires at least 24 hours, complete listing and terminal known creation operations.
 - Do not claim stable native file transfer, a hard sandbox TTL, egress denial, general agent execution, free hosting or live server acceptance. Keep those limitations in setup and the resource acknowledgment.
+
+
+## Vercel native execution without Docker — 2026-10-26
+
+- The owner clarified that a cloud sandbox must not require local Docker. Add Vercel to the native execution selector, independent of Docker availability, while preserving native runtime, MCP and ACP boundaries.
+- Scope this adapter to bounded Node.js calls with explicit code/stdin input and reviewed local artifacts. Use one nonpersistent sandbox per call, denied egress, fixed time/output/usage limits, and a revision-bound project usage grant. Existing chats keep their environment.
+- Share one lease across credentials, synthetic checks, execution and cleanup. Preserve intent before network mutations; suppress repeated calls by owning turn and input digest. Block SDK creation/command retries and automatic resume, including the SDK’s GET resume route. Retain unknown outcomes and exact-resource recovery; cancellation must not skip cleanup.
+- A passed connection test proves the earlier synthetic lifecycle, not this new chat execution path. Offline chat/tool and browser fixtures run with Docker disabled. The owner-approved single native Vercel check passed with exact output and verified deletion; the temporary test grant was revoked. Details are recorded in `docs/VERCEL.md`; SPACE server acceptance is deferred at the owner’s request.
