@@ -1,48 +1,28 @@
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, Box, Check, Cloud, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight, Check, ShieldCheck } from 'lucide-react';
 import type { Project } from '../src/domain.js';
 import { api } from './api.js';
 import { Heading } from './workspace.js';
 
 type Actions = { refresh: () => Promise<void>; act: (fn: () => Promise<unknown>) => Promise<void> };
-const clouds = [
-  {
-    id: 'vercel',
-    name: 'Vercel Sandbox',
-    allowance: 'Hobby: 5 CPU hours, 420 GB-hours of memory and 5,000 creations per month.',
-    detail: 'Hobby pauses new creation at its quota. Paid plans can incur usage charges.',
-    url: 'https://vercel.com/docs/sandbox/pricing',
-    fields: [
-      ['teamId', 'Team ID', false],
-      ['projectId', 'Project ID', false],
-      ['token', 'Access token', true],
-    ],
-  },
-  {
-    id: 'modal',
-    name: 'Modal',
-    allowance: 'Starter: $30 in free compute credit every month.',
-    detail: 'Credit is shared across Modal compute. Usage beyond the allowance may be billed.',
-    url: 'https://modal.com/pricing',
-    fields: [
-      ['appName', 'App name', false, 'a0-slim'],
-      ['environment', 'Environment', false, 'main'],
-      ['tokenId', 'Token ID', true],
-      ['tokenSecret', 'Token secret', true],
-    ],
-  },
-] as const;
+import { sandboxProviders as clouds } from './sandbox-providers.js';
+
+function ProviderMark({ id }: { id: string }) {
+  return (
+    <div className="provider-mark">
+      <img src={`/providers/${id}.svg`} alt="" />
+    </div>
+  );
+}
 
 export function Environments({
   configured,
-  modalConfigured,
   receipts,
   project,
   refresh,
   act,
 }: Actions & {
-  configured: boolean;
-  modalConfigured: boolean;
+  configured: Record<string, boolean>;
   receipts: Record<string, any>[];
   project?: Project;
 }) {
@@ -67,9 +47,7 @@ export function Environments({
       </Heading>
       <section className="environment-card">
         <div className="environment-heading">
-          <div className="connection-glyph">
-            <Box size={21} />
-          </div>
+          <ProviderMark id="docker" />
           <div>
             <h3>Local Docker</h3>
             <p>No cloud compute charges · uses your computer</p>
@@ -83,6 +61,14 @@ export function Environments({
         </p>
         {local?.message && <p className="setup-command">{local.message}</p>}
         <div className="environment-actions">
+          <a
+            className="text-link"
+            href="https://docs.docker.com/get-started/get-docker/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Get Docker <ArrowUpRight size={14} />
+          </a>
           <button
             disabled={busy}
             onClick={() => perform(async () => setLocal(await api('/sandbox/docker')))}
@@ -140,121 +126,160 @@ export function Environments({
           </p>
         </div>
       </div>
-      {clouds.map((cloud) => {
-        const saved = cloud.id === 'vercel' ? configured : modalConfigured;
-        return (
-          <section className="environment-card" key={cloud.id}>
-            <div className="environment-heading">
-              <div className="connection-glyph">
-                <Cloud size={21} />
-              </div>
-              <div>
-                <h3>{cloud.name}</h3>
-                <p>{saved ? 'Connection saved · ready to check' : 'Optional cloud connection'}</p>
-              </div>
-              <span className="pill">Free allowance</span>
-            </div>
-            <p>
-              <strong>{cloud.allowance}</strong> {cloud.detail}
-            </p>
-            <div className="environment-actions">
-              <a className="text-link" href={cloud.url} target="_blank" rel="noreferrer">
-                Current pricing <ArrowUpRight size={14} />
-              </a>
-              <button
-                disabled={busy}
-                onClick={() => setEditing(editing === cloud.id ? '' : cloud.id)}
-              >
-                {saved ? 'Update connection' : 'Configure'}
-              </button>
-            </div>
-            {editing === cloud.id && (
-              <form
-                className="settings-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const form = event.currentTarget,
-                    data = Object.fromEntries(new FormData(form));
-                  perform(async () => {
-                    await api(`/sandbox/${cloud.id}`, data);
-                    form.reset();
-                    setEditing('');
-                    await refresh();
-                  });
-                }}
-              >
-                <div className="form-grid">
-                  {cloud.fields.map((field) => (
-                    <label key={field[0]}>
-                      {field[1]}
-                      <input
-                        name={field[0]}
-                        type={field[2] ? 'password' : 'text'}
-                        required
-                        autoComplete="off"
-                        defaultValue={field.length > 3 ? field[3] : undefined}
-                      />
-                    </label>
-                  ))}
+      <div className="environment-grid">
+        {clouds.map((cloud) => {
+          const saved = !!configured[cloud.id];
+          return (
+            <section className="environment-card" key={cloud.id} aria-label={cloud.name}>
+              <div className="environment-heading">
+                <ProviderMark id={cloud.id} />
+                <div>
+                  <h3>{cloud.name}</h3>
+                  <p>
+                    {saved ? 'Connection saved · check available' : 'Optional cloud connection'}
+                  </p>
                 </div>
-                <button className="primary" disabled={busy}>
-                  Save {cloud.name} connection
-                </button>
-              </form>
-            )}
-            {saved && (
-              <div className="proof-form">
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={!!consent[cloud.id]}
-                    onChange={(e) => setConsent({ ...consent, [cloud.id]: e.target.checked })}
-                  />
-                  Create one temporary sandbox using my {cloud.name} account. I understand that
-                  usage can exceed my free allowance.
-                </label>
+                <span className="pill">{cloud.offer}</span>
+              </div>
+              <p>
+                <strong>{cloud.allowance}</strong> {cloud.detail}
+              </p>
+              <div className="provider-links">
+                <a className="text-link" href={cloud.signup} target="_blank" rel="noreferrer">
+                  Create account <ArrowUpRight size={14} />
+                </a>
+                <a className="text-link" href={cloud.signin} target="_blank" rel="noreferrer">
+                  Sign in <ArrowUpRight size={14} />
+                </a>
+                <a className="text-link" href={cloud.url} target="_blank" rel="noreferrer">
+                  Pricing <ArrowUpRight size={14} />
+                </a>
+              </div>
+              <div className="environment-actions">
+                <a className="text-link" href={cloud.dashboard} target="_blank" rel="noreferrer">
+                  Open dashboard <ArrowUpRight size={14} />
+                </a>
                 <button
-                  className="primary"
-                  disabled={busy || !consent[cloud.id]}
-                  onClick={() =>
-                    perform(async () => {
-                      await api(`/sandbox/${cloud.id}/proof`, { acknowledgeUsage: true });
-                      setConsent({ ...consent, [cloud.id]: false });
-                      await refresh();
-                    })
-                  }
+                  disabled={busy}
+                  onClick={() => setEditing(editing === cloud.id ? '' : cloud.id)}
                 >
-                  {busy ? 'Checking…' : `Check ${cloud.name}`}
+                  {editing === cloud.id
+                    ? 'Close setup'
+                    : saved
+                      ? 'Update connection'
+                      : `Connect ${cloud.name}`}
                 </button>
               </div>
-            )}
-          </section>
-        );
-      })}
+              {editing === cloud.id && (
+                <div className="provider-setup">
+                  <ol className="setup-steps">
+                    <li>
+                      <strong>Sign in with {cloud.name}.</strong> Use the links above;
+                      authentication takes place on the provider’s website.
+                    </li>
+                    <li>
+                      <strong>Create a credential.</strong> {cloud.setup}{' '}
+                      <a href={cloud.credentialsUrl} target="_blank" rel="noreferrer">
+                        Open credentials ↗
+                      </a>{' '}
+                      ·{' '}
+                      <a href={cloud.docs} target="_blank" rel="noreferrer">
+                        Setup guide ↗
+                      </a>
+                    </li>
+                    <li>
+                      <strong>Save, then check.</strong> Saving stays local. The optional check
+                      creates one temporary cloud sandbox.
+                    </li>
+                  </ol>
+                  <form
+                    className="settings-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const form = event.currentTarget,
+                        data = Object.fromEntries(new FormData(form));
+                      perform(async () => {
+                        await api(`/sandbox/${cloud.id}`, data);
+                        form.reset();
+                        setEditing('');
+                        setConsent({ ...consent, [cloud.id]: false });
+                        await refresh();
+                      });
+                    }}
+                  >
+                    <div className="form-grid">
+                      {cloud.fields.map((field) => (
+                        <label key={field[0]}>
+                          {field[1]}
+                          <input
+                            name={field[0]}
+                            type={field[2] ? 'password' : 'text'}
+                            required
+                            autoComplete="off"
+                            defaultValue={field.length > 3 ? field[3] : undefined}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                    <p className="fine">
+                      Credentials are encrypted on this computer and never sent back to the browser.
+                      Signing in on the provider’s site does not connect A0 SLIM automatically.
+                    </p>
+                    <button className="primary" disabled={busy}>
+                      Save {cloud.name} connection
+                    </button>
+                  </form>
+                </div>
+              )}
+              {saved && (
+                <div className="proof-form">
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={!!consent[cloud.id]}
+                      onChange={(e) => setConsent({ ...consent, [cloud.id]: e.target.checked })}
+                    />
+                    Create one temporary sandbox using my {cloud.name} account. I understand that
+                    usage can exceed my free allowance.
+                  </label>
+                  <button
+                    className="primary"
+                    disabled={busy || !consent[cloud.id]}
+                    onClick={() =>
+                      perform(async () => {
+                        await api(`/sandbox/${cloud.id}/proof`, { acknowledgeUsage: true });
+                        setConsent({ ...consent, [cloud.id]: false });
+                        await refresh();
+                      })
+                    }
+                  >
+                    {busy ? 'Checking…' : `Check ${cloud.name}`}
+                  </button>
+                </div>
+              )}
+              <p className="provider-lifetime">{cloud.lifetime}</p>
+            </section>
+          );
+        })}
+      </div>
       <p className="fine">
-        Cloud checks have a 60-second sandbox lifetime and deny outbound network. Modal may retain
-        its app and cached base image; a terminated receipt confirms stopped compute, not
-        account-wide deletion. Allowances checked October 26, 2026; your provider dashboard is
-        authoritative.
+        Allowances checked October 26, 2026; your provider dashboard is authoritative. Provider
+        logos identify integrations and do not imply endorsement. A saved credential is not a
+        verified connection; check results and cleanup status appear below.
       </p>
       <div className="list-label">
         Execution receipts <span>{receipts.length}</span>
       </div>
       {!receipts.length && <p className="empty-row">Your first check will appear here.</p>}
       {receipts.map((receipt) => {
-        const provider =
-          receipt.kind === 'docker-sandbox'
-            ? 'docker'
-            : receipt.kind === 'modal-sandbox-proof'
-              ? 'modal'
-              : 'vercel';
+        const cloud = clouds.find((c) => receipt.kind === `${c.id}-sandbox-proof`);
+        const provider = receipt.kind === 'docker-sandbox' ? 'docker' : cloud?.id;
         return (
           <div className="receipt" key={receipt.id}>
             <div>
               <Check size={16} />
               <strong>
-                {provider === 'docker' ? 'Local Docker' : provider === 'modal' ? 'Modal' : 'Vercel'}{' '}
-                ·{' '}
+                {provider === 'docker' ? 'Local Docker' : (cloud?.name ?? 'Sandbox')} ·{' '}
                 {receipt.status === 'passed'
                   ? 'Completed'
                   : receipt.status === 'pending'
@@ -269,7 +294,7 @@ export function Environments({
             </p>
             {receipt.message && <p>{receipt.message}</p>}
             {receipt.reconcileMessage && <p className="error">{receipt.reconcileMessage}</p>}
-            {['unknown', 'stopped'].includes(receipt.cleanup) && (
+            {provider && ['unknown', 'stopped'].includes(receipt.cleanup) && (
               <button
                 disabled={busy}
                 onClick={() =>
@@ -290,16 +315,6 @@ export function Environments({
           </div>
         );
       })}
-      <p className="fine">
-        <a href="https://e2b.dev/pricing" target="_blank" rel="noreferrer">
-          E2B
-        </a>{' '}
-        offers $100 one-time trial credit;{' '}
-        <a href="https://www.daytona.io/pricing" target="_blank" rel="noreferrer">
-          Daytona
-        </a>{' '}
-        offers $200 in free compute. These are trial offers, and their adapters are planned.
-      </p>
     </>
   );
 }

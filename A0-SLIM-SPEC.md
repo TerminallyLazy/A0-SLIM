@@ -1,6 +1,6 @@
 # A0 SLIM — revised build specification
 
-**Revision 0.4 · 2026-10-26 · Local alpha; live acceptance gates remain**
+**Revision 0.5 · 2026-10-26 · Local alpha; live acceptance gates remain**
 
 Owner direction: a local-first app, public GitHub repository, flexible model and sandbox connections, useful access to the Agent Zero Plugin Hub, and a polished, minimal, customizable interface. The [preliminary spec](docs/original/A0-SLIM-SPEC.md) is preserved unchanged. The user approved the direction on 2026-10-26. This specification describes the target product; delivered behavior and open gates are recorded in [P0 verification](docs/verification/P0.md) and [P1 verification](docs/verification/P1.md).
 
@@ -108,18 +108,19 @@ Model selection in a new draft stays in the draft until first Send. Saving a pre
 
 The alpha offers **No code execution** or **Local Docker** for new chats, plus synthetic-only **Cloud sandbox** connection checks. The target also includes explicitly opted-in **Trusted local process** execution. Read-only chat/research remains usable without a sandbox account. A configured sandbox is the recommended environment for arbitrary code. Trusted local mode clearly states that commands have the host user's OS permissions; a working-directory check is not isolation.
 
-The “Add environment” flow is: choose service → enter connection details → test connection → inspect supported capabilities → select region/template/network policy and limits → save → select per project. Following the owner’s free-option request, built-in work starts with local Docker, Vercel Sandbox and Modal. E2B and Daytona remain planned. Users can add a compatible service by URL/API key through the versioned Slim Runner protocol; an arbitrary vendor API still requires an adapter. Advanced users can install a reviewed adapter package. No editing application source is needed for an existing adapter.
+The “Add environment” flow is: choose service → enter connection details → test connection → inspect supported capabilities → select region/template/network policy and limits → save → select per project. Following the owner’s free-option request, the alpha includes local Docker execution plus synthetic check adapters for Vercel Sandbox, Modal, E2B and Daytona. Each cloud card provides official logos, signup/sign-in/dashboard links and guided credential setup. Provider website authentication is separate from the encrypted application credential. The target design allows users to add a compatible service by URL/API key through the versioned Slim Runner protocol; an arbitrary vendor API still requires an adapter. Advanced users can install a reviewed adapter package. No editing application source is needed for an existing adapter.
 
 The alpha's local Docker runner pins its Node image by digest, permits only a local Unix-socket engine, and creates one disposable container per call. It uses no network, host mounts or credentials; drops capabilities; runs non-root; limits CPU, memory, process count, output and execution time; and verifies removal. Unknown cleanup blocks new work until exact-resource reconciliation. The project default is copied into each new chat and displayed as its effective environment.
 
-Cloud check adapters persist identity and scope before creation, keep project data local, and enforce a 60-second sandbox TTL. Vercel reconciles stop/deletion; Modal reconciles termination. A Modal app/base-image cache can remain after stopped compute. A timed-out creation stays unknown even if the SDK later completes it; recovery uses the original name and ownership tags. Cloud agent execution and the general Runner protocol below remain target work.
+Cloud check adapters persist identity and scope before creation, keep project data local, and enforce a 60-second sandbox TTL. Vercel reconciles stop/deletion; Modal reconciles termination; E2B and Daytona verify deletion by resource ID. E2B uses a kill timeout with auto-resume disabled; Daytona uses a one-minute wall-clock TTL and automatic deletion. A Modal app/base-image cache can remain after stopped compute. A timed-out creation stays unknown even if the SDK later completes it; recovery uses the original name and ownership tags. Cloud agent execution and the general Runner protocol below remain target work.
 
 | Option | Free-use model, checked 2026-10-26 | Alpha capability |
 | --- | --- | --- |
 | Local Docker | No cloud compute fee; local engine/resources required | Agent Node.js execution, real local checks passed |
 | Vercel Hobby | 5 CPU hours, 420 GB-hours, 5,000 creations monthly; quota pauses | Configurable synthetic check; live account pending |
 | Modal Starter | $30 monthly compute credit; additional usage may be billed | Configurable synthetic check; live account pending |
-| E2B / Daytona | One-time or introductory credits; see current pricing | Planned |
+| E2B Hobby | $100 one-time usage credit; no card required to start | Configurable synthetic check; live account pending |
+| Daytona | $200 introductory compute; usage pricing afterward | Configurable synthetic check; US region; live account pending |
 
 ```typescript
 // Proposed Slim contract, not an existing vendor API.
@@ -281,7 +282,7 @@ Acceptance: one end-to-end task generates an artifact; the UI reconnects without
 
 ### P2 — extensibility and memory beta
 
-Deliver SQLite memory with lexical and optional local embeddings, model download management, bounded subordinates, MCP/skills, compatibility-aware Plugin Hub, and E2B as the second execution backend. Prototype the Agent Zero bridge and direct Anthropic adapter behind documented capability gates.
+Deliver SQLite memory with lexical and optional local embeddings, model download management, bounded subordinates, MCP/skills, compatibility-aware Plugin Hub, and validated cloud agent execution on the existing sandbox adapters. Prototype the Agent Zero bridge and direct Anthropic adapter behind documented capability gates.
 
 Acceptance: the same execution conformance suite passes for two services; reindexing never mixes vector spaces; a plugin can be disabled/rolled back without orphaned jobs; unknown Python plugins are never installed as native Node extensions. Prove one real compatible extension and one deliberately incompatible entry. Browser embeddings are experimental until eviction/offline tests pass.
 

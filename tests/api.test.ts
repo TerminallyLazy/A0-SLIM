@@ -64,6 +64,46 @@ test(
       assert.match(String(paired.headers['set-cookie']), /HttpOnly/);
       assert.match(String(paired.headers['set-cookie']), /SameSite=Strict/);
       assert.equal((await call('POST', '/pair', { code: 'test-pairing' })).statusCode, 401);
+      for (const provider of ['e2b', 'daytona']) {
+        assert.equal(
+          (
+            await call(
+              'POST',
+              `/sandbox/${provider}`,
+              { apiKey: 'sandbox-fixture-secret' },
+              { origin: 'https://evil.test' },
+            )
+          ).statusCode,
+          403,
+        );
+        assert.equal(
+          (
+            await call('POST', `/sandbox/${provider}`, {
+              apiKey: 'sandbox-fixture-secret',
+              endpoint: 'https://evil.test',
+            })
+          ).statusCode,
+          400,
+        );
+        assert.equal(
+          (await call('POST', `/sandbox/${provider}`, { apiKey: 'sandbox-fixture-secret' }))
+            .statusCode,
+          200,
+        );
+        assert.equal(
+          (await call('POST', `/sandbox/${provider}/proof`, { acknowledgeUsage: false }))
+            .statusCode,
+          400,
+        );
+        const configured = await call('GET', '/state');
+        assert.equal(configured.json().cloudConfigured[provider], true);
+        assert.ok(!configured.body.includes('sandbox-fixture-secret'));
+        assert.ok(
+          !JSON.stringify(store.db.prepare('SELECT * FROM vault').all()).includes(
+            'sandbox-fixture-secret',
+          ),
+        );
+      }
       assert.equal(
         (await call('POST', '/projects', { name: 'private', root: dir })).statusCode,
         403,

@@ -14,6 +14,9 @@ import { ChatGPTAccounts } from '../providers/chatgpt.js';
 import { Coordinator } from '../runtime/coordinator.js';
 import { SandboxProof } from '../execution/proof.js';
 import { ModalProof, modalCredentials } from '../execution/modal.js';
+import { CloudCheck, cloudKeyCredentials } from '../execution/cloud-check.js';
+import { createE2BDriver } from '../execution/e2b.js';
+import { createDaytonaDriver } from '../execution/daytona.js';
 import { listWorkspace, readWorkspaceFile } from '../tools/files.js';
 
 const idParams = z.object({ id: z.string().uuid() });
@@ -36,6 +39,10 @@ export async function createApp(options: {
   const runtime = new Coordinator(store, vault, accounts);
   const sandbox = new SandboxProof(store, vault);
   const modal = new ModalProof(store, vault);
+  const additionalClouds = {
+    e2b: new CloudCheck('e2b', store, vault, createE2BDriver),
+    daytona: new CloudCheck('daytona', store, vault, createDaytonaDriver),
+  };
   const readers = new Set<ReadableStreamDefaultReader<Uint8Array>>();
   const session = randomBytes(32).toString('hex');
   let pairing: string | null = options.pairingCode,
@@ -110,6 +117,12 @@ export async function createApp(options: {
     artifacts: store.operations().map(({ before, content, ...item }) => item),
     sandboxConfigured: store.meta('sandbox:vercel') === 'configured',
     modalConfigured: store.meta('sandbox:modal') === 'configured',
+    cloudConfigured: Object.fromEntries(
+      ['vercel', 'modal', 'e2b', 'daytona'].map((id) => [
+        id,
+        store.meta(`sandbox:${id}`) === 'configured',
+      ]),
+    ),
   }));
   app.post('/api/v1/projects', async (request) => {
     const input = z
@@ -363,6 +376,23 @@ export async function createApp(options: {
     store.setMeta('sandbox:vercel', 'configured');
     return { ok: true };
   });
+  for (const [provider, proof] of Object.entries(additionalClouds)) {
+    app.post(`/api/v1/sandbox/${provider}`, async (request) => {
+      await vault.set(`sandbox:${provider}`, cloudKeyCredentials.parse(request.body));
+      store.setMeta(`sandbox:${provider}`, 'configured');
+      return { ok: true };
+    });
+    app.post(`/api/v1/sandbox/${provider}/proof`, async (request) => {
+      z.object({ acknowledgeUsage: z.literal(true) })
+        .strict()
+        .parse(request.body);
+      return proof.run();
+    });
+    app.post(`/api/v1/sandbox/${provider}/receipts/:id/reconcile`, async (request) => {
+      z.object({}).strict().parse(request.body);
+      return proof.reconcile(idParams.parse(request.params).id);
+    });
+  }
   app.get('/api/v1/sandbox/docker', async () => runtime.docker.availability());
   app.post('/api/v1/sandbox/docker/proof', async (request) => {
     z.object({}).strict().parse(request.body);

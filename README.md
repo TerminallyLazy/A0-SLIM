@@ -27,7 +27,7 @@ Closing the tab detaches the viewer; **Stop** cancels the current model turn. St
 - Dedicated Sign in with ChatGPT registration, account model discovery, encrypted tokens, serialized refresh and disconnect. The text/function bridge preserves completed provider output, encrypted reasoning and message phase in an encrypted local journal. It waits for terminal success before releasing tool calls.
 - Scoped file reads and **reviewed text artifacts**. `write_file` stages an immutable preview; only the paired browser can approve its exact content and destination. Conflicts and interrupted writes block further project changes until reconciled.
 - Optional **local Docker** execution: disposable Node.js containers, no network, no host-folder mounts or model credentials, non-root user, read-only base image, 128 MiB memory and five seconds per call. Output can become a reviewed artifact. Core chat does not require Docker.
-- **Vercel Sandbox and Modal** connection forms and bounded synthetic checks, with explicit usage acknowledgment and recovery receipts. Cloud agent execution remains off pending live validation.
+- **Vercel Sandbox, Modal, E2B and Daytona** connection forms and bounded synthetic checks, with official logos, signup/sign-in links, guided credential setup, explicit usage acknowledgment and recovery receipts. Cloud agent execution remains off pending live validation.
 - Graphite/Paper themes, three accents, two densities, responsive file/artifact inspector, and original Agent Zero symbols.
 
 ### Free sandbox choices
@@ -36,7 +36,9 @@ In **Environments**, local Docker uses your computer without cloud compute fees.
 
 [Vercel Hobby](https://vercel.com/docs/sandbox/pricing) includes 5 active CPU hours, 420 GB-hours of memory and 5,000 sandbox creations monthly; new creation pauses at its quota. [Modal Starter](https://modal.com/pricing) includes $30 monthly compute credit shared across its compute products; usage beyond the allowance may be billed. The app cannot determine your remaining allowance. Check your provider dashboard before acknowledging a cloud check. Pricing was checked October 26, 2026.
 
-[E2B](https://e2b.dev/pricing) and [Daytona](https://www.daytona.io/pricing) offer trial credits; their adapters remain planned. These are not advertised as unlimited or recurring free compute.
+[E2B](https://e2b.dev/pricing) offers $100 one-time credits (no credit card required to start); [Daytona](https://www.daytona.io/pricing) advertises $200 introductory compute. Both now have synthetic check adapters. These are not unlimited or recurring free compute.
+
+Each provider card has **Create account**, **Sign in**, **Open dashboard** and guided credential links. Authenticate on the provider’s site, then save its API key/token in A0 SLIM; no CLI setup is needed. Credentials remain encrypted in the local vault. A browser sign-in does not automatically grant this app access. **Save** makes no cloud request; **Check** requires an explicit usage checkbox. E2B kills its sandbox after 60 seconds; Daytona uses a one-minute lifetime, auto-stop and auto-delete. Cleanup confirms deletion by ID. Unknown creation outcomes block further checks; recovery never creates a replacement. Daytona checks use the US region and the stable SDK, not its v2 alpha.
 
 ### Current boundaries
 

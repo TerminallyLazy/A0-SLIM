@@ -42,3 +42,12 @@ The libfx stream initialization/cancel race receives a small checked installatio
 - Show current free allowances and differentiate trials. No account plan, unused credit or zero-dollar cloud cost is inferred from a catalog entry.
 
 [P1 verification](verification/P1.md) is the current delivery record. Cloud checks, broad provider/model coverage, compaction and distribution acceptance are not closed by this checkpoint.
+
+
+## Additional sandbox connections — 2026-10-26
+
+- Add official `e2b@2.59.0` and `@daytonaio/sdk@0.226.1` adapters for synthetic create/execute/cleanup checks, with a shared durable receipt coordinator. Agent execution remains a separate acceptance gate.
+- E2B uses explicit API credentials, the official endpoint, zero API retries, denied outbound/public traffic, no mounts, a 60-second kill timeout and no auto-resume. Recover by exact receipt metadata, without connecting/resuming. An empty result after lost creation remains unknown.
+- Daytona uses explicit API credentials and endpoint, US region, private preview, denied outbound network, no volumes/secrets, one-minute lifetime and automatic deletion. SDK state polling avoids an unnecessary persistent WebSocket. Version 0.226.1 reads tracing flags from the environment even when disabled in options; synchronous construction forces these two flags off and restores their prior values immediately.
+- Keep signup/sign-in on official provider websites. A0 SLIM stores API credentials locally; it does not claim delegated OAuth login or read provider CLI credential files for these new integrations. Label monthly allowances separately from introductory credits.
+- Vendor unchanged official brand artwork with source URLs and SHA-256 hashes; use local assets so rendering provider cards makes no third-party image request.

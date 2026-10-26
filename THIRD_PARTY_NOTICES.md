@@ -19,3 +19,12 @@ Other dependency versions and resolved integrity values are pinned in `package-l
 ## Modal
 
 The optional cloud check uses `modal@0.11.1`, Apache-2.0, from https://github.com/modal-labs/modal-client. The SDK is installed through npm and is not vendored. Preserve its applicable notices in any distributed application.
+
+
+## E2B and Daytona
+
+The synthetic check adapters use `e2b@2.59.0` (Apache-2.0, https://github.com/e2b-dev/E2B) and `@daytonaio/sdk@0.226.1` (Apache-2.0, https://github.com/daytonaio/daytona). These dependencies are installed through npm, not vendored. Retain their applicable notices when distributing the app.
+
+## Sandbox provider artwork
+
+Unchanged official SVG artwork is retained in `ui/public/providers/`. Exact source URLs, retrieval date and SHA-256 hashes are in `sources.json` beside the assets. Docker’s ocean-blue symbol comes from its [official logo kit](https://www.docker.com/company/newsroom/media-resources/); Vercel’s black symbol from [Geist brand assets](https://vercel.com/geist/brands); Modal’s green symbol from the download link on [its official homepage](https://modal.com/); E2B’s medium black symbol from [its brand library](https://changelog.e2b.dev/brand); Daytona’s wordmark from the navigation SVG in [its official documentation](https://www.daytona.io/docs/en/). Artwork proportions and colors are preserved on a light background. The marks identify optional integrations; their owners retain trademark rights, and no endorsement is implied.

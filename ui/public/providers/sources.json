@@ -1,0 +1,27 @@
+{
+  "e2b": {
+    "source": "https://changelog.e2b.dev/brand/e2b-symbol-black-m.svg",
+    "sha256": "483e112208342493c5d5ecb9ef4673a2e4ec69a8fb456a819a4424cd866a1d84",
+    "retrieved": "2026-10-26"
+  },
+  "modal": {
+    "source": "https://modal.com/ (Download logo as .svg)",
+    "sha256": "eacfb53ddf1d7f7e871a2e23d8eadba6a4872622b1bfec23d6ec41c322e66549",
+    "retrieved": "2026-10-26"
+  },
+  "daytona": {
+    "source": "https://www.daytona.io/docs/en/ (navigation wordmark)",
+    "sha256": "25f491a8f5e44df2ae9330ea5a3bb006e271ea9612cf43307ce91e02bb22276a",
+    "retrieved": "2026-10-26"
+  },
+  "docker": {
+    "source": "https://www.docker.com/static/Docker-Logos-1.zip (docker-logos/SVG/docker-mark-ocean-blue.svg)",
+    "sha256": "0fd7f9164de13672bb1708ac7cc401ed439eb938ffa7358d5cb278e107904687",
+    "retrieved": "2026-10-26"
+  },
+  "vercel": {
+    "source": "https://vercel.com/geist/brands/assets/vercel-symbol-black.svg",
+    "sha256": "1c1507a4a4742f992a689fcb6b61ac8c48c62e1110509b68121356154e67ed91",
+    "retrieved": "2026-10-26"
+  }
+}

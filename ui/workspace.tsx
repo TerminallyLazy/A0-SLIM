@@ -33,6 +33,7 @@ type State = {
   artifacts: ArtifactSummary[];
   sandboxConfigured: boolean;
   modalConfigured: boolean;
+  cloudConfigured: Record<string, boolean>;
 };
 type Line = { cursor: number; event: Record<string, any> };
 type View = 'chat' | 'connections' | 'environments' | 'appearance' | 'roadmap';
@@ -44,6 +45,7 @@ const empty: State = {
   artifacts: [],
   sandboxConfigured: false,
   modalConfigured: false,
+  cloudConfigured: {},
 };
 export function Logo({ small = false }: { small?: boolean }) {
   return (
@@ -666,8 +668,7 @@ export function App() {
             )}
             {view === 'environments' && (
               <Environments
-                configured={state.sandboxConfigured}
-                modalConfigured={state.modalConfigured}
+                configured={state.cloudConfigured}
                 project={project}
                 receipts={state.receipts}
                 refresh={refresh}
@@ -757,7 +758,7 @@ export function App() {
                   ],
                   [
                     'More environments',
-                    'E2B, Daytona, and a versioned runner protocol for additional services.',
+                    'Cloud agent execution and a versioned runner protocol for additional services.',
                   ],
                 ].map(([name, detail]) => (
                   <div className="roadmap-row" key={name}>

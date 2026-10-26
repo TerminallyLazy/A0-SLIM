@@ -79,3 +79,20 @@ The owner subsequently authorized implementation and connected ChatGPT in the ap
 | [E2B pricing](https://e2b.dev/pricing), [Daytona pricing](https://www.daytona.io/pricing) | $100 one-time E2B credit and $200 introductory Daytona compute are trial offers; no recurring free allowance is asserted for these adapters. |
 
 Native libfx restoration inserts a file-evidence note that was absent from the original provider requests. The bridge preserves that exact, file-call-backed metadata as supplemental user context while replaying the completed provider history. This is a locally observed behavior with a native regression test, not a documented broad guarantee for future libfx versions. The native package remains pinned.
+
+
+## Additional provider audit — 2026-10-26
+
+Primary documentation and installed SDK implementation were checked together:
+
+- [E2B lifecycle](https://docs.e2b.dev/sandbox), [quickstart/API keys](https://docs.e2b.dev/quickstart), and [pricing](https://e2b.dev/pricing): `e2b@2.59.0` exposes kill-on-timeout, no auto-resume, metadata filtering across running/paused sandboxes, and explicit network controls. API-key setup links to `https://console.e2b.dev/?tab=keys`. The deprecated sandbox URL override remains independent of the API endpoint; the app rejects it before requests.
+- [Daytona stable TypeScript API](https://www.daytona.io/docs/en/typescript-sdk/daytona/), [sandbox lifecycle](https://www.daytona.io/docs/en/typescript-sdk/sandbox/), [API key scopes](https://www.daytona.io/docs/en/api-keys/) and [pricing](https://www.daytona.io/pricing): pin `@daytonaio/sdk@0.226.1`, separate from v2 alpha; request `write:sandboxes` and `delete:sandboxes`, a wall-clock TTL and immediate deletion after stop. Source inspection verified endpoint/auth precedence, request deadlines, create retry restrictions and the tracing-flag fallback described in the decision log.
+- Official logo provenance is recorded in [the notices](../../THIRD_PARTY_NOTICES.md) and `ui/public/providers/sources.json`. Assets are served locally with no external image fetch. Official account, dashboard, credentials, help and pricing links live in `ui/sandbox-providers.ts`.
+
+These are source and synthetic contract checks. They do not prove account eligibility, an available credit balance or live cloud cleanup.
+
+### Owner-provided Vercel quickstarts
+
+The supplied TypeScript and Python quickstarts were reviewed against the current [quickstart](https://vercel.com/docs/sandbox/quickstart), [authentication guide](https://vercel.com/docs/sandbox/concepts/authentication), [JS SDK](https://vercel.com/docs/sandbox/sdk-reference), and [Python SDK](https://vercel.com/docs/sandbox/python-sdk-reference). Their account/project/resource identifiers are deliberately omitted from public documentation.
+
+The examples demonstrate CLI OIDC authentication with a 12-hour local token and persistent named sandbox reuse. The local alpha uses the documented explicit access-token/team/project option. Its synthetic check intentionally creates a unique, nonpersistent, tagged sandbox with a 60-second timeout and deny-all networking, then stops it in `finally`; this avoids automatic snapshot storage for a one-off check. The TypeScript SDK already executes the remote Node workload, so a Python SDK installation is not required by this application. An integrated CLI OIDC onboarding flow and persistent cloud agent sessions remain future capabilities. The supplied quickstart was reviewed, not run; no output or live acceptance is claimed from it.
