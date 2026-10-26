@@ -10,6 +10,7 @@ import type { FxToolContext } from 'libfx';
 import { createApp } from '../src/server/app.js';
 import { delegationModel } from './helpers/delegation-model.js';
 import { Delegations } from '../src/runtime/delegation.js';
+import { AppError } from '../src/domain.js';
 
 async function setup(mode: Parameters<typeof delegationModel>[0] = 'normal') {
   const dir = await mkdtemp(join(tmpdir(), 'slim-delegation-')),
@@ -65,9 +66,10 @@ async function setup(mode: Parameters<typeof delegationModel>[0] = 'normal') {
     },
   };
 }
-async function until(check: () => boolean) {
-  for (let i = 0; i < 600 && !check(); i++) await new Promise((r) => setTimeout(r, 10));
-  assert.ok(check(), 'condition completed');
+async function until(check: () => boolean, phase = 'condition', timeoutMs = 6000) {
+  const deadline = performance.now() + timeoutMs;
+  while (!check() && performance.now() < deadline) await new Promise((r) => setTimeout(r, 10));
+  assert.ok(check(), `${phase} completed within ${timeoutMs} ms`);
 }
 test(
   'native parent delegates to isolated read-only children, receives Markdown, reuses a child and reopens without duplicate work',
@@ -131,7 +133,7 @@ test(
       await f.app.runtime.prompt(f.chatId, 'Review the project.', randomUUID());
       await until(() => f.model.requests.length >= 2);
       await f.app.runtime.cancel(f.chatId);
-      await until(() =>
+      assert.ok(
         f.app.runtime.delegations.list().every((r) => !['running', 'reserved'].includes(r.status)),
       );
       assert.equal(f.app.runtime.delegations.list()[0]!.status, 'cancelled');
@@ -147,9 +149,55 @@ test(
 );
 
 test(
-  'SIGKILL preserves the child mapping; restart does not run it and continuation uses the same child',
-  { timeout: 20000 },
+  'Stop waits for a child awaiting session creation and prevents its first model request',
+  { timeout: 15000 },
   async () => {
+    const f = await setup();
+    let entered!: () => void, release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const session = f.app.runtime.session.bind(f.app.runtime);
+    f.app.runtime.session = async (id: string) => {
+      if (f.app.store.chat(id).parentChatId) {
+        entered();
+        await gate;
+      }
+      return session(id);
+    };
+    try {
+      await f.app.runtime.prompt(f.chatId, 'Review the project.', randomUUID());
+      await waiting;
+      let stopped = false;
+      const stop = f.app.runtime.cancel(f.chatId).then(() => {
+        stopped = true;
+      });
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.equal(stopped, false, 'Stop remains pending while child submission is unresolved');
+      release();
+      await stop;
+      assert.equal(
+        f.model.requests.filter((r) => !r.tools.some((t: any) => t.function.name === 'write_file'))
+          .length,
+        0,
+        'no child model request was sent',
+      );
+      assert.ok(f.app.store.chats().every((c) => c.status !== 'running'));
+      assert.equal(f.app.runtime.delegations.list()[0]!.status, 'cancelled');
+    } finally {
+      release();
+      await f.close();
+    }
+  },
+);
+
+test(
+  'SIGKILL preserves the child mapping; restart does not run it and continuation uses the same child',
+  { timeout: 90000 },
+  async (t) => {
     const f = await setup('slow'),
       messageId = randomUUID();
     await f.app.app.close();
@@ -159,7 +207,8 @@ test(
       { execArgv: ['--import', 'tsx'], stdio: ['ignore', 'ignore', 'pipe', 'ipc'] },
     );
     try {
-      await until(() => f.model.requests.length >= 2);
+      await until(() => f.model.requests.length >= 2, 'child provider request');
+      t.diagnostic('Child provider request observed; killing its service process.');
       const exited = new Promise<void>((resolve) => worker.once('exit', () => resolve()));
       worker.kill('SIGKILL');
       await exited;
@@ -169,9 +218,20 @@ test(
       assert.equal(record.status, 'interrupted');
       assert.equal(f.app.store.chat(record.childChatId).status, 'interrupted');
       assert.equal(f.model.requests.length, count, 'reopening makes no model request');
+      t.diagnostic('Service reopened without inference; replaying original parent message.');
       f.model.setMode('normal');
       await f.app.runtime.prompt(f.chatId, 'Review the project.', messageId);
-      await until(() => f.app.store.chat(f.chatId).status !== 'running');
+      // libfx 0.0.14 deliberately waits up to 30 seconds when a crash lands
+      // between its durable end record and the viewer's terminal event.
+      // Keep the no-duplicate-work assertions for both completed and unknown ends.
+      await until(
+        () => f.app.store.chat(f.chatId).status !== 'running',
+        'replayed parent outcome',
+        35000,
+      );
+      t.diagnostic(
+        `Parent replay settled as ${f.app.store.chat(f.chatId).status}; continuing saved child.`,
+      );
       assert.equal(f.app.store.chats().filter((c) => c.parentChatId).length, 1);
       assert.equal(
         f.model.requests.filter((r) => !r.tools.some((t: any) => t.function.name === 'write_file'))
@@ -180,11 +240,28 @@ test(
         'same parent turn cannot rerun the interrupted child',
       );
       await f.app.runtime.prompt(f.chatId, `continue:${record.childChatId}`, randomUUID());
-      await until(() => f.app.store.chat(f.chatId).status !== 'running');
+      await until(
+        () => f.app.store.chat(f.chatId).status !== 'running',
+        'explicit child continuation',
+        45000,
+      );
       const records = f.app.runtime.delegations.list();
       assert.equal(records[0]!.childChatId, record.childChatId);
       assert.equal(records[0]!.status, 'completed');
       assert.equal(records.length, 2);
+      const childRequests = f.model.requests.filter(
+        (r) => !r.tools.some((t: any) => t.function.name === 'write_file'),
+      );
+      assert.equal(
+        childRequests.length,
+        3,
+        'only the original request and the explicit continuation round trip reach the provider',
+      );
+      assert.equal(
+        childRequests[1]!.messages.findLast((m: any) => m.role === 'user')?.content,
+        records[0]!.assignment,
+        'the next provider request belongs to the continuation, not the abandoned turn',
+      );
     } finally {
       worker.kill('SIGKILL');
       await f.close();
@@ -248,6 +325,15 @@ test('delegation enforces capability inheritance, direct-child ownership, depth,
       stopReason: 'end_turn',
       text: 'Reviewed',
     }));
+    store.saveChat({ ...store.chat(child.childChatId), sessionId: 'finished-child' });
+    await assert.rejects(
+      immediate.call(
+        f.projectId,
+        { message: 'Start a grandchild' },
+        ctx(child.messageId, randomUUID(), 'finished-child'),
+      ),
+      /No active parent assignment/,
+    );
     for (let i = 0; i < 4; i++)
       await immediate.call(f.projectId, { message: 'Review' }, ctx(first));
     await assert.rejects(
@@ -301,6 +387,47 @@ test('delegation enforces capability inheritance, direct-child ownership, depth,
     await f.close();
   }
 });
+test('unconfirmed child cleanup preserves the recovery hold even when Stop was requested', async () => {
+  const f = await setup();
+  try {
+    const { store } = f.app,
+      ext = f.app.runtime.extensions;
+    store.saveChat({ ...store.chat(f.chatId), sessionId: 'parent-session' });
+    const abort = new AbortController();
+    const delegates = new Delegations(store, ext, async () => {
+      abort.abort();
+      throw new AppError(409, 'delegation_recovery_unknown', 'No terminal evidence.');
+    });
+    const context = (messageId: string, signal: AbortSignal) => {
+      ext.snapshot(f.projectId, f.chatId, messageId, 'Review');
+      store.setMeta(`turn-deadline:${f.chatId}:${messageId}`, String(Date.now() + 60_000));
+      return {
+        sessionId: 'parent-session',
+        context: { messageId },
+        executionId: randomUUID(),
+        signal,
+      } as FxToolContext;
+    };
+    const result = await delegates.call(
+      f.projectId,
+      { message: 'Review' },
+      context(randomUUID(), abort.signal),
+    );
+    assert.equal(result.status, 'interrupted');
+    assert.deepEqual(
+      await delegates.call(
+        f.projectId,
+        { message: 'Replacement review' },
+        context(randomUUID(), new AbortController().signal),
+      ),
+      result,
+    );
+    assert.equal(delegates.list().length, 1, 'a new call cannot replace the unresolved child');
+  } finally {
+    await f.close();
+  }
+});
+
 test(
   'subordinate model loops stop at eight requests and consume the shared connection budget',
   { timeout: 15000 },

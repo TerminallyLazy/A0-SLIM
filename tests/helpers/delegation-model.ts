@@ -27,7 +27,9 @@ export async function delegationModel(mode: 'normal' | 'nested' | 'slow' | 'loop
         const name = delegate ? 'call_subordinate' : 'read_file';
         const args = delegate
           ? {
-              message: 'Inspect note.txt and report the result.',
+              message: context
+                ? 'Continue the earlier review of note.txt and report the result.'
+                : 'Inspect note.txt and report the result.',
               name: 'Review project note',
               ...(context ? { context_id: context } : {}),
             }

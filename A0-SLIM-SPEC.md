@@ -170,6 +170,8 @@ Return the final answer through the engine's terminal event, not a fictitious to
 
 Subordinates inherit a subset of tools, the remaining parent budget, the same project boundary and cancellation tree. The preview allows maximum depth 2, two active assignments and six calls per root turn, eight model requests per assignment, two minutes or the parent’s remaining time, and a 16,000-character result. Requests share the persisted project/model/connection budget; these limits are not a guaranteed token or dollar ceiling. Store parent-call-to-child-session mapping before starting work. After interruption, reconnect to that child rather than spawning another. Never pass arbitrary entire parent history or credentials by default.
 
+Stop must abort pending child submissions as well as active turns and wait for descendants before reporting completion. Explicit continuation of an interrupted child first closes its old turn with model transport blocked. Confirm the exact old message's terminal event within the remaining assignment deadline and a 40-second recovery allowance, accommodating libfx 0.0.14's 30-second local stale-lock interval. Missing terminal evidence preserves the interrupted receipt and blocks replacement children.
+
 ## 7. Local memory and Hugging Face
 
 Memory is optional and inspectable. Save deliberate user requests and useful, attributable task results; do not silently turn every conversation into permanent memory. Project-specific storage is the default, with explicitly shared notes available across chosen projects. Keep `main`, `fragments` and `solutions` as familiar area labels, without promising byte compatibility with Agent Zero FAISS indexes.

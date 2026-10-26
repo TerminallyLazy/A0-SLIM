@@ -14,6 +14,7 @@ import { fileTools } from '../tools/files.js';
 import { DockerSandbox } from '../execution/docker.js';
 import { Extensions } from '../extensions/runtime.js';
 import { Delegations, delegationLimits, type Delegation } from './delegation.js';
+import { stopInterruptedTurn } from './recovery.js';
 
 export class Coordinator {
   private agents = new Map<string, FxAgent>();
@@ -21,6 +22,9 @@ export class Coordinator {
   private sessions = new Map<string, FxSession>();
   private creatingSessions = new Map<string, Promise<FxSession>>();
   private submitting = new Set<string>();
+  private starting = new Map<string, Promise<void>>();
+  private stopping = new Map<string, Promise<void>>();
+  private recoveringChildren = new Set<string>();
   private controllers = new Map<string, AbortController>();
   private active = new Map<string, { cancel: () => Promise<void>; done: Promise<void> }>();
   private readonly durability;
@@ -180,6 +184,12 @@ export class Coordinator {
       options.fetch = async (url, init) => {
         if (init.method?.toUpperCase() === 'POST') {
           try {
+            if (this.recoveringChildren.has(chat.id))
+              throw new AppError(
+                409,
+                'delegation_recovery',
+                'The previous subordinate turn is being closed.',
+              );
             budget.consume();
             if (chat.parentChatId) {
               const assignment = this.delegations
@@ -259,9 +269,16 @@ export class Coordinator {
     child?: Delegation,
     parentSignal?: AbortSignal,
   ) {
-    if (this.submitting.has(id) || this.active.has(id))
+    if (this.submitting.has(id) || this.active.has(id) || this.stopping.has(id))
       throw new AppError(409, 'chat_busy', 'Wait for this turn to finish, or stop it first.');
     this.submitting.add(id);
+    let started!: () => void;
+    this.starting.set(
+      id,
+      new Promise<void>((resolve) => {
+        started = resolve;
+      }),
+    );
     const controller = new AbortController();
     this.controllers.set(id, controller);
     const signal = parentSignal
@@ -272,9 +289,36 @@ export class Coordinator {
       if (!chat.model)
         throw new AppError(400, 'model_missing', 'Select a model for this account first.');
       const restored = await this.session(id);
+      signal.throwIfAborted();
       // Close an abandoned child turn before queuing an explicit continuation.
-      // Opening a session alone must never resume its model work.
-      if (child && chat.status === 'interrupted') await restored.cancel();
+      // cancel() acknowledges its queue message, not the end of the old turn.
+      // Follow that cancellation to a terminal event with inference blocked.
+      if (child && chat.status === 'interrupted') {
+        this.recoveringChildren.add(id);
+        const previous = this.delegations
+          .list()
+          .find((r) => r.childChatId === id && r.id !== child.id);
+        const previousMessageId =
+          this.store.meta(`child-current-turn:${id}`) ?? previous?.messageId;
+        if (previousMessageId) this.store.setMeta(`child-current-turn:${id}`, previousMessageId);
+        const stopped =
+          previousMessageId &&
+          (await stopInterruptedTurn(
+            restored,
+            previousMessageId,
+            signal,
+            // libfx's local in-band fence keeps a killed writer's lock for
+            // 30 seconds, with acquisition retries for up to 35 seconds.
+            Math.min(40_000, child.deadline - Date.now()),
+          ));
+        if (!stopped)
+          throw new AppError(
+            409,
+            'delegation_recovery_unknown',
+            'The previous subordinate turn could not be confirmed stopped. Review its activity before continuing.',
+          );
+        this.recoveringChildren.delete(id);
+      }
       signal.throwIfAborted();
       const current = this.store.chat(id);
       const deadline =
@@ -300,17 +344,25 @@ export class Coordinator {
           : {}),
       });
       const turn = session.prompt(input, { messageId, signal });
+      if (child) this.store.setMeta(`child-current-turn:${id}`, messageId);
       const accepted = await turn.accepted;
       this.store.saveChat({ ...this.store.chat(id), status: 'running' });
       this.track(id, session, turn.result, deadline);
       return { accepted, turn };
     } finally {
       this.submitting.delete(id);
+      this.starting.delete(id);
+      started();
       if (!this.active.has(id) && this.controllers.get(id) === controller)
         this.controllers.delete(id);
     }
   }
   private async runChild(record: Delegation, signal: AbortSignal) {
+    if (this.stopping.has(record.parentChatId))
+      throw new DOMException('The parent turn is stopping.', 'AbortError');
+    const parentSignal = this.controllers.get(record.parentChatId)?.signal;
+    if (parentSignal) signal = AbortSignal.any([signal, parentSignal]);
+    signal.throwIfAborted();
     const { turn } = await this.begin(
       record.childChatId,
       record.assignment,
@@ -346,23 +398,20 @@ export class Coordinator {
       },
       Math.max(0, deadline - Date.now()),
     );
+    let status: Chat['status'] = 'interrupted';
     const done = result
       .then((outcome) => {
         if (outcome.stopReason === 'end_turn') {
           const connection = this.store.connection(this.store.chat(id).connectionId);
           this.store.saveConnection({ ...connection, verifiedAt: new Date().toISOString() });
         }
-        this.store.saveChat({
-          ...this.store.chat(id),
-          status: ['unknown', 'error'].includes(outcome.stopReason) ? 'interrupted' : 'idle',
-        });
+        status = ['unknown', 'error'].includes(outcome.stopReason) ? 'interrupted' : 'idle';
       })
-      .catch(() => {
-        this.store.saveChat({ ...this.store.chat(id), status: 'interrupted' });
-      })
+      .catch(() => {})
       .finally(async () => {
         clearTimeout(timeout);
         await this.cancelChildren(id);
+        this.store.saveChat({ ...this.store.chat(id), status });
         if (this.active.get(id)?.done === done) this.active.delete(id);
         this.controllers.delete(id);
       });
@@ -384,24 +433,46 @@ export class Coordinator {
     return this.prompt(id, input, messageId);
   }
   async cancel(id: string) {
-    this.controllers.get(id)?.abort();
-    await this.cancelChildren(id);
-    await (await this.session(id)).cancel();
+    const existing = this.stopping.get(id);
+    if (existing) return existing;
+    this.store.chat(id);
+    const work = (async () => {
+      this.controllers.get(id)?.abort();
+      const children = this.cancelChildren(id);
+      // A prompt may still be obtaining its session or acceptance receipt.
+      // Do not report stopped until that submission and all descendants settle.
+      await this.starting.get(id);
+      const active = this.active.get(id);
+      await active?.cancel();
+      await children;
+      await this.cancelChildren(id);
+      await active?.done;
+    })();
+    this.stopping.set(id, work);
+    try {
+      await work;
+    } finally {
+      if (this.stopping.get(id) === work) this.stopping.delete(id);
+    }
   }
   private async cancelChildren(id: string) {
     const children = this.store.chats().filter((c) => c.parentChatId === id);
     await Promise.allSettled(
       children.map(async (child) => {
-        this.controllers.get(child.id)?.abort();
-        await this.cancelChildren(child.id);
-        await this.active.get(child.id)?.cancel();
+        if (
+          this.controllers.has(child.id) ||
+          this.active.has(child.id) ||
+          this.stopping.has(child.id)
+        )
+          await this.cancel(child.id);
+        else await this.cancelChildren(child.id);
       }),
     );
   }
   async resume(id: string) {
     if (this.store.chat(id).parentChatId)
       throw new AppError(409, 'child_owned', 'Continue subordinate work from its parent chat.');
-    if (this.active.has(id) || this.submitting.has(id))
+    if (this.active.has(id) || this.submitting.has(id) || this.stopping.has(id))
       throw new AppError(409, 'chat_busy', 'This chat is already running.');
     const session = await this.session(id);
     const turn = session.resume();
@@ -415,17 +486,13 @@ export class Coordinator {
   }
   async disconnect(connectionId: string) {
     for (const chat of this.store.chats().filter((chat) => chat.connectionId === connectionId)) {
-      const active = this.active.get(chat.id);
-      if (active) {
-        await active.cancel();
-        await active.done;
-      }
+      await this.cancel(chat.id);
     }
   }
   async close() {
     for (const controller of this.controllers.values()) controller.abort();
-    await Promise.allSettled([...this.active.values()].map((value) => value.cancel()));
-    await Promise.allSettled([...this.active.values()].map((value) => value.done));
+    await Promise.allSettled([...this.starting.values()]);
+    await Promise.allSettled([...this.active.keys()].map((id) => this.cancel(id)));
     await Promise.allSettled([...this.agents.values()].map((agent) => agent.close()));
     await this.extensions.close();
     this.sessions.clear();

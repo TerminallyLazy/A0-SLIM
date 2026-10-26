@@ -124,8 +124,12 @@ export class Delegations {
     const parentRecord = parent.parentChatId
       ? this.list().find((r) => r.childChatId === parent.id && r.messageId === messageId)
       : undefined;
-    if (parent.parentChatId && !parentRecord)
-      throw new AppError(403, 'delegation_scope', 'No parent assignment owns this child turn.');
+    if (parent.parentChatId && parentRecord?.status !== 'running')
+      throw new AppError(
+        403,
+        'delegation_scope',
+        'No active parent assignment owns this child turn.',
+      );
     const rootChatId = parentRecord?.rootChatId ?? parent.id,
       rootMessageId = parentRecord?.rootMessageId ?? messageId;
     const rootDeadline = Number(this.store.meta(`turn-deadline:${rootChatId}:${rootMessageId}`));
@@ -243,10 +247,15 @@ export class Delegations {
         };
         this.save(final);
         return this.result(final);
-      } catch {
+      } catch (error) {
         const final: Delegation = {
           ...record,
-          status: ctx.signal.aborted ? 'cancelled' : 'failed',
+          status:
+            error instanceof AppError && error.code === 'delegation_recovery_unknown'
+              ? 'interrupted'
+              : ctx.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')
+                ? 'cancelled'
+                : 'failed',
           finishedAt: new Date().toISOString(),
         };
         this.save(final);

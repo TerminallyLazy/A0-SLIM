@@ -78,3 +78,10 @@ The libfx stream initialization/cancel race receives a small checked installatio
 - Reuse the Agent Zero `call_subordinate` / `context_id` vocabulary, with durable child ownership and explicit limits. Save intent before starting, preserve interrupted children, and close an abandoned child turn before explicit continuation. Parent cancellation reaches descendants; child results remain evidence for the parent to check.
 - Render assistant Markdown through a React AST with raw HTML disabled and safe URLs. External images remain click-through links. Keep user/tool text literal.
 - Show historical connection verification separately from sandbox activity. Credential changes invalidate verification; a saved credential is never presented as successful connection evidence. The chat header exposes its actual execution selection, including Sandbox off.
+
+## Subordinate stop and crash recovery — 2026-10-26
+
+- Treat native cancellation acknowledgment as queued input, not proof of a completed stop. Abort descendants immediately, track submissions awaiting session creation, and keep Stop pending until tracked work settles. Hold new turns while cancellation is in progress.
+- Before continuing an interrupted child, block its model transport and follow the previous message's exact terminal event. Keep the last submitted child message ID independently of attempted continuation receipts. Unknown cleanup remains interrupted even when the user also requested Stop.
+- Allow up to 40 seconds, bounded by the assignment deadline, for recovery. The pinned local backend uses a 30-second stale in-band write lock and retries acquisition for up to 35 seconds. Do not delete native locks or rewrite its journal to force continuation.
+- Reject new grandchildren from child assignments that are no longer running. Preserve completed duplicate-call receipts and existing runtime identities.
