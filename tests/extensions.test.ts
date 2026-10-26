@@ -517,7 +517,8 @@ test('new native chats execute memory tools and stage MCP without an external ef
   };
   const projectId = randomUUID(),
     connectionId = randomUUID(),
-    chatId = randomUUID();
+    chatId = randomUUID(),
+    memoryMessageId = randomUUID();
   try {
     instance.store.saveProject({ id: projectId, name: 'Synthetic', root });
     instance.store.saveConnection({
@@ -545,7 +546,7 @@ test('new native chats execute memory tools and stage MCP without an external ef
     await instance.runtime.prompt(
       chatId,
       'Remember that the project uses sage green.',
-      randomUUID(),
+      memoryMessageId,
     );
     await idle(chatId);
     assert.equal(instance.runtime.extensions.memory.list(projectId).length, 1);
@@ -584,9 +585,20 @@ test('new native chats execute memory tools and stage MCP without an external ef
     assert.equal(instance.runtime.extensions.mcp.calls(projectId)[0]?.status, 'pending');
     await instance.runtime.extensions.mcp.approve(projectId, staged.id, staged.digest);
     assert.equal(remote.calls(), 1);
-    await instance.runtime.prompt(chatId, 'Keep the saved garden fact.', randomUUID());
+    await instance.runtime.prompt(
+      chatId,
+      'Remember that the project uses sage green.',
+      memoryMessageId,
+    );
     await idle(chatId);
     assert.equal(instance.runtime.extensions.memory.list(projectId).length, 1);
+    await instance.runtime.prompt(chatId, 'Save a separate note for this new turn.', randomUUID());
+    await idle(chatId);
+    assert.equal(
+      instance.runtime.extensions.memory.list(projectId).length,
+      2,
+      'A reused provider call ID must not collide across distinct turns',
+    );
   } finally {
     await instance.app.close();
     await memoryFixture.close();

@@ -68,14 +68,12 @@ export class Extensions {
             tools: s.tools.filter((t) => s.allowed.includes(t.name)),
           })),
         recall: memory.read
-          ? this.memory
-              .search(projectId, input, '', 3)
-              .map((n) => ({
-                id: n.id,
-                text: n.text.slice(0, 1500),
-                source: n.source,
-                area: n.area,
-              }))
+          ? this.memory.search(projectId, input, '', 3).map((n) => ({
+              id: n.id,
+              text: n.text.slice(0, 1500),
+              source: n.source,
+              area: n.area,
+            }))
           : [],
       };
     if (JSON.stringify(snapshot).length > 60000)
@@ -155,7 +153,11 @@ export class Extensions {
           if (!snapshot.memory.write)
             throw new AppError(403, 'memory_permission', 'Memory writes are off.');
           this.memory.assert(projectId, 'write');
-          return this.memory.save(projectId, input, `${ctx.sessionId}:${ctx.executionId}`);
+          return this.memory.save(
+            projectId,
+            input,
+            `${ctx.sessionId}:${(ctx.context as { messageId: string }).messageId}:${ctx.executionId}`,
+          );
         },
         true,
       ),
@@ -167,7 +169,11 @@ export class Extensions {
           if (!snapshot.memory.write)
             throw new AppError(403, 'memory_permission', 'Memory writes are off.');
           this.memory.assert(projectId, 'write');
-          return this.memory.delete(projectId, id, `${ctx.sessionId}:${ctx.executionId}`);
+          return this.memory.delete(
+            projectId,
+            id,
+            `${ctx.sessionId}:${(ctx.context as { messageId: string }).messageId}:${ctx.executionId}`,
+          );
         },
         true,
       ),
@@ -199,7 +205,7 @@ export class Extensions {
             input.serverId,
             input.tool,
             input.arguments,
-            `${ctx.sessionId}:${ctx.executionId}`,
+            `${ctx.sessionId}:${(ctx.context as { messageId: string }).messageId}:${ctx.executionId}`,
           );
           return { id: result.id, status: result.status, result: result.result ?? null };
         },
