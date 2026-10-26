@@ -4,7 +4,7 @@ The goal is to preserve useful Agent Zero workflows, not only its artwork. This 
 
 | Agent Zero workflow | Delivered Slim behavior | Boundary |
 | --- | --- | --- |
-| Repeated tool use to complete a task | Native libfx loop, scoped files, staged writes, checked Docker computation | No unrestricted host shell; cloud execution acceptance remains open. |
+| Repeated tool use to complete a task | Native libfx loop, scoped files, staged writes, bounded Docker or Vercel Node.js computation | No unrestricted host shell or persistent cloud workspace; one native Vercel calculation passed with verified deletion. [Execution scope](VERCEL.md). |
 | Load skills when relevant | Enabled project catalog in each turn; `skills_tool` loads exact reviewed revision | Markdown instructions only; no implicit script/resource installation. |
 | Recall and improve project knowledge | Automatic lexical recall when enabled; `memory_load`, `memory_save`, `memory_delete`; main/fragments/solutions | Explicit project read/write grants; no silent whole-chat ingestion. |
 | Semantic retrieval | Optional pinned local MiniLM, independent compatible embedding connections, hybrid rank fusion | Hosted transmission needs consent; no FAISS index compatibility claim. |

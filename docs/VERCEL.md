@@ -40,3 +40,5 @@ Stop and service cancellation still attempt cleanup independently of the cancele
 - SPACE live server testing remains deferred until the owner has a server.
 
 Local verification: `npm run check` passed **104 tests**, typecheck and production build; `npm audit --audit-level=high` found **0 vulnerabilities**. The live model helper is opt-in, emits at most one fixed tool request, and accepts at most two model requests. It is never run in CI.
+
+Live output SHA-256: `9959767eea101eeed6592e157557c8b9bcc7c1b118ec2416f29a207f603e4dd8`. The test project’s revoked grant and deleted receipt were retained after restarting the final build; the local fixture servers were stopped.
