@@ -2023,7 +2023,7 @@ progress {
   line-height: 1.6;
 }
 .markdown blockquote {
-  border-left: 3px solid var(--line);
+  border-left: 1px solid var(--line);
   padding-left: 1em;
   color: var(--muted);
 }
