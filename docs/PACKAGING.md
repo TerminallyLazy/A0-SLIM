@@ -11,7 +11,7 @@ npm ci
 npm pack
 ```
 
-`prepack` performs a clean production build. The tarball contains the CLI, compiled server/UI, attribution, `npm-shrinkwrap.json` and the small optional embedding recipe. It excludes tests, source tooling, private data, development dependencies and model weights. The UI retains React, Markdown/GFM and icons; their full dependency license texts ship beside the browser assets.
+`prepack` performs a clean production build. The tarball contains the CLI, compiled server/UI, attribution, `npm-shrinkwrap.json` and the small optional embedding and Microsandbox recipes. It excludes tests, source tooling, private data, development dependencies and model weights. The UI retains React, Markdown/GFM and icons; their full dependency license texts ship beside the browser assets.
 
 Install the resulting file into a dedicated directory:
 
@@ -48,13 +48,15 @@ Measured October 26, 2026 on macOS arm64, Node 24.22.1/npm 11.19.1, with a real 
 
 | Component | File bytes | Allocated disk |
 | --- | ---: | ---: |
-| App `.tgz` before extraction | ~0.41 MB | ~0.41 MB |
-| App extracted, excluding dependencies | ~1.75 MB | filesystem dependent |
+| App `.tgz` before extraction | ~0.44 MB | ~0.44 MB |
+| App extracted, excluding dependencies | ~1.85 MB | filesystem dependent |
 | Core with production dependencies | ~202 MB | ~262 MB |
+| Optional Microsandbox SDK/runtime, additional | ~97 MB | ~97 MB |
+| Microsandbox Node image/cache after one check, additional | ~174 MB | ~174 MB |
 | Optional embedding runtime, additional | ~484 MB | ~494 MB |
 | Optional MiniLM model, additional | ~24 MB | ~24 MB |
 
-The previous production dependency set occupied about 725 MB of file bytes / 808 MB allocated. The lean core reduces file bytes by about **72%**. npm fetches dependencies separately; this is not a 0.41 MB total installation. Totals exclude Node/npm, npm caches, developer tooling, personal projects, saved chats, Docker images and separately installed agents. Platforms and filesystem allocation differ. Both ONNX Node and Web assets remain within Transformers.js's supported graph; library-internal assets are not selectively pruned.
+The previous production dependency set occupied about 725 MB of file bytes / 808 MB allocated. The lean core reduces file bytes by about **72%**. npm fetches dependencies separately; this is not a 0.44 MB total installation. Totals exclude Node/npm, npm caches, developer tooling, personal projects, saved chats, Docker images and separately installed agents. Platforms and filesystem allocation differ. Both ONNX Node and Web assets remain within Transformers.js's supported graph; library-internal assets are not selectively pruned.
 
 ## Verification
 
@@ -63,3 +65,9 @@ The previous production dependency set occupied about 725 MB of file bytes / 808
 The explicit `npm run test:package -- --with-model` adds a public model download, checksums, actual offline embeddings, runtime removal/reinstallation and reuse of the retained model. It is not in default CI. The local check returned 384-dimensional unit vectors with cosine similarity 0.954691 for two equivalent synthetic garden sentences. No ChatGPT allowance, provider credentials, project files or cloud sandbox were used.
 
 Browser review covered absent/installed runtime states, explicit download selection, cancellation/retry and removal in a disposable workspace. Cancellation during native probe initialization originally terminated the host; moving that probe to a subprocess and adding child-failure/cancellation coverage fixed the failure.
+
+## Optional Microsandbox
+
+The core has no `microsandbox`, `@microsandbox/types` or platform-native Microsandbox dependency. Its allowlist includes only the add-on package manifest, shrinkwrap, worker and runtime configuration. Environments performs the explicit, integrity-pinned installation with npm scripts disabled and a separate image download. The Apple Silicon platform package is about 96 MB unpacked before the image/cache. Native code runs only in an isolated child process. See [setup, storage and recovery](MICROSANDBOX.md).
+
+The packaging smoke test checks the installed CLI's Microsandbox endpoint and verifies that neither the SDK nor the Apple Silicon native module resolves from the core installation. Local VM acceptance is opt-in and stays out of ordinary CI.

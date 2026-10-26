@@ -1,0 +1,7 @@
+{
+  "name": "a0-slim-microsandbox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": { "microsandbox": "0.7.11" }
+}

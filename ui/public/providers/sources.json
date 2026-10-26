@@ -30,5 +30,11 @@
     "retrieved": "2026-10-26",
     "file": "space.png",
     "description": "Official Perplexity documentation icon, identifies the SPACE project publisher."
+  },
+  "microsandbox": {
+    "source": "https://docs.microsandbox.dev/mintlify-assets/_mintlify/favicons/superradcompanyinc/h3Jg5czjZUv_Eh6R/_generated/favicon/android-chrome-192x192.png",
+    "sha256": "febc8bfb893e5fe404643501d2c5968c9b8b88679c57defa574f5c76327e2eb8",
+    "retrieved": "2026-10-26",
+    "file": "microsandbox.png"
   }
 }

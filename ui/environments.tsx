@@ -6,6 +6,8 @@ import { api } from './api.js';
 import { SpaceEnvironment } from './space.js';
 import { ExecutionChoice, type VercelReadiness } from './execution-choice.js';
 import { Heading } from './workspace.js';
+import { MicrosandboxEnvironment } from './microsandbox.js';
+import type { MicrosandboxState } from '../src/execution/microsandbox.js';
 
 type Actions = { refresh: () => Promise<void>; act: (fn: () => Promise<unknown>) => Promise<void> };
 import { sandboxProviders as clouds } from './sandbox-providers.js';
@@ -24,6 +26,7 @@ export function Environments({
   project,
   statuses,
   vercelExecution,
+  microsandbox,
   refresh,
   act,
 }: Actions & {
@@ -32,6 +35,7 @@ export function Environments({
   project?: Project;
   statuses: EnvironmentStatus;
   vercelExecution: VercelReadiness;
+  microsandbox: MicrosandboxState | null;
 }) {
   const [busy, setBusy] = useState(false),
     [editing, setEditing] = useState(''),
@@ -52,12 +56,14 @@ export function Environments({
     setBusy(true);
     void act(fn).finally(() => setBusy(false));
   };
-  const otherReceipts = receipts.filter((r) => r.kind !== 'space-sandbox-proof');
+  const otherReceipts = receipts.filter(
+    (r) => r.kind !== 'space-sandbox-proof' && !String(r.kind).startsWith('microsandbox-'),
+  );
   return (
     <>
       <Heading title="Environments">
-        Use local Docker, a cloud sandbox, or your own SPACE server. Connection checks and cleanup
-        receipts show what is ready and what needs attention.
+        Use a local microVM, Docker, a cloud sandbox, or your own SPACE server. Connection checks
+        and cleanup receipts show what is ready and what needs attention.
       </Heading>
       {project && (
         <ExecutionChoice
@@ -65,10 +71,12 @@ export function Environments({
           project={project}
           dockerAvailable={!!local?.available}
           vercel={vercelExecution}
+          microsandbox={microsandbox}
           refresh={refresh}
           act={act}
         />
       )}
+      <MicrosandboxEnvironment state={microsandbox} refresh={refresh} act={act} />
       <section className="environment-card">
         <div className="environment-heading">
           <ProviderMark id="docker" />

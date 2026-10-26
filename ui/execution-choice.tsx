@@ -6,12 +6,14 @@ export function ExecutionChoice({
   project,
   dockerAvailable,
   vercel,
+  microsandbox,
   refresh,
   act,
 }: {
   project: Project;
   dockerAvailable: boolean;
   vercel: VercelReadiness;
+  microsandbox: { available: boolean; reason: string | null } | null;
   refresh: () => Promise<void>;
   act: (fn: () => Promise<unknown>) => Promise<void>;
 }) {
@@ -56,6 +58,9 @@ export function ExecutionChoice({
           }}
         >
           <option value="none">No code execution</option>
+          <option value="microsandbox" disabled={!microsandbox?.available}>
+            Local Microsandbox · Node.js
+          </option>
           <option value="vercel" disabled={!vercel.available}>
             Vercel Sandbox · Node.js
           </option>
@@ -65,6 +70,9 @@ export function ExecutionChoice({
         </select>
       </label>
       {!vercel.available && <p className="fine">Vercel: {vercel.reason}</p>}
+      {microsandbox && !microsandbox.available && (
+        <p className="fine">Microsandbox: {microsandbox.reason}</p>
+      )}
       {confirming && (
         <div className="provider-setup">
           <p>

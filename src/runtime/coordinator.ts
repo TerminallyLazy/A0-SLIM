@@ -13,6 +13,7 @@ import { ResponseReplay, replayKey } from '../providers/replay.js';
 import { fileTools } from '../tools/files.js';
 import { VercelExecution, type VercelDependencies } from '../execution/vercel-execution.js';
 import { DockerSandbox } from '../execution/docker.js';
+import { Microsandbox } from '../execution/microsandbox.js';
 import { Extensions } from '../extensions/runtime.js';
 import { Delegations, delegationLimits, type Delegation } from './delegation.js';
 import { stopInterruptedTurn } from './recovery.js';
@@ -31,6 +32,7 @@ export class Coordinator {
   private readonly durability;
   readonly operations: Operations;
   readonly docker: DockerSandbox;
+  readonly microsandbox: Microsandbox;
   readonly vercel: VercelExecution;
   readonly extensions: Extensions;
   readonly delegations: Delegations;
@@ -46,6 +48,7 @@ export class Coordinator {
     );
     this.operations = new Operations(store);
     this.docker = new DockerSandbox(store);
+    this.microsandbox = new Microsandbox(store);
     this.vercel = new VercelExecution(store, vault, vercelDependencies);
     this.durability = local({ dir: join(store.dir, 'sessions') });
   }
@@ -55,7 +58,7 @@ export class Coordinator {
     const budgetScope = `${project.id}:${connection.id}:${connection.model}`;
     const name = `slim-${createHash('sha256')
       .update(
-        `${budgetScope}:${chat.execution === 'docker' ? 'docker-v1' : chat.execution === 'vercel' ? `vercel-v1:${chat.executionRevision}` : 'readonly-v1'}${chat.capabilitiesVersion === 2 ? ':extensions-v1' : ''}${chat.delegationVersion ? (chat.parentChatId ? `:subordinate-v1:${chat.depth}:${chat.id}` : ':delegation-v1') : ''}`,
+        `${budgetScope}:${chat.execution === 'docker' ? 'docker-v1' : chat.execution === 'vercel' ? `vercel-v1:${chat.executionRevision}` : chat.execution === 'microsandbox' ? `microsandbox-v1:${chat.executionRevision}` : 'readonly-v1'}${chat.capabilitiesVersion === 2 ? ':extensions-v1' : ''}${chat.delegationVersion ? (chat.parentChatId ? `:subordinate-v1:${chat.depth}:${chat.id}` : ':delegation-v1') : ''}`,
       )
       .digest('hex')
       .slice(0, 24)}`;
@@ -73,7 +76,9 @@ export class Coordinator {
             ? ' Use run_javascript for bounded Node.js computation in a disposable local container without network, host files or credentials. Pass explicit text input; use write_file to propose returned results for review.'
             : chat.execution === 'vercel'
               ? ' Use run_javascript for Node.js computation in Vercel. Docker is not used. Code and explicit text input are sent to Vercel under the project grant. No automatic workspace upload, model credentials or outbound network access. Every call has a 60-second sandbox lifetime; at most three calls per turn. Use write_file for local artifact review.'
-              : ''),
+              : chat.execution === 'microsandbox'
+                ? ' Use run_javascript for bounded Node computation in local Microsandbox microVMs. No Docker, guest network, host mounts or model credentials. Pass explicit text input and propose returned artifacts with write_file. Never repeat an uncertain command.'
+                : ''),
         tools: [
           ...fileTools(project.root),
           ...(chat.capabilitiesVersion === 2
@@ -89,6 +94,9 @@ export class Coordinator {
             : []),
           ...(!chat.parentChatId && chat.execution === 'vercel'
             ? [this.vercel.tool(project.id)]
+            : []),
+          ...(!chat.parentChatId && chat.execution === 'microsandbox'
+            ? [this.microsandbox.tool(project.id)]
             : []),
           ...(chat.delegationVersion && (chat.depth ?? 0) < delegationLimits.depth
             ? [this.delegations.tool(project.id)]
@@ -350,7 +358,9 @@ export class Coordinator {
                   ? ' Use run_javascript for disposable network-free Node computation; no host mounts or credentials.'
                   : current.execution === 'vercel'
                     ? ' Use run_javascript in Vercel for bounded Node computation. Docker is not required. Code and input go to Vercel; network and automatic workspace transfer are disabled. Never repeat an uncertain command.'
-                    : ' No code execution environment is enabled.'),
+                    : current.execution === 'microsandbox'
+                      ? ' Use run_javascript for local Microsandbox Node computation. No network, Docker, host mounts or credentials. Never repeat an uncertain command.'
+                      : ' No code execution environment is enabled.'),
             }
           : {}),
       });
@@ -506,6 +516,7 @@ export class Coordinator {
     await Promise.allSettled([...this.active.keys()].map((id) => this.cancel(id)));
     await Promise.allSettled([...this.agents.values()].map((agent) => agent.close()));
     await this.extensions.close();
+    await this.microsandbox.close();
     this.sessions.clear();
     this.agents.clear();
   }

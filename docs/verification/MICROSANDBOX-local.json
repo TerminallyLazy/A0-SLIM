@@ -1,0 +1,20 @@
+{
+  "platform": "darwin",
+  "arch": "arm64",
+  "node": "v24.22.1",
+  "microsandbox": "0.7.11",
+  "checks": [
+    "optional setup",
+    "pinned image",
+    "synthetic file check",
+    "native chat tool round trip",
+    "host file and credential isolation",
+    "guest network denied",
+    "code timeout",
+    "output limit",
+    "cancellation cleanup",
+    "worker interruption and restart reconciliation"
+  ],
+  "receiptCount": 6,
+  "allDeleted": true
+}

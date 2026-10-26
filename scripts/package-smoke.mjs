@@ -101,6 +101,8 @@ try {
     '@huggingface/transformers',
     'onnxruntime-node',
     'onnxruntime-web',
+    'microsandbox',
+    '@superradcompany/microsandbox-darwin-arm64',
     'react',
     'react-dom',
     'lucide-react',
@@ -150,6 +152,11 @@ try {
       const cookie = pair.headers.get('set-cookie').split(';')[0];
       const embeddings = await fetch(`${origin}/api/v1/embeddings`, { headers: { cookie } });
       assert.equal((await embeddings.json()).local.runtime.status, 'not-installed');
+      const microsandbox = await fetch(`${origin}/api/v1/sandbox/microsandbox`, {
+        headers: { cookie },
+      });
+      assert.equal(microsandbox.status, 200);
+      assert.equal((await microsandbox.json()).runtime.status, 'not-installed');
     } finally {
       child.kill('SIGTERM');
       await ended;

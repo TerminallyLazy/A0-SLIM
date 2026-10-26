@@ -70,7 +70,11 @@
     "docs/licenses",
     "docs/PACKAGING.md",
     "README.md",
-    "THIRD_PARTY_NOTICES.md"
+    "THIRD_PARTY_NOTICES.md",
+    "addons/microsandbox/package.json",
+    "addons/microsandbox/npm-shrinkwrap.json",
+    "addons/microsandbox/worker.mjs",
+    "addons/microsandbox/runtime.json"
   ],
   "repository": {
     "type": "git",

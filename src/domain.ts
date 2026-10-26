@@ -25,7 +25,7 @@ export type Project = {
   id: string;
   name: string;
   root: string;
-  execution?: 'none' | 'docker' | 'vercel';
+  execution?: 'none' | 'docker' | 'vercel' | 'microsandbox';
   vercelGrant?: { revision: string; approvedAt: string };
 };
 export type Chat = {
@@ -41,7 +41,7 @@ export type Chat = {
   parentChatId?: string;
   rootChatId?: string;
   depth?: number;
-  execution?: 'none' | 'docker' | 'vercel';
+  execution?: 'none' | 'docker' | 'vercel' | 'microsandbox';
   executionRevision?: string;
   status: 'idle' | 'running' | 'interrupted';
   lastStop?: string;

@@ -47,3 +47,5 @@ Unchanged official SVG artwork is retained in `ui/public/providers/`. Exact sour
 ## Agent Client Protocol SDK
 
 Pinned dependency: `@agentclientprotocol/sdk@2.0.2`, Apache-2.0, Zed Industries. Source: https://github.com/agentclientprotocol/typescript-sdk. Uses the stable ACP v1 interface. Preserve its packaged LICENSE and applicable notices when distributing. Agent executables are separately installed and licensed; none are bundled by SLIM.
+
+Microsandbox is an optional user-installed runtime, pinned to version 0.7.11 (Apache-2.0). Its SDK and native binaries are downloaded separately from npm and are not bundled with the core package. The official documentation icon is used to identify the integration; provenance is recorded in `ui/public/providers/sources.json`.

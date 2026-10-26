@@ -31,6 +31,7 @@ import type { VercelReadiness } from './execution-choice.js';
 import { ExtensionWorkspace, PluginHubView } from './extensions.js';
 import { MemoryWorkspace } from './memory.js';
 import { Markdown } from './markdown.js';
+import type { MicrosandboxState } from '../src/execution/microsandbox.js';
 import { DelegatedTasks, type DelegationSummary } from './delegations.js';
 
 type State = {
@@ -45,6 +46,7 @@ type State = {
   cloudConfigured: Record<string, boolean>;
   environments: EnvironmentStatus;
   vercelExecution: VercelReadiness;
+  microsandbox: MicrosandboxState | null;
   delegations: DelegationSummary[];
 };
 type Line = { cursor: number; event: Record<string, any> };
@@ -58,6 +60,7 @@ type View =
   | 'hub'
   | 'memory';
 const empty: State = {
+  microsandbox: null,
   vercelExecution: {
     available: false,
     reason: 'Save a Vercel connection first.',
@@ -121,6 +124,16 @@ export function App() {
   );
   const running = chat?.status === 'running';
   const execution = chat ? (chat.execution ?? 'none') : (project?.execution ?? 'none');
+  const microActivity =
+    state.microsandbox?.activity === 'working'
+      ? 'working'
+      : state.microsandbox?.activity === 'unknown'
+        ? 'recovery required'
+        : chat && chat.executionRevision !== state.microsandbox?.revision
+          ? 'runtime changed · start a new chat'
+          : state.microsandbox?.available
+            ? 'ready · no active VM'
+            : 'check required';
   const vercelActivity =
     state.environments.vercel?.activity === 'working'
       ? 'working'
@@ -527,7 +540,9 @@ export function App() {
                     ? 'This chat uses disposable Docker containers for code calls. Open Environments for readiness and cleanup.'
                     : execution === 'vercel'
                       ? 'This chat runs code in temporary Vercel sandboxes. Docker is not used.'
-                      : 'No sandbox is enabled for this chat. Open Environments to configure one.'
+                      : execution === 'microsandbox'
+                        ? 'This chat runs code in disposable local microVMs. Open Environments for readiness and cleanup.'
+                        : 'No sandbox is enabled for this chat. Open Environments to configure one.'
               }
             >
               <Terminal size={14} />
@@ -535,13 +550,15 @@ export function App() {
                 ? `${agent?.name ?? 'Agent'} · ${state.acp.connected.includes(chatId) ? 'connected' : 'disconnected'}`
                 : execution === 'vercel'
                   ? `Vercel · ${vercelActivity}`
-                  : execution !== 'docker'
-                    ? 'Sandbox off'
-                    : state.environments.docker?.activity === 'working'
-                      ? 'Docker · working'
-                      : state.environments.docker?.activity === 'unknown'
-                        ? 'Docker · needs review'
-                        : 'Docker · no active sandbox'}
+                  : execution === 'microsandbox'
+                    ? `Microsandbox · ${microActivity}`
+                    : execution !== 'docker'
+                      ? 'Sandbox off'
+                      : state.environments.docker?.activity === 'working'
+                        ? 'Docker · working'
+                        : state.environments.docker?.activity === 'unknown'
+                          ? 'Docker · needs review'
+                          : 'Docker · no active sandbox'}
             </button>
             <span className="pill">Local alpha</span>
             <button
@@ -824,7 +841,9 @@ export function App() {
                         ? vercelActivity === 'ready'
                           ? 'Vercel starts per code call'
                           : `Vercel · ${vercelActivity}`
-                        : 'No sandbox enabled'}
+                        : execution === 'microsandbox'
+                          ? `Microsandbox · ${microActivity}`
+                          : 'No sandbox enabled'}
                 </span>
               </div>
             </div>
@@ -844,6 +863,7 @@ export function App() {
                 receipts={state.receipts}
                 statuses={state.environments}
                 vercelExecution={state.vercelExecution}
+                microsandbox={state.microsandbox}
                 refresh={refresh}
                 act={act}
               />
@@ -980,7 +1000,9 @@ export function App() {
                       ? 'Local Docker'
                       : execution === 'vercel'
                         ? 'Vercel Sandbox'
-                        : 'Off'}
+                        : execution === 'microsandbox'
+                          ? 'Local Microsandbox'
+                          : 'Off'}
                   </span>
                 </div>
                 <div className="detail">

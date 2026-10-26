@@ -132,6 +132,7 @@ export async function createApp(options: {
     connections: store.connections(),
     acp: acp.state(),
     vercelExecution: runtime.vercel.readiness(),
+    microsandbox: await runtime.microsandbox.state(),
     receipts: store.receipts(),
     environments: {
       ...environmentStatus(store, {
@@ -192,7 +193,7 @@ export async function createApp(options: {
     const project = store.project(idParams.parse(request.params).id);
     const { execution, acknowledgeVercelUsage } = z
       .object({
-        execution: z.enum(['none', 'docker', 'vercel']),
+        execution: z.enum(['none', 'docker', 'vercel', 'microsandbox']),
         acknowledgeVercelUsage: z.boolean().optional(),
       })
       .strict()
@@ -213,6 +214,7 @@ export async function createApp(options: {
         'sandbox_unavailable',
         'Start your local Docker engine and install the pinned image first.',
       );
+    if (execution === 'microsandbox') await runtime.microsandbox.assertReady();
     store.saveProject({ ...store.project(project.id), execution });
     return { ok: true };
   });
@@ -314,7 +316,9 @@ export async function createApp(options: {
       execution: project.execution ?? 'none',
       ...(project.execution === 'vercel'
         ? { executionRevision: project.vercelGrant?.revision }
-        : {}),
+        : project.execution === 'microsandbox'
+          ? { executionRevision: await runtime.microsandbox.assertReady() }
+          : {}),
       sessionId: null,
       capabilitiesVersion: 2 as const,
       delegationVersion: 1 as const,
@@ -476,6 +480,32 @@ export async function createApp(options: {
       return proof.reconcile(idParams.parse(request.params).id);
     });
   }
+  app.get('/api/v1/sandbox/microsandbox', async () => runtime.microsandbox.state());
+  app.post('/api/v1/sandbox/microsandbox/install', async (request, reply) => {
+    z.object({ acknowledgeDownload: z.literal(true) })
+      .strict()
+      .parse(request.body);
+    return reply.code(202).send(await runtime.microsandbox.install());
+  });
+  app.post('/api/v1/sandbox/microsandbox/check', async () => runtime.microsandbox.check());
+  app.post('/api/v1/sandbox/microsandbox/cancel-setup', async () =>
+    runtime.microsandbox.cancelSetup(),
+  );
+  app.post('/api/v1/sandbox/microsandbox/proof', async () => runtime.microsandbox.proof());
+  app.post('/api/v1/sandbox/microsandbox/remove', async () => runtime.microsandbox.remove());
+  app.post('/api/v1/sandbox/microsandbox/receipts/:id/reconcile', async (request) =>
+    runtime.microsandbox.reconcile(idParams.parse(request.params).id),
+  );
+  app.post('/api/v1/sandbox/microsandbox/receipts/:id/review-absence', async (request) => {
+    const { resolution } = z
+      .object({
+        acknowledgeReview: z.literal(true),
+        resolution: z.string().trim().min(20).max(2000),
+      })
+      .strict()
+      .parse(request.body);
+    return runtime.microsandbox.reviewAbsence(idParams.parse(request.params).id, resolution);
+  });
   app.get('/api/v1/sandbox/space', async () => space.state());
   app.post('/api/v1/sandbox/space', async (request) => space.save(request.body));
   app.post('/api/v1/sandbox/space/check', async () => space.check());
