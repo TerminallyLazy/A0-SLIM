@@ -13,6 +13,23 @@ The allowance is limited to the pinned SQLite/CBOR native builds. Do not use `--
 
 For a dedicated local installation, use the directory steps below and replace the tarball path with `a0-slim@0.1.0-alpha.1`.
 
+## Download with curl
+
+Download the exact release tarball:
+
+```sh
+curl -fL -o a0-slim-0.1.0-alpha.1.tgz https://github.com/TerminallyLazy/A0-SLIM/releases/download/v0.1.0-alpha.1/a0-slim-0.1.0-alpha.1.tgz
+```
+
+Then install it with Node 24 and npm 11.19 or newer:
+
+```sh
+npm install -g ./a0-slim-0.1.0-alpha.1.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+a0-slim
+```
+
+The download is about 440 KB; npm installs production dependencies separately. The GitHub asset and npm release use the same tested tarball. SHA-256: `34da076b90f62389870862c7b77359e95dfa117b3c3fe129bb555cd0dc1a9a71`.
+
 ## Build and install a tarball
 
 From the checkout:

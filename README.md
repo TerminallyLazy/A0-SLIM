@@ -21,6 +21,23 @@ Add a focused project folder, then add a compatible model endpoint or AI Gateway
 
 Closing the tab detaches the viewer; **Stop** cancels the current model turn. Stopping the local service stops its work. A second service cannot own the same data directory.
 
+### Download with curl
+
+Download the exact release tarball:
+
+```sh
+curl -fL -o a0-slim-0.1.0-alpha.1.tgz https://github.com/TerminallyLazy/A0-SLIM/releases/download/v0.1.0-alpha.1/a0-slim-0.1.0-alpha.1.tgz
+```
+
+Then install it with Node 24 and npm 11.19 or newer:
+
+```sh
+npm install -g ./a0-slim-0.1.0-alpha.1.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+a0-slim
+```
+
+The download is about 440 KB; npm installs production dependencies separately. The GitHub asset and npm release use the same tested tarball. SHA-256: `34da076b90f62389870862c7b77359e95dfa117b3c3fe129bb555cd0dc1a9a71`.
+
 ## What works
 
 - Projects, saved chats, streaming, Markdown assistant replies, transcript replay, message deduplication, Stop and Redirect through native libfx. Redirect stops the active turn, then submits your revised direction.
