@@ -23,5 +23,12 @@
     "source": "https://vercel.com/geist/brands/assets/vercel-symbol-black.svg",
     "sha256": "1c1507a4a4742f992a689fcb6b61ac8c48c62e1110509b68121356154e67ed91",
     "retrieved": "2026-10-26"
+  },
+  "space": {
+    "source": "https://docs.perplexity.ai/mintlify-assets/_mintlify/favicons/perplexity/rSPP83rcZL_iw-xo/_generated/favicon/android-chrome-192x192.png",
+    "sha256": "97d8e57726298a7af87446aa79888562d8cbeb16757c2b10eaf90499cec8c9c3",
+    "retrieved": "2026-10-26",
+    "file": "space.png",
+    "description": "Official Perplexity documentation icon, identifies the SPACE project publisher."
   }
 }

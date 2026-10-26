@@ -2216,3 +2216,42 @@ progress {
     gap: 0;
   }
 }
+
+.space-settings {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.space-full {
+  grid-column: 1 / -1;
+}
+.space-environment .provider-mark img {
+  height: 44px;
+}
+.space-synthetic .checkbox {
+  margin-block: 14px;
+}
+.space-environment .receipt {
+  margin-top: 18px;
+}
+.space-details {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 20px;
+  font-size: 13px;
+}
+.space-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .space-settings {
+    grid-template-columns: 1fr;
+  }
+  .space-details {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}
+
+.space-synthetic {
+  margin-block: 18px;
+}

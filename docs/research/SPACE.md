@@ -1,6 +1,6 @@
 # Perplexity SPACE integration assessment
 
-Researched 2026-10-26 at the owner's request. This is the integration design; no SPACE server, credentials or sandbox were created, and no live compatibility is claimed.
+Researched 2026-10-26 at the owner's request. The native adapter and UI now implement this integration design; local HTTP/SSE fixtures verify the 0.8.0 contract. No real SPACE server or sandbox was created, and no live compatibility is claimed. See [setup and recovery](../SPACE.md).
 
 ## Fit and deployment
 
@@ -14,13 +14,13 @@ The docs identify SPACE **0.8.0**, source **`dc9e22d80521cf2a0d2822629f8bd4a43db
 
 Use a small native TypeScript HTTP/SSE adapter. No Rust embedding or Python sidecar is necessary. Do not reuse SLIM's E2B SDK connection by changing its hostname: SPACE's compatibility wrapper is a separate service with different credentials/routing, and its documented tested baseline is Python `e2b==2.21.1` / `e2b-code-interpreter==2.6.2`; JavaScript remains unverified. [Repository API guidance](https://github.com/perplexityai/SPACE/blob/dc9e22d80521cf2a0d2822629f8bd4a43dbcafe1/README.md), [ECW contract](https://github.com/perplexityai/SPACE/blob/dc9e22d80521cf2a0d2822629f8bd4a43dbcafe1/docs/ecw.md).
 
-## Proposed SLIM contract
+## SLIM contract
 
 Add a separate `SpaceConnection` and receipt-aware `SpaceProof`, rather than widening `CloudCheck` with assumptions its interface cannot express. Current `CloudCheck.cleanup` accepts resource absence as deletion; SPACE requires a successful delete operation and can conceal unauthorized resources behind not-found responses. Retain existing E2B/Daytona behavior unchanged.
 
 Configuration should include a management origin, management API prefix (`/v1` or explicitly configured `/api/v1`), data-plane origin, published template reference, requested resource limits and encrypted management token. Save public endpoints independently so they persist while the token remains write-only. Do not inherit environment credentials or proxies. Require HTTPS outside loopback, reject credential-bearing URLs, and refuse redirects. Never send the management token to a data-plane attachment URL. Recovery remains bound to the original deployment and verified principal; token rotation needs verified identity continuity, not only a new token hash.
 
-The first delivery should expose **Check connection** (read-only auth/API-version inspection) separately from **Run synthetic check** (explicit resource-use acknowledgment). Use deployment-specific **Open console**, **Sign in** and **Setup guide** links. Label this provider **SPACE · self-hosted**, with official Perplexity artwork and recorded provenance when the UI is implemented; do not invent a hosted signup link or free-tier promise.
+The first delivery exposes **Check connection** (read-only auth/API-version inspection) separately from **Run synthetic check** (explicit resource-use acknowledgment). Use deployment-specific **Open console**, **Sign in** and **Setup guide** links. Label this provider **SPACE · self-hosted**, with official Perplexity artwork and recorded provenance with the UI; do not invent a hosted signup link or free-tier promise.
 
 ### Lifecycle sequence
 
@@ -44,3 +44,11 @@ Idempotency is endpoint-specific and retained for 24 hours. Reuse the exact orig
 4. Broader workspace transfer, interactive terminals, suspend/wake, snapshots and arbitrary agent execution require independent capability tests. Public M1 lacks a stable native file API, so do not imply artifact/workspace parity from a stdout-only check.
 
 The immediate implementation input is the SPACE deployment the owner intends to use. Offline adapter work is possible before that input; live acceptance requires its management/data-plane endpoints, version, template and authentication configured privately in SLIM.
+
+## Delivered verification
+
+The implementation uses `GET /auth/v1/me` and `/auth/v1/cluster` alongside the public M1 schema and sandbox listing to verify a stable account/organization/cluster identity. It stores only an identity digest, not account email or full authentication responses. Token renewal for the same identity is accepted during recovery. These auxiliary auth routes are pinned to the inspected 0.8.0 [session-auth source](https://github.com/perplexityai/SPACE/blob/dc9e22d80521cf2a0d2822629f8bd4a43dbcafe1/crates/libs/api/src/routes/session_auth.rs); deployments omitting them fail the connection check.
+
+The adapter never reconnects a command stream automatically. Lost creation is recovered only through the saved operation or a complete paginated listing with exact name and ownership metadata. Deletion is held while a known creation operation remains unresolved. Explicit operator review is available only after 24 hours with original scope verification and no owned resource in a complete listing; it records reviewed absence separately from successful deletion. If a known creation operation is missing or cannot be verified terminal, the hold remains.
+
+Official Perplexity documentation artwork is vendored with its URL and SHA-256 in `ui/public/providers/sources.json`; no hosted SPACE signup is implied.

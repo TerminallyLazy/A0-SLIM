@@ -3,6 +3,7 @@ import { ArrowUpRight, Check, ShieldCheck } from 'lucide-react';
 import type { Project } from '../src/domain.js';
 import type { EnvironmentStatus } from '../src/execution/status.js';
 import { api } from './api.js';
+import { SpaceEnvironment } from './space.js';
 import { Heading } from './workspace.js';
 
 type Actions = { refresh: () => Promise<void>; act: (fn: () => Promise<unknown>) => Promise<void> };
@@ -48,11 +49,12 @@ export function Environments({
     setBusy(true);
     void act(fn).finally(() => setBusy(false));
   };
+  const otherReceipts = receipts.filter((r) => r.kind !== 'space-sandbox-proof');
   return (
     <>
       <Heading title="Environments">
-        Start on your own computer, or connect a cloud sandbox with a free allowance. Choose the
-        environment that fits your work.
+        Use local Docker, a cloud sandbox, or your own SPACE server. Connection checks and cleanup
+        receipts show what is ready and what needs attention.
       </Heading>
       <section className="environment-card">
         <div className="environment-heading">
@@ -135,6 +137,7 @@ export function Environments({
           </p>
         </div>
       </div>
+      <SpaceEnvironment refresh={refresh} act={act} />
       <div className="environment-grid">
         {clouds.map((cloud) => {
           const saved = !!configured[cloud.id];
@@ -322,9 +325,9 @@ export function Environments({
         logos identify integrations and do not imply endorsement. A saved credential is not a
         verified connection; check results and cleanup status appear below.
       </p>
-      <h2>Execution receipts ({receipts.length})</h2>
-      {!receipts.length && <p className="empty-row">Your first check will appear here.</p>}
-      {receipts.map((receipt) => {
+      <h2>Execution receipts ({otherReceipts.length})</h2>
+      {!otherReceipts.length && <p className="empty-row">Your first check will appear here.</p>}
+      {otherReceipts.map((receipt) => {
         const cloud = clouds.find((c) => receipt.kind === `${c.id}-sandbox-proof`);
         const provider = receipt.kind === 'docker-sandbox' ? 'docker' : cloud?.id;
         return (

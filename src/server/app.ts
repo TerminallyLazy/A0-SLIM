@@ -22,6 +22,7 @@ import { createDaytonaDriver } from '../execution/daytona.js';
 import { listWorkspace, readWorkspaceFile } from '../tools/files.js';
 import { extensionRoutes } from './extensions.js';
 import { ACPClient } from '../acp/client.js';
+import { SpaceProof } from '../execution/space.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const equal = (a: string, b: string) =>
@@ -44,6 +45,7 @@ export async function createApp(options: {
   const acp = new ACPClient(store);
   const chatRuntime = (id: string) => (store.chat(id).backend === 'acp' ? acp : runtime);
   const sandbox = new SandboxProof(store, vault);
+  const space = new SpaceProof(store, vault);
   const modal = new ModalProof(store, vault);
   const additionalClouds = {
     e2b: new CloudCheck('e2b', store, vault, createE2BDriver),
@@ -129,13 +131,16 @@ export async function createApp(options: {
     connections: store.connections(),
     acp: acp.state(),
     receipts: store.receipts(),
-    environments: environmentStatus(store, {
-      docker: runtime.docker.busy,
-      vercel: sandbox.busy,
-      modal: modal.busy,
-      e2b: additionalClouds.e2b.busy,
-      daytona: additionalClouds.daytona.busy,
-    }),
+    environments: {
+      ...environmentStatus(store, {
+        docker: runtime.docker.busy,
+        vercel: sandbox.busy,
+        modal: modal.busy,
+        e2b: additionalClouds.e2b.busy,
+        daytona: additionalClouds.daytona.busy,
+      }),
+      space: space.state().status,
+    },
     artifacts: store.operations().map(({ before, content, ...item }) => item),
     sandboxConfigured: store.meta('sandbox:vercel') === 'configured',
     modalConfigured: store.meta('sandbox:modal') === 'configured',
@@ -446,6 +451,29 @@ export async function createApp(options: {
       return proof.reconcile(idParams.parse(request.params).id);
     });
   }
+  app.get('/api/v1/sandbox/space', async () => space.state());
+  app.post('/api/v1/sandbox/space', async (request) => space.save(request.body));
+  app.post('/api/v1/sandbox/space/check', async () => space.check());
+  app.post('/api/v1/sandbox/space/proof', async (request, reply) => {
+    z.object({ acknowledgeUsage: z.literal(true), acknowledgeCleanup: z.literal(true) }).parse(
+      request.body,
+    );
+    return reply.code(202).send(await space.start());
+  });
+  app.post('/api/v1/sandbox/space/receipts/:id/reconcile', async (request, reply) =>
+    reply.code(202).send(await space.reconcile(idParams.parse(request.params).id)),
+  );
+  app.post('/api/v1/sandbox/space/receipts/:id/review-absence', async (request, reply) => {
+    const { resolution } = z
+      .object({
+        acknowledgeProviderReview: z.literal(true),
+        resolution: z.string().trim().min(20).max(2000),
+      })
+      .parse(request.body);
+    return reply
+      .code(202)
+      .send(await space.reconcile(idParams.parse(request.params).id, resolution));
+  });
   app.get('/api/v1/sandbox/docker', async () => runtime.docker.availability());
   app.post('/api/v1/sandbox/docker/proof', async (request) => {
     z.object({}).strict().parse(request.body);
@@ -523,6 +551,7 @@ export async function createApp(options: {
     await app.register(serveStatic, { root: resolve(options.staticDir), index: ['index.html'] });
   }
   app.addHook('preClose', async () => {
+    await space.close();
     await Promise.allSettled([...readers].map((reader) => reader.cancel()));
   });
   app.addHook('onClose', async () => {
@@ -530,5 +559,5 @@ export async function createApp(options: {
     await runtime.close();
     store.close();
   });
-  return { app, store, vault, runtime, acp };
+  return { app, store, vault, runtime, acp, space };
 }

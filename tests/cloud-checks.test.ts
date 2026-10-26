@@ -253,8 +253,11 @@ test('provider setup links use official sites and vendored logos retain their so
       );
     }
   }
-  for (const [name, source] of Object.entries(sources) as [string, { sha256: string }][]) {
-    const svg = await readFile(`ui/public/providers/${name}.svg`);
+  for (const [name, source] of Object.entries(sources) as [
+    string,
+    { sha256: string; file?: string },
+  ][]) {
+    const svg = await readFile(`ui/public/providers/${source.file ?? `${name}.svg`}`);
     assert.equal(createHash('sha256').update(svg).digest('hex'), source.sha256);
     assert.doesNotMatch(
       svg.toString(),
