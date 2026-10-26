@@ -10,6 +10,8 @@ The two SVG symbols in `docs/review/assets/` and `ui/public/` were copied unchan
 
 Brand names and logos identify their respective projects. This project does not claim upstream endorsement. Confirm any separate brand-use requirements before a public product launch.
 
+Additional owner-supplied square, horizontal and centered logo artwork and the Illustrator master are preserved unchanged in `docs/brand/agent-zero/`, with source paths and hashes in its `sources.json`. The horizontal banner is also copied unchanged to `ui/public/a0-horizontal-banner.svg` and used in the Appearance attribution area.
+
 ## libfx
 
 Pinned runtime dependency: `libfx@0.0.14`, from https://github.com/vercel-labs/fx, Apache-2.0. The npm package supplies its native binaries, WASM and source; these are not checked into this repository. `scripts/patch-libfx.cjs` applies a narrow stream-cancellation fix to the pinned package during installation. Its source hashes and rationale are documented in `docs/verification/P0.md`. Preserve applicable dependency notices when distributing the application.

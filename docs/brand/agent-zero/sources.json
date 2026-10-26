@@ -1,0 +1,18 @@
+{
+  "dark.svg": {
+    "source": "docs/res/dark.svg",
+    "sha256": "28defd32480069d9157c5e2670cf8a82b5dfe0e82818c0ff9af6c4d8745ecaf7"
+  },
+  "horizontal_banner.svg": {
+    "source": "docs/res/a0-vector-graphics/horizontal_banner.svg",
+    "sha256": "e6f0962c08f3c5541a159ae3ae379fd353ccca80bad8953265be7663998ecf23"
+  },
+  "banner.svg": {
+    "source": "docs/res/a0-vector-graphics/banner.svg",
+    "sha256": "1f8f468d5d972ac9123118960f0f3251770f2bd4a4848037fac9e56517c6bb6f"
+  },
+  "a0LogoVector.ai": {
+    "source": "docs/res/a0-vector-graphics/a0LogoVector.ai",
+    "sha256": "32f7ea6a98dd620ca0b5a586488c2a78aed3ab75359743131d79bb67081f6160"
+  }
+}

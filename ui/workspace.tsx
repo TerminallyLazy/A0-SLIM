@@ -735,6 +735,20 @@ export function App() {
                     ))}
                   </div>
                 </div>
+                <div className="brand-credit">
+                  <img src="/a0-horizontal-banner.svg" alt="Agent Zero" width="1500" height="500" />
+                  <div>
+                    <h3>Agent Zero roots. A lighter workspace.</h3>
+                    <p>A0 SLIM is an independent project inspired by Agent Zero.</p>
+                    <a
+                      href="https://github.com/agent0ai/agent-zero"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Explore Agent Zero <ArrowUpRight size={14} />
+                    </a>
+                  </div>
+                </div>
               </>
             )}
             {view === 'roadmap' && (
