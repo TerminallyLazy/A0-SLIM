@@ -1,0 +1,4 @@
+# Preserve supplied design masters and SVG source bytes, including vendor whitespace.
+docs/brand/agent-zero/*.ai binary
+docs/brand/agent-zero/*.svg -text -whitespace
+ui/public/a0-horizontal-banner.svg -text -whitespace
