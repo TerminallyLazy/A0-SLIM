@@ -285,6 +285,15 @@ export class Embeddings {
     await this.vault.remove(`embedding:${id}`);
     this.store.removeRecord('embedding', id);
   }
+  async removeRuntime() {
+    if (this.jobs.size)
+      throw new AppError(
+        409,
+        'index_busy',
+        'Stop indexing before removing the local embedding runtime.',
+      );
+    await this.local.removeRuntime();
+  }
   async removeLocal() {
     for (const p of this.store.projects())
       if (this.state(p.id).active === 'local-minilm' || this.jobs.has(p.id))

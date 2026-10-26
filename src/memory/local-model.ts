@@ -4,10 +4,13 @@ import { mkdir, readFile, rename, rm, open, stat } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { AppError } from '../domain.js';
+import { EmbeddingAddon } from './embedding-addon.js';
 import manifest from './local-model.json' with { type: 'json' };
 export { manifest as localModelManifest };
 export class LocalModel {
   readonly directory: string;
+  readonly addon: EmbeddingAddon;
+  private runtimeChanging = false;
   private worker?: Worker;
   private loading?: Promise<Worker>;
   private abort?: AbortController;
@@ -25,7 +28,8 @@ export class LocalModel {
       timer: ReturnType<typeof setTimeout>;
     }
   >();
-  constructor(dataDir: string) {
+  constructor(dataDir: string, addon?: EmbeddingAddon) {
+    this.addon = addon ?? new EmbeddingAddon(dataDir);
     this.directory = join(dataDir, 'models', manifest.revision);
   }
   async status() {
@@ -40,7 +44,17 @@ export class LocalModel {
           this.state = { status: 'ready', downloaded: manifest.bytes };
       } catch {}
     }
-    return { ...this.state, manifest, location: this.directory };
+    const runtime = await this.addon.status();
+    return {
+      ...this.state,
+      status:
+        this.state.status === 'ready' && runtime.status !== 'ready'
+          ? 'runtime-required'
+          : this.state.status,
+      runtime,
+      manifest,
+      location: this.directory,
+    };
   }
   private async valid(file: (typeof manifest.files)[number]) {
     try {
@@ -53,7 +67,10 @@ export class LocalModel {
       return false;
     }
   }
-  start() {
+  async start() {
+    await this.addon.requireReady();
+    if (this.runtimeChanging)
+      throw new AppError(409, 'addon_busy', 'Wait for the runtime change to finish.');
     if (this.job)
       throw new AppError(409, 'download_busy', 'A model download is already in progress.');
     this.abort = new AbortController();
@@ -137,17 +154,18 @@ export class LocalModel {
     await this.job;
   }
   private async getWorker(): Promise<Worker> {
+    if (this.runtimeChanging)
+      throw new AppError(409, 'addon_busy', 'The local embedding runtime is changing.');
     if (this.worker) return this.worker;
     if (this.loading) return this.loading;
     this.loading = (async () => {
+      const workerPath = await this.addon.requireReady();
       for (const file of manifest.files)
         if (!(await this.valid(file)))
           throw new AppError(409, 'model_missing', 'Download and verify the local model first.');
-      const compiled = new URL('./local-worker.js', import.meta.url),
-        worker = new Worker(
-          existsSync(compiled) ? compiled : new URL('./local-worker.ts', import.meta.url),
-          { workerData: { directory: this.directory } },
-        );
+      if (this.runtimeChanging)
+        throw new AppError(409, 'addon_busy', 'The local embedding runtime is changing.');
+      const worker = new Worker(workerPath, { workerData: { directory: this.directory } });
       worker.on('message', (m) => {
         if (m.id) {
           const p = this.pending.get(m.id);
@@ -192,6 +210,8 @@ export class LocalModel {
   async infer(text: string) {
     const worker = await this.getWorker(),
       id = ++this.serial;
+    if (this.runtimeChanging)
+      throw new AppError(409, 'addon_busy', 'The local embedding runtime is changing.');
     return new Promise<number[]>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
@@ -219,7 +239,44 @@ export class LocalModel {
     await rm(this.directory, { recursive: true, force: true });
     this.state = { status: 'not-downloaded', downloaded: 0 };
   }
+  async installRuntime() {
+    if (this.runtimeChanging || this.job || this.loading || this.pending.size)
+      throw new AppError(
+        409,
+        'addon_busy',
+        'Stop local embedding work before installing the runtime.',
+      );
+    this.runtimeChanging = true;
+    try {
+      if ((await this.addon.status()).status === 'ready') {
+        this.runtimeChanging = false;
+        return;
+      }
+      await this.stopWorker();
+      this.addon.start();
+    } catch (error) {
+      this.runtimeChanging = false;
+      throw error;
+    }
+    void this.addon.settled().finally(() => {
+      this.runtimeChanging = false;
+    });
+  }
+  async removeRuntime() {
+    await this.addon.cancel();
+    if (this.runtimeChanging)
+      throw new AppError(409, 'addon_busy', 'Wait for the runtime change to finish.');
+    this.runtimeChanging = true;
+    try {
+      await this.cancel();
+      await this.stopWorker();
+      await this.addon.remove();
+    } finally {
+      this.runtimeChanging = false;
+    }
+  }
   async close() {
+    await this.addon.close();
     await this.cancel();
     await this.stopWorker();
   }

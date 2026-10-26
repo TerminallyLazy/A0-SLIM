@@ -33,7 +33,9 @@ try {
       skillDigest: imported.current.digest,
     }),
   );
-  ext.embeddings.local.start();
+  await ext.embeddings.local.installRuntime();
+  await ext.embeddings.local.addon.settled();
+  await ext.embeddings.local.start();
   for (let i = 0; i < 240; i++) {
     const status = await ext.embeddings.local.status();
     if (!['downloading', 'verifying'].includes(status.status)) break;

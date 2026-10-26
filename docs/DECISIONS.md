@@ -2,6 +2,14 @@
 
 Approved by the user in chat on 2026-10-26. The canvas review is closed.
 
+## Lean npm packaging — 2026-10-26
+
+- Ship a compiled CLI and prebuilt UI with an explicit file allowlist and published shrinkwrap. Keep `private: true` until public npm release details are settled; no registry publication is part of this change.
+- Move React, icons and Markdown build packages to development dependencies, retaining bundled functionality and generated license texts. Preserve the exact libfx cancellation patch, resolve it under npm hoisting and check it idempotently at CLI startup.
+- Remove Transformers.js/ONNX from the core graph. Install their pinned graph through an explicit local-runtime action; ordinary npm `optionalDependencies` would still install by default. PyTorch is unnecessary.
+- Stage installs in private storage with scripts disabled. Probe CPU readiness in a separate process before activation: worker termination during native initialization was observed to abort the host. Preserve weights, notes, vectors and lexical fallback through cancellation, interrupted installs, removal and reinstall.
+- Keep model download consent separate. Native chat, ACP, MCP, sandboxes, lexical memory and hosted embeddings remain independent. See `PACKAGING.md` for measurements and verification.
+
 | Decision | State | Rationale |
 | --- | --- | --- |
 | Product name: A0 SLIM | User requested | Consistent user-facing identity; repository `A0-SLIM`. |
@@ -61,7 +69,7 @@ The libfx stream initialization/cancel race receives a small checked installatio
 - Consume the actual generated Plugin Hub release JSON. Require a pinned commit for source assessment, preserve the last good catalog, and reject stale refresh results. Import only reviewed Markdown skills; do not download repository archives or run hooks.
 - SQLite schema 3 adds transactional memories/FTS/vectors/receipts and extension records, preserving a private pre-migration backup. Memory deletion removes active rows/vectors but does not erase old chats, exported files, OS backups or migration backups. Expose backup deletion explicitly.
 - Pin MiniLM model revision and every file checksum. Explicit download, file-level resume, verification and deletion; CPU inference in a worker with network fetch disabled. Separate hosted embedding keys and consent from chat providers. Switch model namespaces only after all vectors and the source generation validate.
-- Do not call the source distribution tiny: the optional inference worker's runtime dependencies occupy roughly 441 MiB in this macOS checkout. Packaging them as a separate install is still release work.
+- Do not call the source distribution tiny: the optional inference worker's runtime dependencies occupy roughly 441 MiB in this macOS checkout. This initial footprint is superseded by the lean npm packaging decision below.
 - Use plain page names, useful descriptions and no eyebrow labels or slogan-style copy, per the owner's correction.
 
 ## Vercel setup and recovery — 2026-10-26

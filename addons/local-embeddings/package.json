@@ -1,0 +1,9 @@
+{
+  "name": "a0-slim-local-embeddings-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Optional pinned CPU embedding runtime for A0 SLIM",
+  "engines": { "node": ">=24 <25" },
+  "dependencies": { "@huggingface/transformers": "4.3.1" }
+}

@@ -16,7 +16,7 @@ Additional owner-supplied square, horizontal and centered logo artwork and the I
 
 Pinned runtime dependency: `libfx@0.0.14`, from https://github.com/vercel-labs/fx, Apache-2.0. The npm package supplies its native binaries, WASM and source; these are not checked into this repository. `scripts/patch-libfx.cjs` applies a narrow stream-cancellation fix to the pinned package during installation. Its source hashes and rationale are documented in `docs/verification/P0.md`. Preserve applicable dependency notices when distributing the application.
 
-Other dependency versions and resolved integrity values are pinned in `package-lock.json`; their licenses remain in the installed packages.
+Other dependency versions and resolved integrity values are pinned in `npm-shrinkwrap.json`; their licenses remain in the installed packages. The optional local inference graph has a separate `addons/local-embeddings/npm-shrinkwrap.json`.
 
 ## Modal
 
@@ -42,7 +42,7 @@ Unchanged official SVG artwork is retained in `ui/public/providers/`. Exact sour
 
 ## Markdown rendering
 
-`react-markdown` 10.1.0 and `remark-gfm` 4.0.1 are MIT-licensed packages from https://github.com/remarkjs/react-markdown and https://github.com/remarkjs/remark-gfm. They and their unified/micromark dependencies are installed from the pinned npm graph, not vendored. Retain the installed licenses when distributing the app.
+`react-markdown` 10.1.0 and `remark-gfm` 4.0.1 are MIT-licensed packages from https://github.com/remarkjs/react-markdown and https://github.com/remarkjs/remark-gfm. They, React, Lucide icons and their dependency graph are bundled into the built UI. The build emits their full installed license/notice texts to `dist/ui/THIRD_PARTY_LICENSES.txt`, included in the npm tarball; standalone UI build packages are not runtime dependencies.
 
 ## Agent Client Protocol SDK
 

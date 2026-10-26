@@ -197,12 +197,32 @@ export function extensionRoutes(app: FastifyInstance, store: Store, ext: Extensi
     await ext.embeddings.removeConnection(z.object({ id: z.string().uuid() }).parse(req.params).id);
     return { ok: true };
   });
+  app.post('/api/v1/embeddings/runtime', async (req) => {
+    const { action, acknowledgeDownload } = z
+      .object({
+        action: z.enum(['install', 'cancel', 'remove']),
+        acknowledgeDownload: z.boolean().optional(),
+      })
+      .strict()
+      .parse(req.body);
+    if (action === 'install') {
+      if (acknowledgeDownload !== true)
+        throw new AppError(
+          400,
+          'runtime_consent',
+          'Confirm the optional runtime download before installing it.',
+        );
+      await ext.embeddings.local.installRuntime();
+    } else if (action === 'cancel') await ext.embeddings.local.addon.cancel();
+    else await ext.embeddings.removeRuntime();
+    return ext.embeddings.local.status();
+  });
   app.post('/api/v1/embeddings/local', async (req) => {
     const { action } = z
       .object({ action: z.enum(['download', 'pause', 'delete']) })
       .strict()
       .parse(req.body);
-    if (action === 'download') ext.embeddings.local.start();
+    if (action === 'download') await ext.embeddings.local.start();
     else if (action === 'pause') await ext.embeddings.local.cancel();
     else await ext.embeddings.removeLocal();
     return ext.embeddings.local.status();

@@ -33,7 +33,7 @@ Closing the tab detaches the viewer; **Stop** cancels the current model turn. St
 - **Agent Zero MCP tools preview:** the Agent Zero preset connects to its built-in Streamable HTTP MCP endpoint. Store the base URL and encrypted token separately, optionally bind a remote project, discover the exposed tools, and review every call. Python plugins continue running on Agent Zero. A real instance check remains pending.
 - **Plugin Hub:** refresh the actual upstream catalog, search it, assess pinned repository trees, and review/import individual portable Markdown skills. No install hooks run. Unknown or Python/UI plugins are never advertised as native Node extensions.
 - **Memory:** SQLite/FTS5 project notes in `main`, `fragments`, and `solutions`, with source labels, editing, deletion, portable text import/export, and separate agent read/write permissions. New chats receive bounded lexical recall at turn start and can call `memory_load`, `memory_save`, and `memory_delete`.
-- **Embeddings:** explicit pinned Hugging Face MiniLM download (22.6 MiB), checksums, progress, pause/retry, offline verification and removal. CPU inference runs in a worker with network access disabled. Separate compatible `/embeddings` connections require their own credentials and an explicit project data-sharing choice. Reindexing validates dimensions and switches namespaces only after successful completion; lexical search stays available.
+- **Embeddings:** optional local inference runtime installed from Memory → Embeddings & models, followed by an explicit pinned Hugging Face MiniLM download (22.6 MiB). Installation supports cancellation, retry and removal; model files have checksums, progress, pause/retry and offline verification. CPU inference runs in a worker with network fetch disabled. Separate compatible `/embeddings` connections require their own credentials and an explicit project data-sharing choice. Reindexing validates dimensions and switches namespaces only after successful completion; lexical search stays available.
 - **Subordinates:** new chats can delegate read-only research/review through `call_subordinate`, inspect each child transcript, stop its work and continue the same child from its parent. Children inherit the project, model connection and a subset of permitted skills/recall; they cannot write, execute code or call MCP.
 - Graphite/Paper themes, three accents, two densities, responsive file/artifact inspector, and original Agent Zero symbols.
 
@@ -80,6 +80,7 @@ On macOS, app data lives in `~/Library/Application Support/A0-SLIM`; elsewhere i
 
 ```sh
 npm run check                 # typecheck, contract/integration tests, production build
+npm run test:package          # fresh tarball install, CLI/UI/native runtime, optional add-on CPU probe
 npm audit --audit-level=high
 npm run dev                   # source server; build the UI first
 npm run watch:ui              # rebuild UI in a second terminal; refresh the browser
@@ -92,7 +93,7 @@ node --import tsx tests/helpers/docker-live.ts  # optional real local-engine dri
 
 Schema 1 upgrades save a private SQLite backup in the data directory before applying schema 2. Back up the entire data directory and preserve its vault key for a complete recovery; a database backup alone does not include libfx session files.
 
-The pinned libfx package receives a small, hash-checked stream-cancellation patch during `npm ci`. Its rationale is in the [P0 record](docs/verification/P0.md). A scoped override upgrades the transitive Zod version inside `@vercel/cli-config`; the lockfile pins the resulting graph.
+The pinned libfx package receives a small, hash-checked stream-cancellation patch during `npm ci` and an idempotent check at CLI startup. Its rationale is in the [P0 record](docs/verification/P0.md). A scoped override upgrades the transitive Zod version inside `@vercel/cli-config`; `npm-shrinkwrap.json` pins the graph in both the checkout and the distributed CLI. The source project's npm script approvals cover only the pinned SQLite and CBOR native dependencies.
 
 ## Project documents
 
@@ -104,4 +105,8 @@ The pinned libfx package receives a small, hash-checked stream-cancellation patc
 
 A0 SLIM is an independent project, not a drop-in replacement for Agent Zero. Original brand assets and dependency attribution are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-The Transformers.js runtime loads only in the optional inference worker, but its native/ONNX dependencies are installed with this source distribution. On the tested macOS checkout, Transformers.js, onnxruntime-node and onnxruntime-web occupy approximately 441 MiB together, excluding the 22.6 MiB model. This is not a tiny standalone executable; optional runtime packaging remains a release task. Model weights live under the private app data directory and are never committed.
+## npm packaging and optional local embeddings
+
+`npm pack` builds a CLI tarball containing the compiled server, prebuilt UI, attribution and a pinned optional-runtime recipe. React, icons and Markdown rendering are bundled into the UI; their build packages are development dependencies. No Transformers.js, ONNX Runtime, PyTorch, Python, model weights or personal data ship in the core runtime dependency graph. The package remains private pending a public npm release; no registry publication has occurred. See [package installation and size measurements](docs/PACKAGING.md).
+
+In **Memory → Embeddings & models**, choose **Install local embeddings**, then **Download & verify** for the model. The add-on installs pinned Transformers.js and ONNX Runtime under the app's private `addons/local-embeddings` directory. PyTorch is not needed. Removing the runtime preserves downloaded models, memory and vectors; affected local semantic searches fall back to lexical search until it is reinstalled. Hosted embeddings, native chat, MCP and sandbox integrations work without the add-on. Model files live separately under `models` and are never committed.

@@ -4,6 +4,7 @@ import type { Project } from '../src/domain.js';
 import type { MemoryNote, MemoryPolicy } from '../src/memory/store.js';
 import type { EmbeddingConnection, IndexJob } from '../src/memory/embeddings.js';
 import { api } from './api.js';
+import type { AddonState } from '../src/memory/embedding-addon.js';
 import { Heading } from './workspace.js';
 import { downloadText, type Act } from './extensions.js';
 type MemoryData = {
@@ -16,6 +17,7 @@ type EmbeddingData = {
   connections: EmbeddingConnection[];
   local: {
     status: string;
+    runtime: AddonState;
     downloaded: number;
     error?: string;
     location: string;
@@ -37,6 +39,7 @@ export function MemoryWorkspace({
     [embeddings, setEmbeddings] = useState<EmbeddingData>(),
     [connectionId, setConnectionId] = useState('local-minilm'),
     [sharing, setSharing] = useState(false),
+    [runtimeConsent, setRuntimeConsent] = useState(false),
     [busy, setBusy] = useState(false),
     [section, setSection] = useState('knowledge'),
     [mode, setMode] = useState('lexical'),
@@ -77,12 +80,13 @@ export function MemoryWorkspace({
     return () => abort.abort();
   }, [query, area]);
   const activeJob = data?.index.jobs.some((j) => j.status === 'building'),
-    downloading = embeddings && ['downloading', 'verifying'].includes(embeddings.local.status);
+    downloading = embeddings && ['downloading', 'verifying'].includes(embeddings.local.status),
+    installing = embeddings?.local.runtime.status === 'installing';
   useEffect(() => {
-    if (!activeJob && !downloading) return;
+    if (!activeJob && !downloading && !installing) return;
     const interval = setInterval(() => void act(refresh), 1500);
     return () => clearInterval(interval);
-  }, [activeJob, downloading, query, area]);
+  }, [activeJob, downloading, installing, query, area]);
   const run = (fn: () => Promise<unknown>) => {
     if (busy) return;
     setBusy(true);
@@ -321,6 +325,62 @@ export function MemoryWorkspace({
                 <h2>Local Hugging Face model</h2>
                 <span className="pill">{embeddings.local.status}</span>
               </div>
+              <h3>Optional local runtime</h3>
+              <p>
+                Transformers.js and ONNX Runtime run embeddings on this computer. PyTorch is not
+                needed. Lexical search and hosted embeddings work without this add-on.
+              </p>
+              <p role="status">Runtime: {embeddings.local.runtime.status.replaceAll('-', ' ')}</p>
+              {embeddings.local.runtime.error && (
+                <p role="status">{embeddings.local.runtime.error}</p>
+              )}
+              {embeddings.local.runtime.status !== 'ready' && !installing && (
+                <>
+                  <label className="check-row">
+                    <input
+                      type="checkbox"
+                      checked={runtimeConsent}
+                      onChange={(e) => setRuntimeConsent(e.target.checked)}
+                    />
+                    Download the optional runtime from npm. Allow about 500 MB of extra storage;
+                    model files are separate.
+                  </label>
+                  <button
+                    disabled={busy || downloading || !runtimeConsent}
+                    onClick={() =>
+                      run(async () => {
+                        await api('/embeddings/runtime', {
+                          action: 'install',
+                          acknowledgeDownload: true,
+                        });
+                        setRuntimeConsent(false);
+                      })
+                    }
+                  >
+                    Install local embeddings
+                  </button>
+                </>
+              )}
+              {installing && (
+                <button
+                  disabled={busy}
+                  onClick={() => run(() => api('/embeddings/runtime', { action: 'cancel' }))}
+                >
+                  Cancel runtime installation
+                </button>
+              )}
+              {['ready', 'interrupted', 'failed'].includes(embeddings.local.runtime.status) && (
+                <button
+                  disabled={busy || downloading || activeJob}
+                  onClick={() => run(() => api('/embeddings/runtime', { action: 'remove' }))}
+                >
+                  Remove embedding runtime
+                </button>
+              )}
+              <p className="fine">
+                Removing the runtime keeps downloaded models, memory and index data. Search falls
+                back to text until you reinstall it.
+              </p>
               <h3>MiniLM · 384 dimensions</h3>
               <p>
                 Quantized ONNX model running on this computer’s CPU in a worker. No chat
@@ -357,7 +417,12 @@ export function MemoryWorkspace({
               {embeddings.local.error && <p role="status">{embeddings.local.error}</p>}
               <div className="button-row">
                 <button
-                  disabled={busy || downloading || embeddings.local.status === 'ready'}
+                  disabled={
+                    busy ||
+                    downloading ||
+                    embeddings.local.runtime.status !== 'ready' ||
+                    embeddings.local.status === 'ready'
+                  }
                   onClick={() => run(() => api('/embeddings/local', { action: 'download' }))}
                 >
                   <Download size={15} />

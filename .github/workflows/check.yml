@@ -19,6 +19,9 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
+          cache-dependency-path: npm-shrinkwrap.json
       - run: npm ci
       - run: npm run check
+      - run: npm run test:package
       - run: npm audit --audit-level=high
+      - run: npm audit --audit-level=high --prefix addons/local-embeddings
