@@ -18,6 +18,7 @@ import { CloudCheck, cloudKeyCredentials } from '../execution/cloud-check.js';
 import { createE2BDriver } from '../execution/e2b.js';
 import { createDaytonaDriver } from '../execution/daytona.js';
 import { listWorkspace, readWorkspaceFile } from '../tools/files.js';
+import { extensionRoutes } from './extensions.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const equal = (a: string, b: string) =>
@@ -89,7 +90,7 @@ export async function createApp(options: {
   });
   app.get('/api/v1/status', async (request) => ({
     paired: Date.now() <= sessionExpiry && equal(request.cookies.slim_session ?? '', session),
-    stage: 'P1 alpha · account checks pending',
+    stage: 'P2 preview · account checks pending',
     version: '0.1.0-alpha.1',
   }));
   app.post('/api/v1/pair', async (request, reply) => {
@@ -253,6 +254,7 @@ export async function createApp(options: {
       model: connection.model,
       execution: project.execution ?? 'none',
       sessionId: null,
+      capabilitiesVersion: 2 as const,
       status: 'idle' as const,
       createdAt: new Date().toISOString(),
     };
@@ -427,6 +429,7 @@ export async function createApp(options: {
       .parse(request.body);
     return sandbox.run();
   });
+  extensionRoutes(app, store, runtime.extensions);
   if (options.staticDir && existsSync(options.staticDir)) {
     await app.register(serveStatic, { root: resolve(options.staticDir), index: ['index.html'] });
   }

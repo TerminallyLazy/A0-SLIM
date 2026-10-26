@@ -46,7 +46,6 @@ export function Artifacts({
   };
   return (
     <>
-      <div className="eyebrow">From idea to file</div>
       <h3>Artifacts</h3>
       <p>
         Review the destination and content before applying a change. Downloads stay separate from

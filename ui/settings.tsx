@@ -16,7 +16,7 @@ export function Connections({
     [notice, setNotice] = useState('');
   return (
     <>
-      <Heading label="Pick your perspective" title="Your models. Your choice.">
+      <Heading title="Models & accounts">
         Connect an API, a local model, or a ChatGPT account. Each conversation keeps its own
         connection.
       </Heading>

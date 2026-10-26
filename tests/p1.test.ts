@@ -139,7 +139,7 @@ test('schema upgrades keep a private pre-migration backup and budgets survive pr
     new RequestBudget(store, 'fixture', 2, 600000, () => 100).consume();
     store.close();
     store = new Store(dir);
-    assert.equal(store.meta('schema_version'), '2');
+    assert.equal(store.meta('schema_version'), '3');
     assert.equal(store.meta('preserved'), 'yes');
     assert.equal((await readdir(join(dir, 'backups'))).length, 1);
     const budget = new RequestBudget(store, 'fixture', 2, 600000, () => 100);

@@ -1,8 +1,8 @@
 # A0 SLIM
 
-A local-first agent workspace inspired by Agent Zero. A Node service owns the work; a calm, customizable browser UI gives it a home.
+A local-first agent workspace inspired by Agent Zero. A Node service runs the agent loop, project tools, memory, and extensions; a browser UI exposes their state and permissions.
 
-**Status: local alpha 0.1.0-alpha.1.** ChatGPT text/functions, reviewed artifacts and optional local Docker execution are implemented. Cloud account acceptance and broader release gates remain open. See [P1 evidence and limitations](docs/verification/P1.md).
+**Status: local alpha 0.1.0-alpha.1 with P2 extension and memory preview.** ChatGPT text/functions, reviewed artifacts and optional local Docker execution are implemented. Cloud account acceptance and broader release gates remain open. See [P1 evidence and limitations](docs/verification/P1.md) and [P2 verification](docs/verification/P2.md).
 
 ## Run locally
 
@@ -28,6 +28,11 @@ Closing the tab detaches the viewer; **Stop** cancels the current model turn. St
 - Scoped file reads and **reviewed text artifacts**. `write_file` stages an immutable preview; only the paired browser can approve its exact content and destination. Conflicts and interrupted writes block further project changes until reconciled.
 - Optional **local Docker** execution: disposable Node.js containers, no network, no host-folder mounts or model credentials, non-root user, read-only base image, 128 MiB memory and five seconds per call. Output can become a reviewed artifact. Core chat does not require Docker.
 - **Vercel Sandbox, Modal, E2B and Daytona** connection forms and bounded synthetic checks, with official logos, signup/sign-in links, guided credential setup, explicit usage acknowledgment and recovery receipts. Cloud agent execution remains off pending live validation.
+- **Skills & MCP:** import, inspect, enable, export, update and roll back project SKILL.md instructions. New native chats load relevant skills through `skills_tool`. Connect Streamable HTTP or explicitly trusted local stdio MCP servers, discover tools, and grant each tool separately. Calls enter an exact-argument approval queue; ambiguous effects block further calls to the server.
+- **Agent Zero bridge preview:** the Agent Zero preset connects to its built-in Streamable HTTP MCP endpoint. Store the base URL and encrypted token separately, optionally bind a remote project, discover the exposed tools, and review every call. Python plugins continue running on Agent Zero. A real instance check remains pending.
+- **Plugin Hub:** refresh the actual upstream catalog, search it, assess pinned repository trees, and review/import individual portable Markdown skills. No install hooks run. Unknown or Python/UI plugins are never advertised as native Node extensions.
+- **Memory:** SQLite/FTS5 project notes in `main`, `fragments`, and `solutions`, with source labels, editing, deletion, portable text import/export, and separate agent read/write permissions. New chats receive bounded lexical recall at turn start and can call `memory_load`, `memory_save`, and `memory_delete`.
+- **Embeddings:** explicit pinned Hugging Face MiniLM download (22.6 MiB), checksums, progress, pause/retry, offline verification and removal. CPU inference runs in a worker with network access disabled. Separate compatible `/embeddings` connections require their own credentials and an explicit project data-sharing choice. Reindexing validates dimensions and switches namespaces only after successful completion; lexical search stays available.
 - Graphite/Paper themes, three accents, two densities, responsive file/artifact inspector, and original Agent Zero symbols.
 
 ### Free sandbox choices
@@ -46,7 +51,16 @@ The ChatGPT bridge supports text and function tools. It rejects missing reasonin
 
 Model calls share a persisted 40-request/10-minute budget per project, connection and model, with a 10-minute turn limit. These limits are fixed in this alpha. File approval does not isolate the service from another program running as your OS user. Avoid simultaneous edits while applying an artifact; an adversarial OS process is outside this local-user threat boundary.
 
-Memory, embeddings/downloads, delegation, skills/MCP, Plugin Hub discovery, arbitrary cloud code execution and third-party runner installation remain planned. Their UI entries are labeled accordingly.
+Start a **new chat** for P2 skills, MCP, and memory tools. Earlier chats retain their original runtime identity and tool set so recovery history remains usable. Capability snapshots freeze each new turn; permission revocation is checked again at tool dispatch. This is functional Agent Zero influence, not full parity: see the [capability comparison](docs/AGENT-ZERO-COMPATIBILITY.md).
+
+Bounded subordinates, native Python plugins, arbitrary cloud agent execution, MCP OAuth/Apps, browser embeddings, automatic document ingestion, shared cross-project memory and executable third-party Slim plugins remain future work. The Agent Zero bridge is protocol-tested with a synthetic server; actual plugin behavior requires checks against the owner’s Agent Zero instance. MCP approvals do not isolate a local stdio process: it runs with the OS user’s authority. Hosted embedding revisions are user-supplied namespace labels; provider-side model changes cannot be independently pinned by this compatible API.
+
+### Using the new capabilities
+
+1. In **Skills & MCP**, review a SKILL.md and import it disabled, then enable it for the selected project. Start a new chat and ask a task relevant to that skill.
+2. For MCP, save a connection, discover its catalog, allow selected tools and enable the server. The agent stages a call; open **Approvals** to review its arguments and run it once. Send a follow-up message so the agent retrieves the result.
+3. For the Agent Zero bridge, enable **Settings → MCP Server** in Agent Zero. In Slim choose **Agent Zero bridge**, enter only the instance base URL, and put the token in its separate password field. Use HTTPS for non-loopback instances. Never paste a token-bearing MCP URL into the endpoint field.
+4. In **Memory**, add notes and decide whether the agent may recall or save/delete them. Embeddings are optional. Use **Embeddings & models** to download MiniLM or add an independent hosted connection, then explicitly build the selected project’s index.
 
 ## Storage and development
 
@@ -75,3 +89,5 @@ The pinned libfx package receives a small, hash-checked stream-cancellation patc
 - [Untouched preliminary specification](docs/original/A0-SLIM-SPEC.md)
 
 A0 SLIM is an independent project, not a drop-in replacement for Agent Zero. Original brand assets and dependency attribution are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The Transformers.js runtime loads only in the optional inference worker, but its native/ONNX dependencies are installed with this source distribution. On the tested macOS checkout, Transformers.js, onnxruntime-node and onnxruntime-web occupy approximately 441 MiB together, excluding the 22.6 MiB model. This is not a tiny standalone executable; optional runtime packaging remains a release task. Model weights live under the private app data directory and are never committed.

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
+  BookOpen,
   ArrowUp,
   ArrowUpRight,
   Check,
@@ -24,6 +25,8 @@ import { Artifacts, type ArtifactSummary } from './artifacts.js';
 import { api } from './api.js';
 import { Connections } from './settings.js';
 import { Environments } from './environments.js';
+import { ExtensionWorkspace, PluginHubView } from './extensions.js';
+import { MemoryWorkspace } from './memory.js';
 
 type State = {
   projects: Project[];
@@ -36,7 +39,8 @@ type State = {
   cloudConfigured: Record<string, boolean>;
 };
 type Line = { cursor: number; event: Record<string, any> };
-type View = 'chat' | 'connections' | 'environments' | 'appearance' | 'roadmap';
+type View =
+  'chat' | 'connections' | 'environments' | 'appearance' | 'extensions' | 'hub' | 'memory';
 const empty: State = {
   projects: [],
   chats: [],
@@ -55,18 +59,9 @@ export function Logo({ small = false }: { small?: boolean }) {
     </span>
   );
 }
-export function Heading({
-  label,
-  title,
-  children,
-}: {
-  label: string;
-  title: string;
-  children: ReactNode;
-}) {
+export function Heading({ title, children }: { title: string; children: ReactNode }) {
   return (
     <header className="section-heading">
-      <div className="eyebrow">{label}</div>
       <h1>{title}</h1>
       <p>{children}</p>
     </header>
@@ -294,12 +289,7 @@ export function App() {
           <Logo /> A0 SLIM <span className="pill">Local alpha</span>
         </div>
         <div className="pair-card">
-          <div className="eyebrow">A workspace of your own</div>
-          <h1>
-            Make yourself
-            <br />
-            at home.
-          </h1>
+          <h1>Connect this browser</h1>
           <p>
             Pair this browser with your local A0 SLIM service. Your terminal has a one-time code.
           </p>
@@ -336,7 +326,6 @@ export function App() {
             <ShieldCheck size={14} /> One local service. One trusted OS user.
           </small>
         </div>
-        <footer>AGENT ZERO, REIMAGINED LIGHTER.</footer>
       </main>
     );
   return (
@@ -420,7 +409,9 @@ export function App() {
             [
               ['connections', Plug, 'Connections'],
               ['environments', Terminal, 'Environments'],
-              ['roadmap', Layers, 'Extensions'],
+              ['extensions', Plug, 'Skills & MCP'],
+              ['hub', Layers, 'Plugin Hub'],
+              ['memory', BookOpen, 'Memory'],
               ['appearance', Settings2, 'Appearance'],
             ] as const
           ).map(([id, Icon, title]) => (
@@ -431,7 +422,6 @@ export function App() {
             >
               <Icon size={16} />
               {title}
-              {id === 'roadmap' && <small>Planned</small>}
             </button>
           ))}
           <div className="local-status">
@@ -457,8 +447,10 @@ export function App() {
               : {
                   connections: 'Models & accounts',
                   environments: 'Environments',
-                  appearance: 'Make it yours',
-                  roadmap: 'Extensions',
+                  appearance: 'Appearance',
+                  extensions: 'Skills & MCP',
+                  hub: 'Plugin Hub',
+                  memory: 'Memory',
                 }[view]}
           </strong>
           <div className="workbar-right">
@@ -484,21 +476,23 @@ export function App() {
         {view === 'chat' ? (
           <>
             <div ref={scroll} className="conversation">
+              {chat && chat.capabilitiesVersion !== 2 && (
+                <p className="permission-note">
+                  This earlier chat retains its original tool set for recovery compatibility. Start
+                  a new chat to use skills, MCP, and project memory.
+                </p>
+              )}
               {!lines.length ? (
                 <div className="welcome">
                   <div className="welcome-symbol">
                     <Logo />
                   </div>
-                  <div className="eyebrow">Space for your next idea</div>
                   <h1>
                     What are we
                     <br />
                     working on?
                   </h1>
-                  <p>
-                    Explore a project, connect the dots, or find
-                    <br className="desktop-only" /> a clearer way forward.
-                  </p>
+                  <p>Select a project and model, then describe the task.</p>
                   <div className="suggestions">
                     <button
                       onClick={() =>
@@ -509,7 +503,7 @@ export function App() {
                     >
                       <Folder size={19} />
                       <span>
-                        Explore a project<small>Start with the big picture</small>
+                        Explore a project<small>Read files and explain the structure</small>
                       </span>
                       <ArrowUpRight size={15} />
                     </button>
@@ -522,7 +516,7 @@ export function App() {
                     >
                       <FileText size={19} />
                       <span>
-                        Find the next step<small>Turn notes into a direction</small>
+                        Find the next step<small>Review documentation and next steps</small>
                       </span>
                       <ArrowUpRight size={15} />
                     </button>
@@ -655,7 +649,7 @@ export function App() {
                 <span>
                   {running
                     ? 'Working · closing the tab keeps this turn running'
-                    : streamStatus || 'Your project. Your connections.'}
+                    : streamStatus || 'Ready'}
                 </span>
                 <span>{execution === 'docker' ? 'Local Docker' : 'Execution off'}</span>
               </div>
@@ -677,8 +671,8 @@ export function App() {
             )}
             {view === 'appearance' && (
               <>
-                <Heading label="A little more you" title="Make room for your style.">
-                  A calm canvas, with the details in your hands. Preferences stay in this browser.
+                <Heading title="Appearance">
+                  Choose a theme, accent color, and spacing. Preferences are saved in this browser.
                 </Heading>
                 <div className="setting-row">
                   <div>
@@ -701,7 +695,7 @@ export function App() {
                 <div className="setting-row">
                   <div>
                     <h3>Accent</h3>
-                    <p>A quiet signature throughout the workspace.</p>
+                    <p>Choose the color used for controls and selection.</p>
                   </div>
                   <div className="swatches">
                     {['sage', 'sky', 'clay'].map((a) => (
@@ -738,7 +732,7 @@ export function App() {
                 <div className="brand-credit">
                   <img src="/a0-horizontal-banner.svg" alt="Agent Zero" width="1500" height="500" />
                   <div>
-                    <h3>Agent Zero roots. A lighter workspace.</h3>
+                    <h3>Agent Zero</h3>
                     <p>A0 SLIM is an independent project inspired by Agent Zero.</p>
                     <a
                       href="https://github.com/agent0ai/agent-zero"
@@ -751,58 +745,26 @@ export function App() {
                 </div>
               </>
             )}
-            {view === 'roadmap' && (
-              <>
-                <Heading label="Built to grow" title="More possibilities. Same calm.">
-                  Extension support follows the runtime and account proofs. These capabilities are
-                  planned.
-                </Heading>
-                {[
-                  [
-                    'Skills & MCP',
-                    'Portable instructions and tool connections, with explicit permissions.',
-                  ],
-                  [
-                    'Agent Zero Plugin Hub',
-                    'Catalog discovery with a compatibility assessment for each extension. Python plugins require an Agent Zero bridge.',
-                  ],
-                  [
-                    'Memory & embeddings',
-                    'Inspectable project knowledge, optional local Hugging Face models, and separate embedding connections.',
-                  ],
-                  [
-                    'More environments',
-                    'Cloud agent execution and a versioned runner protocol for additional services.',
-                  ],
-                ].map(([name, detail]) => (
-                  <div className="roadmap-row" key={name}>
-                    <Layers size={20} />
-                    <div>
-                      <h3>{name}</h3>
-                      <p>{detail}</p>
-                    </div>
-                    <span className="pill">Planned</span>
-                  </div>
-                ))}
-                <a
-                  className="text-link"
-                  href="https://github.com/TerminallyLazy/A0-SLIM/blob/main/A0-SLIM-SPEC.md"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Read the approved design <ArrowUpRight size={15} />
-                </a>
-              </>
+            {view === 'extensions' && (
+              <ExtensionWorkspace key={projectId} project={project} act={act} />
             )}
+            {view === 'hub' && <PluginHubView project={project} act={act} />}
+            {view === 'memory' && <MemoryWorkspace key={projectId} project={project} act={act} />}
           </div>
         )}
       </main>
       {inspector && (
         <aside className="inspector">
           <div className="inspector-tabs">
-            {['activity', 'files', 'artifacts'].map((t) => (
+            {['activity', 'files', 'artifacts', 'memory'].map((t) => (
               <button key={t} className={tab === t ? 'selected' : ''} onClick={() => setTab(t)}>
-                {t === 'activity' ? 'Activity' : t === 'files' ? 'Files' : 'Artifacts'}
+                {t === 'activity'
+                  ? 'Activity'
+                  : t === 'files'
+                    ? 'Files'
+                    : t === 'memory'
+                      ? 'Memory'
+                      : 'Artifacts'}
               </button>
             ))}
             <button
@@ -814,7 +776,9 @@ export function App() {
             </button>
           </div>
           <div className="inspector-body">
-            {tab === 'artifacts' ? (
+            {tab === 'memory' ? (
+              <MemoryWorkspace key={projectId} project={project} act={act} compact />
+            ) : tab === 'artifacts' ? (
               <Artifacts
                 items={state.artifacts.filter((a) => a.projectId === projectId)}
                 refresh={refresh}
@@ -824,9 +788,8 @@ export function App() {
               <Files project={project} act={act} />
             ) : (
               <>
-                <div className="eyebrow">In plain sight</div>
-                <h3>{chat?.title ?? 'A fresh start'}</h3>
-                <p>Execution and account state, without the guesswork.</p>
+                <h3>{chat?.title ?? 'New chat'}</h3>
+                <p>Current model, execution environment, and chat status.</p>
                 <div className="detail">
                   <span>Model</span>
                   <span>{chat?.model || connection?.model || 'Not selected'}</span>
@@ -886,8 +849,7 @@ export function App() {
             >
               <X size={18} />
             </button>
-            <div className="eyebrow">Set the scene</div>
-            <h2 id="project-title">Bring a project.</h2>
+            <h2 id="project-title">Add a project</h2>
             <p>
               The agent can read text files inside this folder when you send a request. Choose a
               focused project folder.
@@ -1000,7 +962,6 @@ function Files({
   if (!project) return <p>Choose a project to explore its files.</p>;
   return (
     <>
-      <div className="eyebrow">Project files</div>
       <h3>{project.name}</h3>
       <p className="file-path">{preview?.path ?? path}</p>
       {(path !== '.' || preview) && (

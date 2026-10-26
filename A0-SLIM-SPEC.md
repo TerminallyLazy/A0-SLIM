@@ -1,8 +1,8 @@
 # A0 SLIM — revised build specification
 
-**Revision 0.5 · 2026-10-26 · Local alpha; live acceptance gates remain**
+**Revision 0.6 · 2026-10-26 · Local alpha; live acceptance gates remain**
 
-Owner direction: a local-first app, public GitHub repository, flexible model and sandbox connections, useful access to the Agent Zero Plugin Hub, and a polished, minimal, customizable interface. The [preliminary spec](docs/original/A0-SLIM-SPEC.md) is preserved unchanged. The user approved the direction on 2026-10-26. This specification describes the target product; delivered behavior and open gates are recorded in [P0 verification](docs/verification/P0.md) and [P1 verification](docs/verification/P1.md).
+Owner direction: a local-first app, public GitHub repository, flexible model and sandbox connections, useful access to the Agent Zero Plugin Hub, and a polished, minimal, customizable interface. The [preliminary spec](docs/original/A0-SLIM-SPEC.md) is preserved unchanged. The user approved the direction on 2026-10-26. This specification describes the target product; delivered behavior and open gates are recorded in [P0 verification](docs/verification/P0.md) [P1 verification](docs/verification/P1.md), and [P2 verification](docs/verification/P2.md).
 
 ## 1. Product and scope
 
@@ -193,7 +193,7 @@ Deletion removes active text, vectors and derived search entries; tell the user 
 
 ## 8. Plugin Hub, skills and MCP
 
-The real Agent Zero community index is discovery metadata pointing to separate plugin repositories. Current plugins may contain Python hooks, framework imports, Alpine UI fragments and OS dependencies. This is not a Node package registry. Use a read-only Hub catalog and an independent Slim compatibility overlay; do not invent supported fields in upstream `index.yaml`. [Upstream index](https://github.com/agent0ai/a0-plugins).
+The real Agent Zero community index is discovery metadata pointing to separate plugin repositories. The current app consumes the generated release JSON at `https://github.com/agent0ai/a0-plugins/releases/download/generated-index/index.json`; individual upstream `index.yaml` files are not a single root catalog. Current plugins may contain Python hooks, framework imports, Alpine UI fragments and OS dependencies. This is not a Node package registry. Use a read-only Hub catalog and an independent Slim compatibility overlay; do not invent supported fields in upstream `index.yaml`. [Upstream index](https://github.com/agent0ai/a0-plugins).
 
 Show **Works with Slim**, **Requires Agent Zero**, **Port available**, or **Compatibility unknown**, with a reason and last verified revision. A familiar name or valid manifest is not sufficient evidence. Preserve the last good catalog on fetch failure, show its age, allow explicit refresh, and prevent an older request from overwriting newer results.
 
@@ -230,9 +230,9 @@ Stream errors distinguish rejected input, interrupted viewer, failed model, pend
 
 ## 10. Workspace experience and visual direction
 
-**Direction: a quiet technical studio.** Graphite surfaces, warm neutral text, restrained green/teal accents, thin dividers and purposeful typography. Use original Agent Zero symbols from `docs/res/a0-vector-graphics/`, copied unchanged with attribution; pair them with the A0 SLIM name. Do not invent a replacement logo or imply upstream endorsement.
+**Direction: a functional Agent Zero workspace.** Graphite surfaces, warm neutral text, restrained green/teal accents, thin dividers and purposeful typography. Use original Agent Zero symbols from `docs/res/a0-vector-graphics/`, copied unchanged with attribution; pair them with the A0 SLIM name. Do not invent a replacement logo or imply upstream endorsement.
 
-The primary screen is the workspace, not a marketing landing page: collapsible project/chat navigation on the left, conversation and composer in the center, optional inspector for Activity / Files / Memory on the right. Use generous reading space without wasting operational space. Activity appears as compact meaningful steps; expand raw logs on demand. Outputs have previews, provenance and download/apply actions.
+The primary screen is the workspace, not a marketing landing page: collapsible project/chat navigation on the left, conversation and composer in the center, optional inspector for Activity / Files / Memory on the right. Use generous reading space without wasting operational space. Use plain page titles and descriptive controls; do not use eyebrow labels or slogan-style copy. Activity appears as compact meaningful steps; expand raw logs on demand. Outputs have previews, provenance and download/apply actions.
 
 The composer includes model and execution selectors plus attachment and Send/Stop controls. Persistent status makes the active environment visible. The user should never need to open Settings to know where a command will run. A command palette helps keyboard users navigate without adding toolbar clutter.
 
@@ -281,6 +281,10 @@ Deliver first-run connection setup, projects/chats, Gateway/compatible models, t
 Acceptance: one end-to-end task generates an artifact; the UI reconnects without duplicate messages; an interrupted mutation is reconciled; the model/environment are always apparent; auth/CSRF and project-file escape tests pass. Capture rendered evidence at all target sizes.
 
 ### P2 — extensibility and memory beta
+
+**Delivered P2 preview (2026-10-26):** native skill loading; turn-scoped capability snapshots; opt-in automatic lexical recall and atomic memory tools; MCP Streamable HTTP and full-trust stdio discovery with tool grants and exact-call approval/recovery; an Agent Zero MCP bridge preset with encrypted token custody; real Hub discovery and pinned source assessment; SQLite/FTS5 project memory; local pinned MiniLM downloads and isolated CPU inference; separate compatible embedding connections; resumable reindexing and hybrid retrieval. See the delivery record for evidence. The bridge still needs an owner-run instance check, and this does not close all P2 acceptance gates.
+
+Current preview boundaries: text-only skill import, one revision of rollback, manual MCP approvals followed by a new user message, no MCP OAuth/Apps, no native plugin installation, no shared memory, no document ingestion, no browser embedding worker, no subordinate agent tool. New chats use the P2 runtime identity; existing chats keep their original tool set. Downloads resume completed checksum-verified files, not partial byte ranges. Hosted model revision labels partition indexes but cannot guarantee provider-side weight immutability. Optional inference libraries remain part of the source installation footprint.
 
 Deliver SQLite memory with lexical and optional local embeddings, model download management, bounded subordinates, MCP/skills, compatibility-aware Plugin Hub, and validated cloud agent execution on the existing sandbox adapters. Prototype the Agent Zero bridge and direct Anthropic adapter behind documented capability gates.
 

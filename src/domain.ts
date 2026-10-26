@@ -29,6 +29,7 @@ export type Chat = {
   connectionId: string;
   model: string;
   sessionId: string | null;
+  capabilitiesVersion?: 2;
   execution?: 'none' | 'docker';
   status: 'idle' | 'running' | 'interrupted';
   lastStop?: string;

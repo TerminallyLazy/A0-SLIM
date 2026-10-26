@@ -12,6 +12,7 @@ import { Operations } from '../policy/operations.js';
 import { ResponseReplay, replayKey } from '../providers/replay.js';
 import { fileTools } from '../tools/files.js';
 import { DockerSandbox } from '../execution/docker.js';
+import { Extensions } from '../extensions/runtime.js';
 
 export class Coordinator {
   private agents = new Map<string, FxAgent>();
@@ -23,11 +24,13 @@ export class Coordinator {
   private readonly durability;
   readonly operations: Operations;
   readonly docker: DockerSandbox;
+  readonly extensions: Extensions;
   constructor(
     private store: Store,
     private vault: Vault,
     private chatgpt: ChatGPTAccounts,
   ) {
+    this.extensions = new Extensions(store, vault);
     this.operations = new Operations(store);
     this.docker = new DockerSandbox(store);
     this.durability = local({ dir: join(store.dir, 'sessions') });
@@ -37,7 +40,9 @@ export class Coordinator {
     const project = this.store.project(chat.projectId);
     const budgetScope = `${project.id}:${connection.id}:${connection.model}`;
     const name = `slim-${createHash('sha256')
-      .update(`${budgetScope}:${chat.execution === 'docker' ? 'docker-v1' : 'readonly-v1'}`)
+      .update(
+        `${budgetScope}:${chat.execution === 'docker' ? 'docker-v1' : 'readonly-v1'}${chat.capabilitiesVersion === 2 ? ':extensions-v1' : ''}`,
+      )
       .digest('hex')
       .slice(0, 24)}`;
     const cached = this.agents.get(name);
@@ -55,6 +60,7 @@ export class Coordinator {
             : ''),
         tools: [
           ...fileTools(project.root),
+          ...(chat.capabilitiesVersion === 2 ? this.extensions.tools(project.id) : []),
           this.operations.tool(project.id),
           ...(chat.execution === 'docker' ? [this.docker.tool(project.id)] : []),
         ],
@@ -216,6 +222,17 @@ export class Coordinator {
       this.store.saveChat({ ...current, lastStop: undefined });
       const session = (await this.agent(current)).session(current.sessionId!, {
         context: { messageId },
+        ...(current.capabilitiesVersion === 2
+          ? {
+              instructions:
+                this.extensions.instructions(
+                  this.extensions.snapshot(current.projectId, current.id, messageId, input),
+                ) +
+                (current.execution === 'docker'
+                  ? ' Use run_javascript for disposable network-free Node computation; no host mounts or credentials.'
+                  : ' No code execution environment is enabled.'),
+            }
+          : {}),
       });
       const turn = session.prompt(input, { messageId });
       const accepted = await turn.accepted;
@@ -296,6 +313,7 @@ export class Coordinator {
     await Promise.allSettled([...this.active.values()].map((value) => value.cancel()));
     await Promise.allSettled([...this.active.values()].map((value) => value.done));
     await Promise.allSettled([...this.agents.values()].map((agent) => agent.close()));
+    await this.extensions.close();
     this.sessions.clear();
     this.agents.clear();
   }

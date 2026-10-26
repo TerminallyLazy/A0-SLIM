@@ -41,7 +41,7 @@ export function Environments({
   };
   return (
     <>
-      <Heading label="A place for the work" title="Boundaries you can see.">
+      <Heading title="Environments">
         Start on your own computer, or connect a cloud sandbox with a free allowance. Choose the
         environment that fits your work.
       </Heading>

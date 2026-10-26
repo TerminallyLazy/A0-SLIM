@@ -24,14 +24,14 @@ export class Store {
       CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, data TEXT NOT NULL);
     `);
     const version = this.meta('schema_version');
-    if (version && !['1', '2'].includes(version))
+    if (version && !['1', '2', '3'].includes(version))
       throw new Error(
         'Unsupported database schema. Back up the data before changing application versions.',
       );
-    if (version === '1') {
+    if (version && version !== '3') {
       const backups = join(dir, 'backups');
       mkdirSync(backups, { recursive: true, mode: 0o700 });
-      const backup = join(backups, `schema-1-${Date.now()}-${randomUUID()}.db`);
+      const backup = join(backups, `schema-${version}-${Date.now()}-${randomUUID()}.db`);
       this.db.prepare('VACUUM INTO ?').run(backup);
       chmodSync(backup, 0o600);
     }
@@ -39,7 +39,14 @@ export class Store {
       this.db.exec(
         'CREATE TABLE IF NOT EXISTS operations (id TEXT PRIMARY KEY, data TEXT NOT NULL)',
       );
-      this.setMeta('schema_version', '2');
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS feature_records (kind TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY(kind,id));
+        CREATE TABLE IF NOT EXISTS memories (id TEXT PRIMARY KEY, project TEXT NOT NULL, area TEXT NOT NULL, text TEXT NOT NULL, source TEXT NOT NULL, created TEXT NOT NULL, updated TEXT NOT NULL, digest TEXT NOT NULL);
+        CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(id UNINDEXED, project UNINDEXED, text);
+        CREATE TABLE IF NOT EXISTS memory_vectors (namespace TEXT NOT NULL, id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE, digest TEXT NOT NULL, vector TEXT NOT NULL, PRIMARY KEY(namespace,id));
+        CREATE TABLE IF NOT EXISTS memory_ops (id TEXT PRIMARY KEY, digest TEXT NOT NULL, result TEXT NOT NULL);
+      `);
+      this.setMeta('schema_version', '3');
     })();
     this.db.pragma('synchronous = FULL');
     for (const operation of this.operations())
@@ -53,6 +60,23 @@ export class Store {
       this.db.prepare('SELECT value FROM meta WHERE key=?').get(key) as
         { value: string } | undefined
     )?.value;
+  }
+  records<T>(kind: string): T[] {
+    return (
+      this.db
+        .prepare('SELECT data FROM feature_records WHERE kind=? ORDER BY rowid DESC')
+        .all(kind) as { data: string }[]
+    ).map((row) => JSON.parse(row.data) as T);
+  }
+  record<T extends { id: string }>(kind: string, value: T) {
+    this.db
+      .prepare(
+        'INSERT INTO feature_records VALUES (?,?,?) ON CONFLICT(kind,id) DO UPDATE SET data=excluded.data',
+      )
+      .run(kind, value.id, JSON.stringify(value));
+  }
+  removeRecord(kind: string, id: string) {
+    this.db.prepare('DELETE FROM feature_records WHERE kind=? AND id=?').run(kind, id);
   }
   setMeta(key: string, value: string) {
     this.db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run(key, value);
