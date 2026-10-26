@@ -192,11 +192,14 @@ try {
   }
   await launch();
   await launch();
+  // Resolve from the installed package for both hoisted local and nested global dependencies.
+  const runtimeCheck = join(installed, 'runtime-check.mjs');
   await writeFile(
-    join(temp, 'runtime-check.mjs'),
+    runtimeCheck,
     "export { createFxAgent, getBackendInfo } from 'libfx'; export { local } from 'libfx/durable-local';",
   );
-  const libfx = await import(pathToFileURL(join(temp, 'runtime-check.mjs')).href);
+  const libfx = await import(pathToFileURL(runtimeCheck).href);
+  await rm(runtimeCheck);
   assert.equal(
     (await libfx.getBackendInfo({ surface: 'agent', backend: 'native' })).backend,
     'native',
