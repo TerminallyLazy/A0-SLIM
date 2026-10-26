@@ -18,27 +18,33 @@ test('synthetic sandbox proof pins isolation and attempts cleanup after command 
   });
   let stopped = 0;
   try {
-    const proof = new SandboxProof(store, vault, async (options) => {
-      assert.equal(options!.persistent, false);
-      assert.equal(options!.networkPolicy, 'deny-all');
-      assert.deepEqual(options!.ports, []);
-      assert.equal(options!.timeout, 60_000);
-      return {
-        name: options!.name!,
-        writeFiles: async (files) => {
-          assert.equal(files.length, 1);
-          assert.equal(files[0]!.path, 'proof.txt');
-        },
-        runCommand: async () => {
-          throw new Error('provider error with token MUST-NOT-LEAK');
-        },
-        readFileToBuffer: async () => null,
-        stop: async () => {
-          stopped++;
-          throw new Error('unknown stop');
-        },
-      };
-    });
+    const proof = new SandboxProof(
+      store,
+      vault,
+      async (options) => {
+        assert.equal(options!.persistent, false);
+        assert.equal(options!.networkPolicy, 'deny-all');
+        assert.deepEqual(options!.ports, []);
+        assert.equal(options!.timeout, 60_000);
+        return {
+          name: options!.name!,
+          writeFiles: async (files) => {
+            assert.equal(files.length, 1);
+            assert.equal(files[0]!.path, 'proof.txt');
+          },
+          runCommand: async () => {
+            throw new Error('provider error with token MUST-NOT-LEAK');
+          },
+          readFileToBuffer: async () => null,
+          stop: async () => {
+            stopped++;
+            throw new Error('unknown stop');
+          },
+        };
+      },
+      undefined,
+      async (credentials) => credentials,
+    );
     const receipt = await proof.run();
     assert.equal(receipt.status, 'failed');
     assert.equal(receipt.cleanup, 'unknown');
@@ -90,6 +96,7 @@ test('lost creation response is recovered by exact name and tags without another
         },
       };
     },
+    async (credentials) => credentials,
   );
   try {
     const receipt = await proof.run();
@@ -141,6 +148,7 @@ test('sandbox lookup failure and mismatched ownership never authorize cleanup or
         },
       };
     },
+    async (credentials) => credentials,
   );
   try {
     const receipt = await proof.run();

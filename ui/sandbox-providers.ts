@@ -30,11 +30,11 @@ export const sandboxProviders: readonly SandboxProvider[] = [
     credentialsUrl: 'https://vercel.com/account/settings/tokens',
     docs: 'https://vercel.com/docs/sandbox/concepts/authentication',
     setup:
-      'This connection uses Vercel access-token authentication. Create a token for the team that owns your Vercel project. Copy its Team ID from team settings and Project ID from project settings. Save all three below.',
+      'Create an access token for the team that owns your Vercel project. Enter its Team ID (team_…) or team slug and the Project ID (prj_…) from project settings. A0 SLIM verifies ownership and resolves the team ID before creating a sandbox.',
     lifetime:
       '60-second lifetime · outbound network denied · stopped, then deleted during reconciliation.',
     fields: [
-      ['teamId', 'Team ID', false],
+      ['teamId', 'Team ID or slug', false],
       ['projectId', 'Project ID', false],
       ['token', 'Access token', true],
     ],

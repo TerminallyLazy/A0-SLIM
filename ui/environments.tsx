@@ -29,11 +29,17 @@ export function Environments({
   const [busy, setBusy] = useState(false),
     [editing, setEditing] = useState(''),
     [consent, setConsent] = useState<Record<string, boolean>>({}),
+    [vercelConnection, setVercelConnection] = useState<{
+      teamId: string;
+      projectId: string;
+      hasToken: boolean;
+    } | null>(null),
     [local, setLocal] = useState<{ available: boolean; message?: string; version?: string } | null>(
       null,
     );
   useEffect(() => {
     void act(async () => setLocal(await api('/sandbox/docker')));
+    void act(async () => setVercelConnection(await api('/sandbox/vercel/connection')));
   }, []);
   const perform = (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -160,7 +166,7 @@ export function Environments({
                   Open dashboard <ArrowUpRight size={14} />
                 </a>
                 <button
-                  disabled={busy}
+                  disabled={busy || (cloud.id === 'vercel' && vercelConnection === null)}
                   onClick={() => setEditing(editing === cloud.id ? '' : cloud.id)}
                 >
                   {editing === cloud.id
@@ -200,6 +206,8 @@ export function Environments({
                         data = Object.fromEntries(new FormData(form));
                       perform(async () => {
                         await api(`/sandbox/${cloud.id}`, data);
+                        if (cloud.id === 'vercel')
+                          setVercelConnection(await api('/sandbox/vercel/connection'));
                         form.reset();
                         setEditing('');
                         setConsent({ ...consent, [cloud.id]: false });
@@ -214,9 +222,28 @@ export function Environments({
                           <input
                             name={field[0]}
                             type={field[2] ? 'password' : 'text'}
-                            required
+                            required={
+                              !(
+                                cloud.id === 'vercel' &&
+                                field[0] === 'token' &&
+                                vercelConnection?.hasToken
+                              )
+                            }
                             autoComplete="off"
-                            defaultValue={field.length > 3 ? field[3] : undefined}
+                            placeholder={
+                              cloud.id === 'vercel' &&
+                              field[0] === 'token' &&
+                              vercelConnection?.hasToken
+                                ? 'Leave blank to keep the saved token'
+                                : undefined
+                            }
+                            defaultValue={
+                              cloud.id === 'vercel' && field[0] !== 'token'
+                                ? (vercelConnection?.[field[0] as 'teamId' | 'projectId'] ?? '')
+                                : field.length > 3
+                                  ? field[3]
+                                  : undefined
+                            }
                           />
                         </label>
                       ))}
@@ -244,7 +271,13 @@ export function Environments({
                   </label>
                   <button
                     className="primary"
-                    disabled={busy || !consent[cloud.id]}
+                    disabled={
+                      busy ||
+                      !consent[cloud.id] ||
+                      receipts.some(
+                        (r) => r.kind === `${cloud.id}-sandbox-proof` && r.cleanup === 'unknown',
+                      )
+                    }
                     onClick={() =>
                       perform(async () => {
                         await api(`/sandbox/${cloud.id}/proof`, { acknowledgeUsage: true });
@@ -267,9 +300,7 @@ export function Environments({
         logos identify integrations and do not imply endorsement. A saved credential is not a
         verified connection; check results and cleanup status appear below.
       </p>
-      <div className="list-label">
-        Execution receipts <span>{receipts.length}</span>
-      </div>
+      <h2>Execution receipts ({receipts.length})</h2>
       {!receipts.length && <p className="empty-row">Your first check will appear here.</p>}
       {receipts.map((receipt) => {
         const cloud = clouds.find((c) => receipt.kind === `${c.id}-sandbox-proof`);
@@ -286,7 +317,14 @@ export function Environments({
                     ? 'Pending or interrupted'
                     : 'Did not pass'}
               </strong>
-              <span className="pill">Cleanup: {receipt.cleanup}</span>
+              <span className="pill">
+                Cleanup:{' '}
+                {receipt.cleanup === 'reviewed_absent'
+                  ? 'absence reviewed'
+                  : receipt.cleanup === 'not_created'
+                    ? 'not created'
+                    : receipt.cleanup}
+              </span>
             </div>
             <p>
               {receipt.environmentId ?? 'No environment created'} ·{' '}
@@ -294,6 +332,42 @@ export function Environments({
             </p>
             {receipt.message && <p>{receipt.message}</p>}
             {receipt.reconcileMessage && <p className="error">{receipt.reconcileMessage}</p>}
+            {receipt.resolution && <p>Provider review: {receipt.resolution}</p>}
+            {provider === 'vercel' && receipt.cleanup === 'unknown' && (
+              <details>
+                <summary>Record a provider review</summary>
+                <p>
+                  If the sandbox is absent in Vercel, record what you checked. A0 SLIM also verifies
+                  project access, an exact-name lookup and the complete sandbox listing. This
+                  preserves the failed receipt and releases its hold; it does not mark the original
+                  check as passed or claim deletion.
+                </p>
+                <form
+                  className="settings-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const form = new FormData(event.currentTarget);
+                    perform(async () => {
+                      await api(`/sandbox/vercel/receipts/${receipt.id}/review-absence`, {
+                        acknowledgeProviderReview: form.get('acknowledge') === 'on',
+                        resolution: String(form.get('resolution') ?? ''),
+                      });
+                      await refresh();
+                    });
+                  }}
+                >
+                  <label>
+                    Provider review
+                    <textarea name="resolution" required minLength={20} maxLength={2000} />
+                  </label>
+                  <label className="checkbox">
+                    <input name="acknowledge" type="checkbox" required />I checked this exact
+                    resource in the original Vercel project and confirmed it is absent.
+                  </label>
+                  <button disabled={busy}>Record review</button>
+                </form>
+              </details>
+            )}
             {provider && ['unknown', 'stopped'].includes(receipt.cleanup) && (
               <button
                 disabled={busy}

@@ -13,6 +13,7 @@ import { Vault, systemKeySource } from '../providers/vault.js';
 import { ChatGPTAccounts } from '../providers/chatgpt.js';
 import { Coordinator } from '../runtime/coordinator.js';
 import { SandboxProof } from '../execution/proof.js';
+import { vercelCredentials } from '../execution/vercel-auth.js';
 import { ModalProof, modalCredentials } from '../execution/modal.js';
 import { CloudCheck, cloudKeyCredentials } from '../execution/cloud-check.js';
 import { createE2BDriver } from '../execution/e2b.js';
@@ -366,17 +367,30 @@ export async function createApp(options: {
       .send(Readable.from(events()));
   });
   app.post('/api/v1/sandbox/vercel', async (request) => {
-    const input = z
-      .object({
-        token: z.string().min(1).max(8192),
-        teamId: z.string().min(1).max(200),
-        projectId: z.string().min(1).max(200),
-      })
-      .strict()
+    const form = vercelCredentials
+      .partial({ token: true })
+      .extend({ token: z.string().trim().max(8192).optional() })
       .parse(request.body);
+    const saved = await vault.get<{ token: string }>('sandbox:vercel');
+    const token = form.token || saved?.token;
+    if (!token)
+      throw new AppError(
+        400,
+        'sandbox_missing',
+        'Enter a Vercel access token for the first connection.',
+      );
+    const input = vercelCredentials.parse({ ...form, token });
     await vault.set('sandbox:vercel', input);
     store.setMeta('sandbox:vercel', 'configured');
     return { ok: true };
+  });
+  app.get('/api/v1/sandbox/vercel/connection', async () => {
+    const saved = await vault.get<{ token: string; teamId: string; projectId: string }>(
+      'sandbox:vercel',
+    );
+    return saved
+      ? { teamId: saved.teamId, projectId: saved.projectId, hasToken: true }
+      : { teamId: '', projectId: '', hasToken: false };
   });
   for (const [provider, proof] of Object.entries(additionalClouds)) {
     app.post(`/api/v1/sandbox/${provider}`, async (request) => {
@@ -422,6 +436,16 @@ export async function createApp(options: {
   app.post('/api/v1/sandbox/vercel/receipts/:id/reconcile', async (request) => {
     z.object({}).strict().parse(request.body);
     return sandbox.reconcile(idParams.parse(request.params).id);
+  });
+  app.post('/api/v1/sandbox/vercel/receipts/:id/review-absence', async (request) => {
+    const { resolution } = z
+      .object({
+        acknowledgeProviderReview: z.literal(true),
+        resolution: z.string().trim().min(20).max(2000),
+      })
+      .strict()
+      .parse(request.body);
+    return sandbox.reviewAbsence(idParams.parse(request.params).id, resolution);
   });
   app.post('/api/v1/sandbox/vercel/proof', async (request) => {
     z.object({ acknowledgeUsage: z.literal(true) })

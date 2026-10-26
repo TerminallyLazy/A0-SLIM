@@ -63,3 +63,10 @@ The libfx stream initialization/cancel race receives a small checked installatio
 - Pin MiniLM model revision and every file checksum. Explicit download, file-level resume, verification and deletion; CPU inference in a worker with network fetch disabled. Separate hosted embedding keys and consent from chat providers. Switch model namespaces only after all vectors and the source generation validate.
 - Do not call the source distribution tiny: the optional inference worker's runtime dependencies occupy roughly 441 MiB in this macOS checkout. Packaging them as a separate install is still release work.
 - Use plain page names, useful descriptions and no eyebrow labels or slogan-style copy, per the owner's correction.
+
+## Vercel setup and recovery — 2026-10-26
+
+- Preserve public Team/Project IDs in the setup form while retaining write-only token custody. A blank token in an update keeps the saved token.
+- Accept a team slug or ID, but verify the exact project through Vercel's documented team-scoped project lookup before any resource creation. Use the returned canonical account ID for Sandbox SDK calls. Project-scoped tokens must not require team-management permissions.
+- A preflight failure creates no ambiguous resource intent. After dispatch, preserve unknown outcomes, block SDK create retries and retain the recovery hold. An explicit operator review can resolve absence only after the original lifetime, authenticated original-scope verification, exact-name 404 and complete project listing. Preserve the original outcome and review evidence; never label this as confirmed deletion or a passing check.
+- Live owner-authorized Vercel proof passed through the app, including artifact verification, confirmed stop, deletion and subsequent exact-name 404. This proves the synthetic path, not general cloud agent execution or the second-service conformance gate.

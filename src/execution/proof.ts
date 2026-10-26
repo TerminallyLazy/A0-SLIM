@@ -3,8 +3,9 @@ import { Sandbox } from '@vercel/sandbox';
 import type { Store } from '../storage/store.js';
 import type { Vault } from '../providers/vault.js';
 import { AppError } from '../domain.js';
+import { verifyVercelScope, vercelFailure, type SandboxCredentials } from './vercel-auth.js';
 
-export type SandboxCredentials = { token: string; teamId: string; projectId: string };
+export type { SandboxCredentials } from './vercel-auth.js';
 type ProofSandbox = Pick<
   Sandbox,
   'name' | 'writeFiles' | 'runCommand' | 'readFileToBuffer' | 'stop'
@@ -12,6 +13,28 @@ type ProofSandbox = Pick<
 type RecoverableSandbox = Pick<Sandbox, 'name' | 'status' | 'tags' | 'stop' | 'delete'>;
 type Getter = (options: Parameters<typeof Sandbox.get>[0]) => Promise<RecoverableSandbox>;
 type Factory = (options: Parameters<typeof Sandbox.create>[0]) => Promise<ProofSandbox>;
+type Receipt = Record<string, unknown> & { id: string };
+type AbsenceCheck = (credentials: SandboxCredentials, receipt: Receipt) => Promise<void>;
+async function verifyAbsent(credentials: SandboxCredentials, receipt: Receipt) {
+  const pages = await Sandbox.list({ ...credentials, signal: AbortSignal.timeout(15_000) });
+  let count = 0;
+  for await (const page of pages.pages()) {
+    if (++count > 20)
+      throw new AppError(
+        409,
+        'sandbox_review',
+        'The sandbox listing is too large to verify absence. Contact the provider before resolving this check.',
+      );
+    if (
+      page.sandboxes.some((s) => s.name === receipt.environmentId || s.tags?.proof === receipt.id)
+    )
+      throw new AppError(
+        409,
+        'sandbox_review',
+        'A matching sandbox still exists. Use Recheck & clean up.',
+      );
+  }
+}
 /** A bounded synthetic probe; it never uploads the user's project or model credentials. */
 export class SandboxProof {
   private running = false;
@@ -20,31 +43,106 @@ export class SandboxProof {
     private vault: Vault,
     private create: Factory = (options) => Sandbox.create(options),
     private get: Getter = (options) => Sandbox.get(options),
+    private verify = verifyVercelScope,
+    private absence: AbsenceCheck = verifyAbsent,
   ) {}
-  async reconcile(id: string) {
-    if (this.running)
-      throw new AppError(409, 'proof_running', 'A sandbox check is already running.');
-    const receipt = this.store
-      .receipts()
-      .find((r) => r.id === id && r.kind === 'vercel-sandbox-proof');
-    if (!receipt || typeof receipt.environmentId !== 'string')
-      throw new AppError(404, 'receipt_missing', 'Sandbox receipt not found.');
-    if (receipt.cleanup !== 'unknown' && receipt.cleanup !== 'stopped') return receipt;
-    this.running = true;
-    try {
-      const credentials = await this.vault.get<SandboxCredentials>('sandbox:vercel');
+  private async credentials(receipt?: Receipt) {
+    const saved = await this.vault.get<SandboxCredentials>('sandbox:vercel');
+    if (!saved)
+      throw new AppError(400, 'sandbox_missing', 'Save a Vercel Sandbox connection first.');
+    const credentials = await this.verify(saved);
+    if (receipt) {
       const scope = receipt.scope as { teamId: string; projectId: string } | undefined;
-      if (
-        !credentials ||
-        !scope ||
-        credentials.teamId !== scope.teamId ||
-        credentials.projectId !== scope.projectId
-      )
+      if (!scope || scope.projectId !== credentials.projectId)
         throw new AppError(
           409,
           'sandbox_scope',
           'Reconnect the original Vercel team and project to reconcile this resource.',
         );
+      const original =
+        scope.teamId === credentials.teamId
+          ? credentials
+          : await this.verify({ ...saved, ...scope });
+      if (original.teamId !== credentials.teamId)
+        throw new AppError(
+          409,
+          'sandbox_scope',
+          'Reconnect the original Vercel team and project to reconcile this resource.',
+        );
+      receipt.verifiedScope = { teamId: credentials.teamId, projectId: credentials.projectId };
+    }
+    return credentials;
+  }
+  async reviewAbsence(id: string, resolution: string) {
+    if (this.running)
+      throw new AppError(409, 'proof_running', 'A sandbox check is already running.');
+    const receipt = this.store
+      .receipts()
+      .find((r) => r.id === id && r.kind === 'vercel-sandbox-proof') as Receipt | undefined;
+    if (!receipt || typeof receipt.environmentId !== 'string')
+      throw new AppError(404, 'receipt_missing', 'Sandbox receipt not found.');
+    if (receipt.cleanup !== 'unknown')
+      throw new AppError(409, 'sandbox_review', 'Only an unknown outcome needs a provider review.');
+    if (resolution.trim().length < 20 || resolution.length > 2000)
+      throw new AppError(
+        400,
+        'sandbox_review',
+        'Describe the provider review in at least 20 characters.',
+      );
+    if (
+      !Number.isFinite(Date.parse(String(receipt.startedAt))) ||
+      Date.now() - Date.parse(String(receipt.startedAt)) < 60_000
+    )
+      throw new AppError(
+        409,
+        'sandbox_review',
+        'Wait until the original 60-second lifetime has elapsed before reviewing absence.',
+      );
+    this.running = true;
+    try {
+      const credentials = await this.credentials(receipt);
+      try {
+        await this.get({
+          ...credentials,
+          name: receipt.environmentId,
+          resume: false,
+          signal: AbortSignal.timeout(15_000),
+        });
+      } catch (error) {
+        if ((error as { response?: Response }).response?.status !== 404) throw error;
+        await this.absence(credentials, receipt);
+        receipt.cleanup = 'reviewed_absent';
+        receipt.resolution = resolution.trim();
+        receipt.reconciledAt = new Date().toISOString();
+        receipt.resolutionEvidence =
+          'Verified project ownership, exact-name 404 and complete project sandbox listing; explicit operator review.';
+        delete receipt.reconcileMessage;
+        this.store.receipt(receipt);
+        return receipt;
+      }
+      throw new AppError(
+        409,
+        'sandbox_review',
+        'This sandbox still exists. Use Recheck & clean up.',
+      );
+    } catch (error) {
+      throw new AppError(409, 'sandbox_review', vercelFailure(error));
+    } finally {
+      this.running = false;
+    }
+  }
+  async reconcile(id: string) {
+    if (this.running)
+      throw new AppError(409, 'proof_running', 'A sandbox check is already running.');
+    const receipt = this.store
+      .receipts()
+      .find((r) => r.id === id && r.kind === 'vercel-sandbox-proof') as Receipt | undefined;
+    if (!receipt || typeof receipt.environmentId !== 'string')
+      throw new AppError(404, 'receipt_missing', 'Sandbox receipt not found.');
+    if (receipt.cleanup !== 'unknown' && receipt.cleanup !== 'stopped') return receipt;
+    this.running = true;
+    try {
+      const credentials = await this.credentials(receipt);
       let sandbox: RecoverableSandbox;
       try {
         sandbox = await this.get({
@@ -104,10 +202,7 @@ export class SandboxProof {
       this.store.receipt(receipt as { id: string });
       return receipt;
     } catch (error) {
-      receipt.reconcileMessage =
-        error instanceof AppError
-          ? error.message
-          : 'Remote cleanup could not be confirmed. Recheck this exact environment in Vercel; no new resource was created.';
+      receipt.reconcileMessage = vercelFailure(error);
       this.store.receipt(receipt as { id: string });
       return receipt;
     } finally {
@@ -125,7 +220,7 @@ export class SandboxProof {
       throw new AppError(
         409,
         'sandbox_unreconciled',
-        'A previous sandbox outcome is unknown. Use Recheck and stop to reconcile it before creating another sandbox.',
+        'A previous sandbox outcome is unknown. Use Recheck & clean up, or record a provider review if the resource is absent, to reconcile it before creating another sandbox.',
       );
     this.running = true;
     let sandbox: ProofSandbox | undefined;
@@ -137,15 +232,14 @@ export class SandboxProof {
       cleanup: 'not_created',
     };
     try {
-      const credentials = await this.vault.get<SandboxCredentials>('sandbox:vercel');
-      if (!credentials)
-        throw new AppError(400, 'sandbox_missing', 'Save a Vercel Sandbox connection first.');
+      const credentials = await this.credentials();
       receipt.scope = { teamId: credentials.teamId, projectId: credentials.projectId };
       receipt.environmentId = `a0-slim-${receipt.id}`;
       this.store.receipt(receipt);
       // Persist intent before creation. A failed response may still have created a resource.
       receipt.cleanup = 'unknown';
       this.store.receipt(receipt);
+      let dispatched = false;
       sandbox = await this.create({
         ...credentials,
         name: String(receipt.environmentId),
@@ -156,6 +250,16 @@ export class SandboxProof {
         resources: { vcpus: 1 },
         tags: { app: 'a0-slim', proof: receipt.id },
         signal: AbortSignal.timeout(30_000),
+        fetch: async (url, init) => {
+          if (
+            init?.method === 'POST' &&
+            /^\/v[23]\/sandboxes$/.test(new URL(String(url)).pathname)
+          ) {
+            if (dispatched) throw new Error('Sandbox creation will not be retried.');
+            dispatched = true;
+          }
+          return fetch(url, { ...init, redirect: 'error' });
+        },
       });
       if (sandbox.name !== receipt.environmentId)
         throw new Error('Sandbox identity did not match creation intent.');
@@ -184,10 +288,7 @@ export class SandboxProof {
       receipt.artifact = result.toString('utf8');
     } catch (error) {
       receipt.status = 'failed';
-      receipt.message =
-        error instanceof AppError
-          ? error.message
-          : 'Sandbox check failed. Review the environment in Vercel before retrying.';
+      receipt.message = vercelFailure(error);
     } finally {
       if (sandbox) {
         try {
