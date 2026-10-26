@@ -1,8 +1,8 @@
 # A0 SLIM — revised build specification
 
-**Revision 0.2 · 2026-10-26 · Proposed for review**
+**Revision 0.3 · 2026-10-26 · Approved direction; P0 in progress**
 
-Owner direction: a local-first app, public GitHub repository, flexible model and sandbox connections, useful access to the Agent Zero Plugin Hub, and a polished, minimal, customizable interface. The [preliminary spec](docs/original/A0-SLIM-SPEC.md) is preserved unchanged. This revision is a researched proposal; it is not implementation evidence.
+Owner direction: a local-first app, public GitHub repository, flexible model and sandbox connections, useful access to the Agent Zero Plugin Hub, and a polished, minimal, customizable interface. The [preliminary spec](docs/original/A0-SLIM-SPEC.md) is preserved unchanged. The user approved the direction on 2026-10-26. This specification describes the target product; delivered behavior and open gates are recorded in [P0 verification](docs/verification/P0.md).
 
 ## 1. Product and scope
 
@@ -100,7 +100,7 @@ The inference contract uses public `POST /v1/responses`, `store:false`, `stream:
 
 **Known gap:** libfx 0.0.14's built-in `codex` helper uses a Codex-client flow, while its custom provider is Chat Completions. P0 must prove a narrow in-process protocol bridge through libfx's documented `fetch` seam. The bridge converts messages and function calls to the supported public Responses shape and maps streamed results back without losing call IDs, errors, cancellation or terminal status. It has an internal endpoint identity intercepted in-process, never a public proxy. Credentials attach only at the OpenAI fetch boundary.
 
-Acceptance includes a two-step tool round trip, restart with history, account switch, token refresh, revocation and an error after streaming starts. If the bridge cannot preserve semantics, record the blocker and propose an upstream supported adapter or a separately scoped Codex app-server mode. Do not quietly replace libfx or ship a reverse-engineered endpoint as the approved path. No ChatGPT inference test has been performed during planning.
+Acceptance includes a two-step tool round trip, restart with history, account switch, token refresh, revocation and an error after streaming starts. If the bridge cannot preserve semantics, record the blocker and propose an upstream supported adapter or a separately scoped Codex app-server mode. Do not quietly replace libfx or ship a reverse-engineered endpoint as the approved path. No live ChatGPT inference test has been performed. The foundation bridge passes synthetic text/function round trips and rejects reasoning items because encrypted reasoning-state replay is not implemented. Retaining that state across tool calls, restart, and context compaction remains a release gate.
 
 Model selection in a new draft stays in the draft until first Send. Saving a preset or browsing model choices must not create a remote agent session. Freeze the effective configuration on accepted turns. Keep stable libfx agent identities per connection/profile revision; when switching providers, show the data transfer and fork into a new mapped runtime session with a deliberate context handoff. Same-provider model changes apply only to the next turn after capability checks. This avoids mutating one shared named agent's configuration underneath existing sessions.
 
@@ -150,7 +150,7 @@ Expose only enabled tools that the current project, model and execution environm
 | `call_subordinate` | `false,true` until durable child deduplication is proven | Creates work and consumes budget; cannot broaden permissions. |
 | `wait`, `notify_user` | Explicit bounded semantics | Local UI events only; external messaging is a separate permissioned extension. |
 
-`writes` controls libfx scheduling; it does not grant OS permissions. `idempotent` is a recovery promise, not a synonym for “read-only.” Built-in serialization does not prevent conflicts between separate sessions; Slim owns project/resource locks and file revision checks. The source package documents native parallel calls and different WASM scheduling. See [libfx tools](https://fx.sh/docs/lib/tools).
+`writes` controls libfx scheduling; it does not grant OS permissions. `idempotent` is a recovery promise, not a synonym for “read-only.” A SIGKILL proof against libfx 0.0.14 showed that an ambiguous non-idempotent call becomes an error result, after which the model can issue another call. Slim must block effectful tools until unknown operations are reconciled; an error message to the model is insufficient. The foundation therefore exposes only read-only file tools. Built-in serialization does not prevent conflicts between separate sessions; Slim owns project/resource locks and file revision checks. The source package documents native parallel calls and different WASM scheduling. See [libfx tools](https://fx.sh/docs/lib/tools).
 
 Return the final answer through the engine's terminal event, not a fictitious tool return flag. Preserve the familiar Agent Zero tool vocabulary where useful, but write Slim-specific prompts for native structured tool calls. Assemble role → project/profile → capabilities/tool catalog → activated skill summaries → response/safety protocol. Freeze fragment hashes, plugin versions and the effective policy on each accepted turn; refresh on the next turn when settings change.
 

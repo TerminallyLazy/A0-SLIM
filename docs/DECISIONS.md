@@ -1,20 +1,20 @@
 # Decisions and delivery stages
 
-Review date: 2026-10-26.
+Approved by the user in chat on 2026-10-26. The canvas review is closed.
 
 | Decision | State | Rationale |
 | --- | --- | --- |
 | Product name: A0 SLIM | User requested | Consistent user-facing identity; repository `A0-SLIM`. |
 | Local-first browser app and public repository | User confirmed | Local files and control, optional cloud services. |
 | Preserve preliminary spec | Complete | Immutable original; revised specification is separate. |
-| Node 24 LTS, TypeScript, Fastify, React/Vite, SQLite | Proposed | Supported runtime and a maintainable interactive UI without a desktop shell dependency. |
-| libfx 0.0.14 with narrow runtime adapter | Proposed | Verified package API; pin pre-1.0 dependency and prove restart behavior. |
-| ChatGPT via documented Sign in with ChatGPT | Proposed, compatibility gate | Bundled libfx Codex auth is not the same integration. |
-| First sandbox: Vercel; second: E2B | Proposed | Two different backends must prove that the adapter is portable. Daytona follows. |
-| Host execution is explicit opt-in | Proposed | Docker-free need not mean unrestricted execution by default. |
-| Local embeddings optional; lexical recall works first | Proposed | Fast installation without downloading model weights automatically. |
-| Plugin Hub discovery + explicit compatibility overlay | Proposed | Existing Python/Alpine plugins do not execute natively in Node. |
-| Graphite/Paper themes, restrained accent, three-pane workspace | Proposed | Minimal daily workspace with customizable density and inspection. |
+| Node 24 LTS, TypeScript, Fastify, React/Vite, SQLite | Approved direction | Supported runtime and a maintainable interactive UI without a desktop shell dependency. |
+| libfx 0.0.14 with narrow runtime adapter | Approved direction | Verified package API; pin pre-1.0 dependency and prove restart behavior. |
+| ChatGPT via documented Sign in with ChatGPT | Approved, compatibility gate open | Bundled libfx Codex auth is not the same integration. |
+| First sandbox: Vercel; second: E2B | Approved direction | Two different backends must prove that the adapter is portable. Daytona follows. |
+| Host execution is explicit opt-in | Approved direction | Docker-free need not mean unrestricted execution by default. |
+| Local embeddings optional; lexical recall works first | Approved direction | Fast installation without downloading model weights automatically. |
+| Plugin Hub discovery + explicit compatibility overlay | Approved direction | Existing Python/Alpine plugins do not execute natively in Node. |
+| Graphite/Paper themes, restrained accent, three-pane workspace | Approved direction | Minimal daily workspace with customizable density and inspection. |
 
 ## Delivery sequence
 
@@ -24,3 +24,9 @@ Review date: 2026-10-26.
 4. **P3 — release:** migration/backup, security and restart drills, accessibility/performance, public documentation and versioned release.
 
 Every stage has acceptance gates in the spec. Canvas approval starts P0; approval is not proof that those technical gates have passed. No timeline estimates are commitments.
+
+## Foundation findings
+
+The local service, browser UI, read-only project tools, connection vault and synthetic provider/sandbox harnesses are implemented. [P0 verification](verification/P0.md) distinguishes passing local checks from the remaining live-account, reasoning-replay, effect-reconciliation and distribution gates. This is not P1 completion.
+
+The libfx stream initialization/cancel race receives a small checked installation patch. A separate SIGKILL proof showed that non-idempotent tool metadata does not stop a model from requesting an ambiguous effect again. Effectful tools remain disabled pending an owned reconciliation gate.
