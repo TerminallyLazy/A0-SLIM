@@ -70,6 +70,9 @@ export const createModalClient = (c: Credentials): ModalClient => {
 /** Explicit, synthetic-only cloud check. No project bytes or model credentials are uploaded. */
 export class ModalProof {
   private running = false;
+  get busy() {
+    return this.running;
+  }
   constructor(
     private store: Store,
     private vault: Vault,
@@ -147,6 +150,7 @@ export class ModalProof {
       startedAt: new Date().toISOString(),
       status: 'pending',
       cleanup: 'not_created',
+      connectionRevision: this.store.meta('sandbox:modal:revision'),
     };
     let client: Client | undefined, sandbox: Resource | undefined;
     try {

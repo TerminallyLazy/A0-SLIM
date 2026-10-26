@@ -70,3 +70,11 @@ The libfx stream initialization/cancel race receives a small checked installatio
 - Accept a team slug or ID, but verify the exact project through Vercel's documented team-scoped project lookup before any resource creation. Use the returned canonical account ID for Sandbox SDK calls. Project-scoped tokens must not require team-management permissions.
 - A preflight failure creates no ambiguous resource intent. After dispatch, preserve unknown outcomes, block SDK create retries and retain the recovery hold. An explicit operator review can resolve absence only after the original lifetime, authenticated original-scope verification, exact-name 404 and complete project listing. Preserve the original outcome and review evidence; never label this as confirmed deletion or a passing check.
 - Live owner-authorized Vercel proof passed through the app, including artifact verification, confirmed stop, deletion and subsequent exact-name 404. This proves the synthetic path, not general cloud agent execution or the second-service conformance gate.
+
+
+## Subordinate research and visible runtime state — 2026-10-26
+
+- Add a new delegation runtime identity only for new chats. Retain old identities and journals. Children reuse the selected project/model account while their tools and snapshots restrict authority to research/review; no credential text or full parent transcript is passed as task input.
+- Reuse the Agent Zero `call_subordinate` / `context_id` vocabulary, with durable child ownership and explicit limits. Save intent before starting, preserve interrupted children, and close an abandoned child turn before explicit continuation. Parent cancellation reaches descendants; child results remain evidence for the parent to check.
+- Render assistant Markdown through a React AST with raw HTML disabled and safe URLs. External images remain click-through links. Keep user/tool text literal.
+- Show historical connection verification separately from sandbox activity. Credential changes invalidate verification; a saved credential is never presented as successful connection evidence. The chat header exposes its actual execution selection, including Sandbox off.

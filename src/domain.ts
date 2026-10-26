@@ -30,6 +30,10 @@ export type Chat = {
   model: string;
   sessionId: string | null;
   capabilitiesVersion?: 2;
+  delegationVersion?: 1;
+  parentChatId?: string;
+  rootChatId?: string;
+  depth?: number;
   execution?: 'none' | 'docker';
   status: 'idle' | 'running' | 'interrupted';
   lastStop?: string;

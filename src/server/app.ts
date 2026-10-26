@@ -14,6 +14,7 @@ import { ChatGPTAccounts } from '../providers/chatgpt.js';
 import { Coordinator } from '../runtime/coordinator.js';
 import { SandboxProof } from '../execution/proof.js';
 import { vercelCredentials } from '../execution/vercel-auth.js';
+import { environmentStatus } from '../execution/status.js';
 import { ModalProof, modalCredentials } from '../execution/modal.js';
 import { CloudCheck, cloudKeyCredentials } from '../execution/cloud-check.js';
 import { createE2BDriver } from '../execution/e2b.js';
@@ -46,6 +47,13 @@ export async function createApp(options: {
     daytona: new CloudCheck('daytona', store, vault, createDaytonaDriver),
   };
   const readers = new Set<ReadableStreamDefaultReader<Uint8Array>>();
+  const saveSandboxConnection = async (provider: string, value: unknown) => {
+    const previous = await vault.get(`sandbox:${provider}`);
+    await vault.set(`sandbox:${provider}`, value);
+    if (JSON.stringify(previous) !== JSON.stringify(value))
+      store.setMeta(`sandbox:${provider}:revision`, randomUUID());
+    store.setMeta(`sandbox:${provider}`, 'configured');
+  };
   const session = randomBytes(32).toString('hex');
   let pairing: string | null = options.pairingCode,
     attempts = 0;
@@ -114,8 +122,16 @@ export async function createApp(options: {
   app.get('/api/v1/state', async () => ({
     projects: store.projects(),
     chats: store.chats(),
+    delegations: runtime.delegations.list().map(({ assignment, inputHash, ...record }) => record),
     connections: store.connections(),
     receipts: store.receipts(),
+    environments: environmentStatus(store, {
+      docker: runtime.docker.busy,
+      vercel: sandbox.busy,
+      modal: modal.busy,
+      e2b: additionalClouds.e2b.busy,
+      daytona: additionalClouds.daytona.busy,
+    }),
     artifacts: store.operations().map(({ before, content, ...item }) => item),
     sandboxConfigured: store.meta('sandbox:vercel') === 'configured',
     modalConfigured: store.meta('sandbox:modal') === 'configured',
@@ -256,6 +272,7 @@ export async function createApp(options: {
       execution: project.execution ?? 'none',
       sessionId: null,
       capabilitiesVersion: 2 as const,
+      delegationVersion: 1 as const,
       status: 'idle' as const,
       createdAt: new Date().toISOString(),
     };
@@ -380,8 +397,7 @@ export async function createApp(options: {
         'Enter a Vercel access token for the first connection.',
       );
     const input = vercelCredentials.parse({ ...form, token });
-    await vault.set('sandbox:vercel', input);
-    store.setMeta('sandbox:vercel', 'configured');
+    await saveSandboxConnection('vercel', input);
     return { ok: true };
   });
   app.get('/api/v1/sandbox/vercel/connection', async () => {
@@ -394,8 +410,7 @@ export async function createApp(options: {
   });
   for (const [provider, proof] of Object.entries(additionalClouds)) {
     app.post(`/api/v1/sandbox/${provider}`, async (request) => {
-      await vault.set(`sandbox:${provider}`, cloudKeyCredentials.parse(request.body));
-      store.setMeta(`sandbox:${provider}`, 'configured');
+      await saveSandboxConnection(provider, cloudKeyCredentials.parse(request.body));
       return { ok: true };
     });
     app.post(`/api/v1/sandbox/${provider}/proof`, async (request) => {
@@ -419,8 +434,7 @@ export async function createApp(options: {
     return runtime.docker.reconcile(idParams.parse(request.params).id);
   });
   app.post('/api/v1/sandbox/modal', async (request) => {
-    await vault.set('sandbox:modal', modalCredentials.parse(request.body));
-    store.setMeta('sandbox:modal', 'configured');
+    await saveSandboxConnection('modal', modalCredentials.parse(request.body));
     return { ok: true };
   });
   app.post('/api/v1/sandbox/modal/proof', async (request) => {

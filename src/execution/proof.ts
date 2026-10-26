@@ -38,6 +38,9 @@ async function verifyAbsent(credentials: SandboxCredentials, receipt: Receipt) {
 /** A bounded synthetic probe; it never uploads the user's project or model credentials. */
 export class SandboxProof {
   private running = false;
+  get busy() {
+    return this.running;
+  }
   constructor(
     private store: Store,
     private vault: Vault,
@@ -230,6 +233,7 @@ export class SandboxProof {
       startedAt: new Date().toISOString(),
       status: 'pending',
       cleanup: 'not_created',
+      connectionRevision: this.store.meta('sandbox:vercel:revision'),
     };
     try {
       const credentials = await this.credentials();

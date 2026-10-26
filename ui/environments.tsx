@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, Check, ShieldCheck } from 'lucide-react';
 import type { Project } from '../src/domain.js';
+import type { EnvironmentStatus } from '../src/execution/status.js';
 import { api } from './api.js';
 import { Heading } from './workspace.js';
 
@@ -19,12 +20,14 @@ export function Environments({
   configured,
   receipts,
   project,
+  statuses,
   refresh,
   act,
 }: Actions & {
   configured: Record<string, boolean>;
   receipts: Record<string, any>[];
   project?: Project;
+  statuses: EnvironmentStatus;
 }) {
   const [busy, setBusy] = useState(false),
     [editing, setEditing] = useState(''),
@@ -141,12 +144,31 @@ export function Environments({
                 <ProviderMark id={cloud.id} />
                 <div>
                   <h3>{cloud.name}</h3>
-                  <p>
-                    {saved ? 'Connection saved · check available' : 'Optional cloud connection'}
+                  <p className="environment-connection" role="status">
+                    {statuses[cloud.id]?.activity === 'working'
+                      ? 'Checking or cleaning up…'
+                      : {
+                          not_configured: 'Not connected',
+                          unchecked: 'Saved · not verified',
+                          changed: 'Settings changed · check again',
+                          passed: 'Connection check passed',
+                          failed: 'Connection check failed',
+                        }[statuses[cloud.id]?.connection ?? 'not_configured']}
                   </p>
                 </div>
                 <span className="pill">{cloud.offer}</span>
               </div>
+              <p className="environment-activity">
+                {statuses[cloud.id]?.activity === 'working'
+                  ? 'A sandbox operation is in progress.'
+                  : statuses[cloud.id]?.activity === 'unknown'
+                    ? 'Sandbox state unknown · review cleanup below.'
+                    : 'No active sandbox.'}
+                {statuses[cloud.id]?.checkedAt && (
+                  <> Last check: {new Date(statuses[cloud.id]!.checkedAt!).toLocaleString()}.</>
+                )}{' '}
+                Cloud execution is not enabled for chats yet.
+              </p>
               <p>
                 <strong>{cloud.allowance}</strong> {cloud.detail}
               </p>

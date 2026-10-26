@@ -2,7 +2,7 @@
 
 A local-first agent workspace inspired by Agent Zero. A Node service runs the agent loop, project tools, memory, and extensions; a browser UI exposes their state and permissions.
 
-**Status: local alpha 0.1.0-alpha.1 with P2 extension and memory preview.** ChatGPT text/functions, reviewed artifacts and optional local Docker execution are implemented. Cloud account acceptance and broader release gates remain open. See [P1 evidence and limitations](docs/verification/P1.md) and [P2 verification](docs/verification/P2.md).
+**Status: local alpha 0.1.0-alpha.1 with P2 extensions, memory and bounded subordinates.** ChatGPT text/functions, reviewed artifacts and optional local Docker execution are implemented. Cloud account acceptance and broader release gates remain open. See [P1 evidence and limitations](docs/verification/P1.md) and [P2 verification](docs/verification/P2.md).
 
 ## Run locally
 
@@ -22,7 +22,7 @@ Closing the tab detaches the viewer; **Stop** cancels the current model turn. St
 
 ## What works
 
-- Projects, saved chats, streaming, transcript replay, message deduplication, Stop and Redirect through native libfx. Redirect stops the active turn, then submits your revised direction.
+- Projects, saved chats, streaming, Markdown assistant replies, transcript replay, message deduplication, Stop and Redirect through native libfx. Redirect stops the active turn, then submits your revised direction.
 - AI Gateway and compatible endpoints, including local model servers. Each chat keeps its selected model connection and execution environment; changing defaults affects new chats.
 - Dedicated Sign in with ChatGPT registration, account model discovery, encrypted tokens, serialized refresh and disconnect. The text/function bridge preserves completed provider output, encrypted reasoning and message phase in an encrypted local journal. It waits for terminal success before releasing tool calls.
 - Scoped file reads and **reviewed text artifacts**. `write_file` stages an immutable preview; only the paired browser can approve its exact content and destination. Conflicts and interrupted writes block further project changes until reconciled.
@@ -33,6 +33,7 @@ Closing the tab detaches the viewer; **Stop** cancels the current model turn. St
 - **Plugin Hub:** refresh the actual upstream catalog, search it, assess pinned repository trees, and review/import individual portable Markdown skills. No install hooks run. Unknown or Python/UI plugins are never advertised as native Node extensions.
 - **Memory:** SQLite/FTS5 project notes in `main`, `fragments`, and `solutions`, with source labels, editing, deletion, portable text import/export, and separate agent read/write permissions. New chats receive bounded lexical recall at turn start and can call `memory_load`, `memory_save`, and `memory_delete`.
 - **Embeddings:** explicit pinned Hugging Face MiniLM download (22.6 MiB), checksums, progress, pause/retry, offline verification and removal. CPU inference runs in a worker with network access disabled. Separate compatible `/embeddings` connections require their own credentials and an explicit project data-sharing choice. Reindexing validates dimensions and switches namespaces only after successful completion; lexical search stays available.
+- **Subordinates:** new chats can delegate read-only research/review through `call_subordinate`, inspect each child transcript, stop its work and continue the same child from its parent. Children inherit the project, model connection and a subset of permitted skills/recall; they cannot write, execute code or call MCP.
 - Graphite/Paper themes, three accents, two densities, responsive file/artifact inspector, and original Agent Zero symbols.
 
 ### Free sandbox choices
@@ -47,15 +48,19 @@ Each provider card has **Create account**, **Sign in**, **Open dashboard** and g
 
 Vercel setup retains the Team and Project IDs when reopened. Leave the token blank to keep the saved token. A team slug is resolved to its canonical ID through an authenticated project lookup before compute starts. If an earlier check is stuck with an unknown outcome, use **Recheck & clean up**. For an absent resource, **Record a provider review** requires explicit confirmation, verified project ownership, an exact-name 404 and a complete project sandbox listing; it preserves the original failed receipt. One real Vercel synthetic check passed with deletion confirmed on October 26, 2026. General cloud agent execution remains disabled.
 
+The chat header shows **Sandbox off** or the current Docker activity. Provider cards distinguish unsaved, unverified, changed, passed and failed connection checks, show the check time, and separately report active work or unknown cleanup. A past passing check is not a persistent live connection. Local status refreshes every three seconds while the tab is visible; it does not poll or create provider resources.
+
 ### Current boundaries
 
 The ChatGPT bridge supports text and function tools. It rejects missing reasoning state, changed/compacted history and unsupported output rather than continuing with incomplete context. Use a new chat with a reviewed summary when that guard stops a conversation. Live reasoning-bearing output, refresh/revocation and quota recovery still need separate account acceptance; synthetic tests cover these contracts.
 
 Model calls share a persisted 40-request/10-minute budget per project, connection and model, with a 10-minute turn limit. These limits are fixed in this alpha. File approval does not isolate the service from another program running as your OS user. Avoid simultaneous edits while applying an artifact; an adversarial OS process is outside this local-user threat boundary.
 
-Start a **new chat** for P2 skills, MCP, and memory tools. Earlier chats retain their original runtime identity and tool set so recovery history remains usable. Capability snapshots freeze each new turn; permission revocation is checked again at tool dispatch. This is functional Agent Zero influence, not full parity: see the [capability comparison](docs/AGENT-ZERO-COMPATIBILITY.md).
+Start a **new chat** for subordinate agents and the current P2 tools. Earlier chats retain their original runtime identity and tool set so recovery history remains usable. Capability snapshots freeze each new turn; permission revocation is checked again at tool dispatch. This is functional Agent Zero influence, not full parity: see the [capability comparison](docs/AGENT-ZERO-COMPATIBILITY.md).
 
-Bounded subordinates, native Python plugins, arbitrary cloud agent execution, MCP OAuth/Apps, browser embeddings, automatic document ingestion, shared cross-project memory and executable third-party Slim plugins remain future work. The Agent Zero bridge is protocol-tested with a synthetic server; actual plugin behavior requires checks against the owner’s Agent Zero instance. MCP approvals do not isolate a local stdio process: it runs with the OS user’s authority. Hosted embedding revisions are user-supplied namespace labels; provider-side model changes cannot be independently pinned by this compatible API.
+Native Python plugins, arbitrary cloud agent execution, MCP OAuth/Apps, browser embeddings, automatic document ingestion, shared cross-project memory and executable third-party Slim plugins remain future work. The Agent Zero bridge is protocol-tested with a synthetic server; actual plugin behavior requires checks against the owner’s Agent Zero instance. MCP approvals do not isolate a local stdio process: it runs with the OS user’s authority. Hosted embedding revisions are user-supplied namespace labels; provider-side model changes cannot be independently pinned by this compatible API.
+
+Subordinates have at most two levels, two active assignments per root turn, six assignments per root turn, eight model requests per assignment, two minutes (or the parent’s remaining time), and a 16,000-character returned summary. All requests consume the same connection budget. These are request/time limits, not a guaranteed token or dollar ceiling. Only the assignment is passed from the parent; children retain their own history. An interrupted child is held for inspection and explicit continuation instead of being silently recreated. Stop on a parent cancels its descendants.
 
 ### Using the new capabilities
 
@@ -63,6 +68,8 @@ Bounded subordinates, native Python plugins, arbitrary cloud agent execution, MC
 2. For MCP, save a connection, discover its catalog, allow selected tools and enable the server. The agent stages a call; open **Approvals** to review its arguments and run it once. Send a follow-up message so the agent retrieves the result.
 3. For the Agent Zero bridge, enable **Settings → MCP Server** in Agent Zero. In Slim choose **Agent Zero bridge**, enter only the instance base URL, and put the token in its separate password field. Use HTTPS for non-loopback instances. Never paste a token-bearing MCP URL into the endpoint field.
 4. In **Memory**, add notes and decide whether the agent may recall or save/delete them. Embeddings are optional. Use **Embeddings & models** to download MiniLM or add an independent hosted connection, then explicitly build the selected project’s index.
+
+5. In a **new chat**, ask for a focused subordinate review. Open the child from **Subordinate tasks**, inspect its activity, and choose **Continue in parent** to draft a follow-up. Sending that draft is a separate action. Existing chats keep their earlier tool sets.
 
 ## Storage and development
 
@@ -77,6 +84,8 @@ node --import tsx tests/helpers/docker-live.ts  # optional real local-engine dri
 ```
 
 `node --import tsx tests/helpers/ui-fixture.ts` starts an isolated browser verification harness on port 4311. It uses a temporary project and a clearly named local model fixture; no provider account is used. Its startup output supplies the test pairing code. Stop with Ctrl+C to remove its temporary data.
+
+`node --import tsx tests/helpers/delegation-ui.ts` provides a separate disposable Markdown/subordinate browser fixture on the same port. Run only one UI harness at a time.
 
 Schema 1 upgrades save a private SQLite backup in the data directory before applying schema 2. Back up the entire data directory and preserve its vault key for a complete recovery; a database backup alone does not include libfx session files.
 

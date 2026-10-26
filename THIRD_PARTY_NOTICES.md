@@ -38,3 +38,8 @@ Unchanged official SVG artwork is retained in `ui/public/providers/`. Exact sour
 - `yaml` 2.9.1 — ISC, https://github.com/eemeli/yaml.
 - Optional `Xenova/all-MiniLM-L6-v2`, revision `751bff37182d3f1213fa05d7196b954e230abad9` — Apache-2.0 model card. Weights are not bundled; the user starts a download into local app storage. `src/memory/local-model.json` records the exact files, sizes, and SHA-256 checksums.
 - Plugin Hub descriptions and user-requested portable skills remain attributed to their source repository and exact revision. Discovery does not imply endorsement or permission to redistribute a full plugin. No third-party skill body is bundled by this change.
+
+
+## Markdown rendering
+
+`react-markdown` 10.1.0 and `remark-gfm` 4.0.1 are MIT-licensed packages from https://github.com/remarkjs/react-markdown and https://github.com/remarkjs/remark-gfm. They and their unified/micromark dependencies are installed from the pinned npm graph, not vendored. Retain the installed licenses when distributing the app.

@@ -27,6 +27,9 @@ const supervisor = `const{spawnSync}=require('node:child_process');const r=spawn
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 export class DockerSandbox {
   private active = false;
+  get busy() {
+    return this.active;
+  }
   constructor(
     private store: Store,
     private runCommand: Command = command,

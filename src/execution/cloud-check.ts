@@ -36,6 +36,9 @@ const scope = (key: string) => createHash('sha256').update(key).digest('hex');
 /** Synthetic checks only. Persist creation intent before sending any resource request. */
 export class CloudCheck {
   private running = false;
+  get busy() {
+    return this.running;
+  }
   constructor(
     private provider: 'e2b' | 'daytona',
     private store: Store,
@@ -97,6 +100,7 @@ export class CloudCheck {
       startedAt: new Date().toISOString(),
       status: 'pending',
       cleanup: 'not_created',
+      connectionRevision: this.store.meta(`sandbox:${this.provider}:revision`),
     };
     let driver: CloudCheckDriver | undefined;
     try {

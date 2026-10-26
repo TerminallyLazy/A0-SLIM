@@ -21,12 +21,15 @@ import {
   X,
 } from 'lucide-react';
 import type { Chat, Connection, Project } from '../src/domain.js';
+import type { EnvironmentStatus } from '../src/execution/status.js';
 import { Artifacts, type ArtifactSummary } from './artifacts.js';
 import { api } from './api.js';
 import { Connections } from './settings.js';
 import { Environments } from './environments.js';
 import { ExtensionWorkspace, PluginHubView } from './extensions.js';
 import { MemoryWorkspace } from './memory.js';
+import { Markdown } from './markdown.js';
+import { DelegatedTasks, type DelegationSummary } from './delegations.js';
 
 type State = {
   projects: Project[];
@@ -37,6 +40,8 @@ type State = {
   sandboxConfigured: boolean;
   modalConfigured: boolean;
   cloudConfigured: Record<string, boolean>;
+  environments: EnvironmentStatus;
+  delegations: DelegationSummary[];
 };
 type Line = { cursor: number; event: Record<string, any> };
 type View =
@@ -50,6 +55,8 @@ const empty: State = {
   sandboxConfigured: false,
   modalConfigured: false,
   cloudConfigured: {},
+  environments: {},
+  delegations: [],
 };
 export function Logo({ small = false }: { small?: boolean }) {
   return (
@@ -114,6 +121,13 @@ export function App() {
   }, []);
   useEffect(() => {
     if (paired) void act(refresh);
+  }, [paired]);
+  useEffect(() => {
+    if (!paired) return;
+    const timer = setInterval(() => {
+      if (!document.hidden) void refresh().catch(() => {});
+    }, 3000);
+    return () => clearInterval(timer);
   }, [paired]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -248,9 +262,19 @@ export function App() {
     setPrompt('');
     navigate('chat');
   };
+  const openChat = (id: string) => {
+    setChatId(id);
+    setPrompt('');
+    navigate('chat');
+  };
+  const stopChat = (id: string) =>
+    void act(async () => {
+      await api(`/chats/${id}/cancel`, {});
+      await refresh();
+    });
   async function send(event: FormEvent) {
     event.preventDefault();
-    if (!prompt.trim() || sendLock.current) return;
+    if (!prompt.trim() || sendLock.current || chat?.parentChatId) return;
     sendLock.current = true;
     setBusy(true);
     await act(async () => {
@@ -386,22 +410,18 @@ export function App() {
               <button
                 key={c.id}
                 className={`nav-link ${c.id === chatId && view === 'chat' ? 'selected' : ''}`}
-                onClick={() => {
-                  setChatId(c.id);
-                  navigate('chat');
-                }}
+                onClick={() => openChat(c.id)}
               >
                 <MessageSquare size={15} />
-                <span>{c.title}</span>
+                <span>
+                  {c.parentChatId ? '↳ ' : ''}
+                  {c.title}
+                </span>
                 {c.status === 'running' && <span className="dot" />}
               </button>
             ))}
           {!state.chats.some((c) => c.projectId === projectId) && (
-            <p className="nav-empty">
-              Your conversations will
-              <br />
-              find a home here.
-            </p>
+            <p className="nav-empty">No chats in this project yet.</p>
           )}
         </div>
         <nav className="nav-bottom">
@@ -454,6 +474,24 @@ export function App() {
                 }[view]}
           </strong>
           <div className="workbar-right">
+            <button
+              className="sandbox-status"
+              onClick={() => navigate('environments')}
+              title={
+                execution === 'docker'
+                  ? 'This chat uses disposable Docker containers for code calls. Open Environments for readiness and cleanup.'
+                  : 'No sandbox is enabled for this chat. Open Environments to configure one.'
+              }
+            >
+              <Terminal size={14} />
+              {execution !== 'docker'
+                ? 'Sandbox off'
+                : state.environments.docker?.activity === 'working'
+                  ? 'Docker · working'
+                  : state.environments.docker?.activity === 'unknown'
+                    ? 'Docker · needs review'
+                    : 'Docker · no active sandbox'}
+            </button>
             <span className="pill">Local alpha</span>
             <button
               className={`icon ${inspector ? 'selected' : ''}`}
@@ -476,10 +514,24 @@ export function App() {
         {view === 'chat' ? (
           <>
             <div ref={scroll} className="conversation">
+              {chat?.parentChatId && (
+                <p className="child-context">
+                  <button className="text-link" onClick={() => openChat(chat.parentChatId!)}>
+                    <ChevronLeft size={15} />{' '}
+                    {state.chats.find((c) => c.id === chat.parentChatId)?.title ?? 'Parent chat'}
+                  </button>
+                  <span>Subordinate · read-only · level {chat.depth}</span>
+                </p>
+              )}
               {chat && chat.capabilitiesVersion !== 2 && (
                 <p className="permission-note">
                   This earlier chat retains its original tool set for recovery compatibility. Start
                   a new chat to use skills, MCP, and project memory.
+                </p>
+              )}
+              {chat?.capabilitiesVersion === 2 && !chat.delegationVersion && (
+                <p className="permission-note">
+                  Start a new chat to use subordinate agents. This chat keeps its original tools.
                 </p>
               )}
               {!lines.length ? (
@@ -536,6 +588,15 @@ export function App() {
               ) : (
                 <Transcript lines={lines} />
               )}
+              {chat && (
+                <DelegatedTasks
+                  chat={chat}
+                  chats={state.chats}
+                  records={state.delegations}
+                  open={openChat}
+                  stop={stopChat}
+                />
+              )}
             </div>
             <div className="composer-wrap">
               {state.artifacts.some(
@@ -566,92 +627,111 @@ export function App() {
                   new request.
                 </p>
               )}
-              <form className="composer" onSubmit={send}>
-                <label className="sr-only" htmlFor="prompt">
-                  Message A0 SLIM
-                </label>
-                <textarea
-                  id="prompt"
-                  value={prompt}
-                  onChange={(event) => setPrompt(event.target.value)}
-                  placeholder={
-                    running ? 'Redirect this task…' : 'Bring a question. Leave with a direction.'
-                  }
-                  rows={2}
-                  onKeyDown={(event) => {
-                    if (
-                      event.key === 'Enter' &&
-                      !event.shiftKey &&
-                      !event.nativeEvent.isComposing
-                    ) {
-                      event.preventDefault();
-                      event.currentTarget.form?.requestSubmit();
-                    }
-                  }}
-                />
-                <div className="composer-actions">
-                  <label className="sr-only" htmlFor="model-select">
-                    Model connection
-                  </label>
-                  <select
-                    id="model-select"
-                    disabled={!!chatId}
-                    value={chat?.connectionId ?? connectionId}
-                    onChange={(event) => setConnectionId(event.target.value)}
+              {chat?.parentChatId ? (
+                <div className="child-controls">
+                  <p>This subordinate receives assignments from its parent chat.</p>
+                  <button
+                    onClick={() => {
+                      openChat(chat.parentChatId!);
+                      setPrompt(`Continue the existing subordinate with context_id ${chat.id}. `);
+                    }}
                   >
-                    <option value="" disabled>
-                      Choose a model
-                    </option>
-                    {state.connections.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} · {c.model || 'Select model in Connections'}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="boundary">
-                    <ShieldCheck size={13} /> Review before applying
-                  </span>
-                  {running && prompt.trim() && (
-                    <button
-                      type="submit"
-                      disabled={busy}
-                      title="Stop this turn and continue with your direction"
-                    >
-                      Redirect
-                    </button>
-                  )}
-                  {running ? (
-                    <button
-                      className="send"
-                      type="button"
-                      onClick={() =>
-                        void act(async () => {
-                          await api(`/chats/${chatId}/cancel`, {});
-                          await refresh();
-                        })
-                      }
-                    >
-                      <Square size={14} /> Stop
-                    </button>
-                  ) : (
-                    <button
-                      className="send"
-                      type="submit"
-                      aria-label="Send message"
-                      disabled={busy || !project || !connection?.model || !prompt.trim()}
-                    >
-                      <ArrowUp size={18} />
+                    Continue in parent <ArrowUpRight size={14} />
+                  </button>
+                  {running && (
+                    <button onClick={() => stopChat(chat.id)}>
+                      <Square size={14} /> Stop subordinate
                     </button>
                   )}
                 </div>
-              </form>
+              ) : (
+                <form className="composer" onSubmit={send}>
+                  <label className="sr-only" htmlFor="prompt">
+                    Message A0 SLIM
+                  </label>
+                  <textarea
+                    id="prompt"
+                    value={prompt}
+                    onChange={(event) => setPrompt(event.target.value)}
+                    placeholder={running ? 'Redirect this task…' : 'Message A0 SLIM…'}
+                    rows={2}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === 'Enter' &&
+                        !event.shiftKey &&
+                        !event.nativeEvent.isComposing
+                      ) {
+                        event.preventDefault();
+                        event.currentTarget.form?.requestSubmit();
+                      }
+                    }}
+                  />
+                  <div className="composer-actions">
+                    <label className="sr-only" htmlFor="model-select">
+                      Model connection
+                    </label>
+                    <select
+                      id="model-select"
+                      disabled={!!chatId}
+                      value={chat?.connectionId ?? connectionId}
+                      onChange={(event) => setConnectionId(event.target.value)}
+                    >
+                      <option value="" disabled>
+                        Choose a model
+                      </option>
+                      {state.connections.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} · {c.model || 'Select model in Connections'}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="boundary">
+                      <ShieldCheck size={13} /> Review before applying
+                    </span>
+                    {running && prompt.trim() && (
+                      <button
+                        type="submit"
+                        disabled={busy}
+                        title="Stop this turn and continue with your direction"
+                      >
+                        Redirect
+                      </button>
+                    )}
+                    {running ? (
+                      <button
+                        className="send"
+                        type="button"
+                        onClick={() =>
+                          void act(async () => {
+                            await api(`/chats/${chatId}/cancel`, {});
+                            await refresh();
+                          })
+                        }
+                      >
+                        <Square size={14} /> Stop
+                      </button>
+                    ) : (
+                      <button
+                        className="send"
+                        type="submit"
+                        aria-label="Send message"
+                        disabled={busy || !project || !connection?.model || !prompt.trim()}
+                      >
+                        <ArrowUp size={18} />
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
               <div className="composer-footer">
                 <span>
                   {running
                     ? 'Working · closing the tab keeps this turn running'
                     : streamStatus || 'Ready'}
                 </span>
-                <span>{execution === 'docker' ? 'Local Docker' : 'Execution off'}</span>
+                <span>
+                  {execution === 'docker' ? 'Docker starts per code call' : 'No sandbox enabled'}
+                </span>
               </div>
             </div>
           </>
@@ -665,6 +745,7 @@ export function App() {
                 configured={state.cloudConfigured}
                 project={project}
                 receipts={state.receipts}
+                statuses={state.environments}
                 refresh={refresh}
                 act={act}
               />
@@ -911,7 +992,7 @@ function Transcript({ lines }: { lines: Line[] }) {
     if (event.type === 'tool_start')
       entries.push({
         type: 'tool',
-        text: `${event.name === 'write_file' ? 'Drafting artifact' : event.name === 'list_dir' ? 'Inspecting folder' : event.name === 'read_file' ? 'Reading file' : event.name}${typeof event.input?.path === 'string' ? ` · ${event.input.path}` : ''}`,
+        text: `${event.name === 'write_file' ? 'Drafting artifact' : event.name === 'list_dir' ? 'Inspecting folder' : event.name === 'read_file' ? 'Reading file' : event.name === 'call_subordinate' ? 'Delegating task' : event.name}${typeof event.input?.path === 'string' ? ` · ${event.input.path}` : event.name === 'call_subordinate' && event.input?.name ? ` · ${event.input.name}` : ''}`,
         key: cursor,
       });
     if (event.type === 'turn_end' && event.error)
@@ -927,7 +1008,9 @@ function Transcript({ lines }: { lines: Line[] }) {
             </div>
           )}
           {entry.type === 'tool' && <FileText size={14} />}
-          <div className="message-text">{entry.text}</div>
+          <div className="message-text">
+            {entry.type === 'assistant' ? <Markdown text={entry.text} /> : entry.text}
+          </div>
         </div>
       ))}
     </div>
