@@ -4,7 +4,25 @@ A local-first agent workspace inspired by Agent Zero. A Node service runs the ag
 
 **Status: alpha 0.1.0-alpha.1 with P2 extensions, memory and bounded subordinates.** ChatGPT text/functions, reviewed artifacts, optional local Docker execution and bounded Vercel Node.js execution are implemented. Cloud account acceptance and broader release gates remain open. See [P1 evidence and limitations](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P1.md) and [P2 verification](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P2.md).
 
-## Install and run
+## Install and launch with one command
+
+On **Apple Silicon macOS or Linux x64 (glibc)**:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/TerminallyLazy/A0-SLIM/main/install.sh | sh
+```
+
+This installs A0 SLIM, opens the browser when available, and keeps the service running in your terminal. Enter the pairing code printed there. Press **Ctrl+C** to stop. If A0 SLIM is already running on the default workspace/selected port, the launcher opens that instance instead.
+
+The installer reuses Node 24 with compatible npm 11.19+ (11.x). Otherwise it downloads a private, checksum-verified Node 24.22.1 runtime. No `sudo`, global Node replacement or shell-profile changes are needed. Files live in `~/.local/share/a0-slim-cli` (or `$XDG_DATA_HOME/a0-slim-cli`); app data remains in its normal location. The terminal prints the exact command for starting again, normally:
+
+```sh
+~/.local/share/a0-slim-cli/bin/a0-slim
+```
+
+Optional embeddings, model weights and Microsandbox still require separate setup in the app. See [installer options and recovery](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/PACKAGING.md#one-command-installer).
+
+## Install with your own Node and npm
 
 Use **Node 24** and npm 11.19 or newer. macOS arm64 and Linux x64 are the tested targets. This is an alpha release.
 

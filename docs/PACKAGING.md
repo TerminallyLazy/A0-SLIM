@@ -1,6 +1,24 @@
 # npm packaging
 
-The public package is named `a0-slim`, licensed MIT, and versioned `0.1.0-alpha.1`. It remains an alpha; the `latest` npm tag identifies the current release, not a stability guarantee. Node 24 and npm 11.19 or newer are prerequisites, installed separately. macOS arm64 and Linux x64 are the tested targets.
+The public package is named `a0-slim`, licensed MIT, and versioned `0.1.0-alpha.1`. It remains an alpha; the `latest` npm tag identifies the current release, not a stability guarantee. Manual npm installation requires Node 24 and npm 11.19 or newer; the one-command installer sets up a private runtime when needed. macOS arm64 and Linux x64 are the tested targets.
+
+## One-command installer
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/TerminallyLazy/A0-SLIM/main/install.sh | sh
+```
+
+The script supports Apple Silicon macOS and Linux x64 with glibc. It reuses Node 24 and npm 11.19+ within npm 11; otherwise it downloads Node 24.22.1 from `nodejs.org`. The official archive SHA-256 values and app tarball hash are pinned in the script. Unsupported platforms and root execution stop before setup. Node is separate from the core package footprint; no global Node installation is replaced.
+
+Installation uses `~/.local/share/a0-slim-cli` or `$XDG_DATA_HOME/a0-slim-cli`. Set `A0_SLIM_INSTALL_DIR` on the `sh` side of the pipe for a custom absolute path. npm runs in private storage with an empty configuration and a minimal environment, without inherited npm credentials. It installs the published alpha with all npm lifecycle scripts blocked. The pinned SQLite/CBOR packages already contain their supported native prebuilds; the installer loads those directly instead of invoking node-gyp. Native SQLite, CBOR and libfx must pass a probe before the release becomes active. No Python/compiler setup is needed on these supported targets. The launcher applies the same hash-checked libfx patch as the npm CLI.
+
+A failed download, checksum mismatch or failed native probe leaves the existing active release and app data intact. A directory lock excludes simultaneous installers. Normal interruption removes the staging directory and lock; after a hard kill, inspect the installer processes before removing its empty `.install-lock` directory. Only then retry. Completed releases are retained under `releases`; re-running a healthy installation reuses it without downloads. The script executes its main function only after the full function definitions have been read.
+
+The installer prints the persistent launch path, normally `~/.local/share/a0-slim-cli/bin/a0-slim`. It does not edit shell startup files. The service runs in the foreground; Ctrl+C reaches the child service and releases its data lock. When startup succeeds, the launcher opens the loopback URL in the system browser; the pairing code stays in the terminal. `A0_SLIM_NO_BROWSER=1` disables browser opening. An already-running SLIM instance on the selected port can be reused when no explicit data directory was requested. A custom `A0_SLIM_DATA_DIR` always starts that requested workspace and retains normal port/data ownership checks.
+
+Use `curl -fsSL https://raw.githubusercontent.com/TerminallyLazy/A0-SLIM/main/install.sh | sh -s -- --no-launch` to install without launching. `A0_SLIM_PORT` and `A0_SLIM_DATA_DIR` can also be set on the `sh` side of the pipe. The script never installs embeddings, weights or Microsandbox automatically.
+
+`npm run test:installer` performs actual installs with an existing compatible Node and with Node absent from PATH, using isolated homes and a path containing spaces/apostrophes. It starts and pairs the real app, checks UI/native readiness, tests existing-service reuse and clean shutdown, and repeats setup with downloads disabled. It uses no model account or cloud sandbox. Offline regression tests cover unsupported systems, root execution, truncated input, concurrent installation and a tampered Node archive.
 
 ## Install from npm
 

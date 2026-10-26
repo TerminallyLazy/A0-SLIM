@@ -2,6 +2,13 @@
 
 Approved by the user in chat on 2026-10-26. The canvas review is closed.
 
+## One-command installation — 2026-10-26
+
+- Add a standalone shell installer, served from the public repository, that installs the published alpha and launches its browser workspace. Keep the npm package and runtime behavior unchanged.
+- Reuse compatible Node/npm or bootstrap an isolated, hash-pinned official Node 24 distribution. Keep install state separate from app data and avoid sudo, shell-profile changes, npm credential inheritance and global runtime replacement.
+- Verify downloads and native readiness before atomically switching the active release. Preserve working releases on failed setup, exclude concurrent installers and reuse healthy installations. Keep the foreground process cancellable and the pairing code in the terminal.
+- Validate actual fresh installation with and without Node on PATH on the supported macOS/Linux targets; optional model and sandbox runtimes remain separate actions.
+
 ## First public npm release — 2026-10-26
 
 - The user requested npm publication and selected MIT. Release `a0-slim@0.1.0-alpha.1` publicly; use the `latest` tag for the first installable release while clearly retaining the alpha label and existing capability limits.
