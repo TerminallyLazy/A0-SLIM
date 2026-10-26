@@ -1,0 +1,65 @@
+# A0 SLIM source audit
+
+Research date: **2026-10-26**. This is a documentation/source inspection, not a provider, sandbox, or application acceptance report. The revised specification contains product proposals derived from these findings.
+
+## Evidence inventory
+
+| Source | Verified observation | Consequence for Slim |
+| --- | --- | --- |
+| [libfx npm package](https://www.npmjs.com/package/libfx), downloaded `0.0.14` README, JS and declarations | Package version 0.0.14, API version 3, Node engine >=20; native backend plus WASM fallback. | Pin an exact version; do not confuse API version with package major. |
+| [libfx Node guide](https://fx.sh/docs/lib/node) | Durable `createFxAgent` replaced the old in-memory constructor; `createFxEngine` is the lower-level engine. | Use durable sessions for app conversations. Native/WASM capabilities need platform tests. |
+| Package README and `types/libfx.d.cts` | `messageId` deduplicates inputs; generated durable IDs, replay cursors, explicit cancellation; no host-tool `break_loop` field. | Design the coordinator around accepted messages and terminal results. |
+| Package `custom-provider.js` | Custom providers target `/chat/completions`; HTTPS or loopback HTTP; supported model metadata is narrow. | Do not claim arbitrary protocol/header compatibility. Use dedicated adapters. |
+| Package `chatgpt-sign-in.js` and `types/chatgpt.d.ts` | Codex-client login, manual callback or device code; account-dependent device flow. | This is a different path from current official OSS registration; package support alone is not product acceptance. |
+| [OpenAI OSS overview](https://developers.openai.com/siwc/token-sharing-open-source) | Local/open-source app plan usage is documented separately from identity-only login; host identity and per-user/workspace registration matter. | Public local-first direction fits the documented integration category; actual eligibility still needs testing. |
+| [OpenAI registration](https://developers.openai.com/siwc/token-sharing-open-source/sign-in) | Dynamic registration, PKCE, state, nonce, issued client ID, ID-token validation and granted scopes. | Implement a dedicated account lifecycle; never borrow another client's token file. |
+| [OpenAI inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference) | Public Responses endpoint, account-specific catalog, streamed terminal outcome. | A model list or successful login is not a completed inference. |
+| [OpenAI preview limits](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations) | Required request shape and unsupported fields/tools; local execution differs from hosted tools. | Validate the libfx protocol bridge early. Subscription access is not generic API-credit access. |
+| [OpenAI app-server integration](https://developers.openai.com/siwc/token-sharing-open-source/codex-app-server) | Documents an alternative app-server configuration for the public flow. | Possible separately scoped fallback; adopting it changes runtime ownership and requires a recorded decision. |
+| [Vercel Sandbox SDK](https://vercel.com/docs/sandbox/sdk-reference) via Vercel documentation connector | Create/execute/stop/snapshot operations and lifecycle-specific effects. | Make snapshot/pause/stop capabilities explicit; cleanup and receipts belong to the execution adapter. |
+| [E2B lifecycle](https://docs.e2b.dev/sandbox) | Create/connect/pause/resume/kill, with timeout behavior. | Useful second implementation to test portability. |
+| [Daytona stable sandbox docs](https://www.daytona.io/docs/en/sandboxes/) and [v2 alpha](https://www.daytona.io/docs/en/v2/sandboxes/) | Different API generations expose different lifecycle contracts. | Pin a supported generation; don't mix examples. |
+| [Transformers.js custom models](https://huggingface.co/docs/transformers.js/custom_usage) | Local model location, remote-loading control, WASM assets and ONNX conversion. | Separate artifact download from runtime; offline requires both model and runtime assets. |
+| [Transformers.js Node tutorial](https://huggingface.co/docs/transformers.js/tutorials/node) | Node inference and filesystem cache guidance. | Prefer Node worker-based durable local embedding support; validate chosen package/model pins at P0/P2. |
+| [Hugging Face hosted chat](https://huggingface.co/docs/inference-providers/tasks/chat-completion) | Hosted inference is a separate service from the Hub model files. | Provide distinct hosted and local paths; don't label a model download as a provider connection. |
+| [Gemini compatibility](https://ai.google.dev/gemini-api/docs/openai) | Documented OpenAI-compatible API with a Gemini key. | Add a compatible provider preset, then validate model-specific tools/streaming. |
+| [Node release schedule](https://nodejs.org/en/about/previous-releases) | Node 24 is LTS; Node 20 is EOL at research time. | Proposed runtime baseline is Node 24. |
+| [Agent Zero Plugin Index README](https://github.com/agent0ai/a0-plugins/blob/main/README.md), fetched through GitHub connector | Index metadata points to repos with `plugin.yaml`; allowed index fields are limited; publication recovery behavior is documented. | Keep Slim compatibility metadata separate and retain the last usable catalog. |
+
+No provider credentials were read and no billable inference, sandbox creation, plugin installation or model download was performed. The npm package was inspected in a temporary research directory without installing/executing it. Documentation can drift; recheck the adopted versions before implementation.
+
+## Agent Zero source findings
+
+Reference checkout: `agent0ai/agent-zero` lineage, branch `main`, inspected HEAD `ff2a5b9c9c4e490ba38dd7c313e779510bb2071a`. The checkout has unrelated untracked files; none was edited. `git log --all` encountered a malformed local `refs/heads/main 2`, so history review was restricted to the valid HEAD ancestry. No repair or history fetch was attempted. This limits evidence to the locally available ancestry.
+
+- `extensions/python/system_prompt/_11_tools_prompt.py` collects named tool prompt files and filters them through tool policy. Tool documentation and callable capability need to agree.
+- `plugins/AGENTS.md` defines Python hooks, framework APIs and Alpine WebUI extensions. These are incompatible execution surfaces with a standalone Node app unless adapted.
+- `plugins/_plugin_installer/helpers/install.py:359` reads the generated-index release asset at `https://github.com/agent0ai/a0-plugins/releases/download/generated-index/index.json`.
+- `plugins/_oauth/README.md` and `AGENTS.md` separate account providers from API keys and require plugin-owned credential files, safe error handling and reconnect state. They are useful architectural references, not a reason to copy an older authentication flow.
+- Existing Agent Zero memory/prompt excerpts in the user-supplied preliminary document are conceptual references. Slim will not import Python modules, FAISS serialization or raw Agent Zero WebUI HTML.
+
+## frdel review: partly aligned, with concrete improvements
+
+The original independent tool-oriented design fits several observed Agent Zero patterns. The original startup-only prompt and simplistic plugin/recovery handling need refinement. The following are inspected diffs, not claims about a maintainer's personality:
+
+| Observed commit | Concrete diff evidence | Inference for Slim | Confidence |
+| --- | --- | --- | --- |
+| [`89d4b891`](https://github.com/agent0ai/agent-zero/commit/89d4b8913f400d92ac00e4d143c17d3e76ad9f25) | Consolidates module-loading helpers; selectively refreshes plugin namespaces on Python changes; introduces pre-update hook. | Keep shared lifecycle primitives small and owned; changes invalidate affected capabilities, and update has a preparatory/rollback boundary. | Medium: direct plugin lifecycle precedent. |
+| [`c7a98363`](https://github.com/agent0ai/agent-zero/commit/c7a983638eead8068b69ba456715d5be04e6df8f) | Hub requests carry a sequence; stale responses cannot replace current state; refresh is explicit. | Use observable connection/catalog state and stale-response protection in provider and Hub screens. | High for this specific race-handling behavior. |
+| [`15a2b553`](https://github.com/agent0ai/agent-zero/commit/15a2b553beaa037d3617cee3caa0ba9e27aad509) | Model override API reports configured/effective presets and emits embedding-change notifications after comparison. | Separate reusable preset definitions, effective turn settings and embedding invalidation. | High for the observed contract, medium for cross-language design inference. |
+
+Polish applied to the proposed spec: explicit registries, scoped settings, per-turn capability snapshots, plugin lifecycle ownership, durable operation receipts, and catalog request ordering. No Agent Zero source changes were made. This is not a maintainer endorsement or a completed code review of an application.
+
+## Preserved inputs and logo provenance
+
+| File | SHA-256 |
+| --- | --- |
+| `docs/original/A0-SLIM-SPEC.md` | `0d203b80a6be6173684bd238c399338a8326ec61d5246eec29f675571f3d9d84` |
+| `docs/review/assets/a0-symbol-dark.svg` from `docs/res/a0-vector-graphics/darkSymbol.svg` | `59590ca4b7feeedf6c0502bc90db8a16244d461ab6194a253cad8b44d09e70fe` |
+| `docs/review/assets/a0-symbol-light.svg` from `docs/res/a0-vector-graphics/lightSymbol.svg` | `09f9aa0e24004f50ea5364eee90511c73b588db0afc7ba0de3679acf6617456f` |
+
+The original document at its user-provided location was not changed. The copied symbols are unchanged. Upstream attribution is in `THIRD_PARTY_NOTICES.md`; the original MIT notice is retained. No logo generation was used.
+
+## Planning verification boundary
+
+Repository publication, document integrity, links and prototype rendering are checkable now. Live model access, OAuth consent/refresh, real sandbox cleanup, native/WASM packaging, plugin execution and performance budgets are implementation gates. Do not turn “documented” into “tested.”

@@ -1,0 +1,17 @@
+.DS_Store
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+.a0-slim/
+data/
+workspace/
+*.db
+*.db-shm
+*.db-wal
+*.log
+test-results/
+playwright-report/
+.cache/
