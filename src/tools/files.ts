@@ -11,13 +11,21 @@ export async function workspacePath(root: string, userPath: string) {
   if (isAbsolute(userPath) || userPath.includes('\0'))
     throw new AppError(403, 'outside_workspace', 'Use a relative project path.');
   const base = await realpath(root);
+  if (base !== resolve(root))
+    throw new AppError(
+      403,
+      'root_changed',
+      'The project folder was replaced by a symlink. Select its current location explicitly.',
+    );
   const target = resolve(base, userPath);
   const rel = relative(base, target);
   if (
     rel === '..' ||
     rel.startsWith(`..${sep}`) ||
     isAbsolute(rel) ||
-    rel.split(sep).some((part) => denied.has(part) || part.startsWith('.env.'))
+    rel
+      .split(sep)
+      .some((part) => denied.has(part) || part.startsWith('.env.') || part.startsWith('.a0-slim-'))
   ) {
     throw new AppError(403, 'outside_workspace', 'This path is outside the allowed project files.');
   }
@@ -61,7 +69,10 @@ export async function listWorkspace(root: string, path = '.') {
   return entries
     .filter(
       (entry) =>
-        !denied.has(entry.name) && !entry.name.startsWith('.env.') && !entry.isSymbolicLink(),
+        !denied.has(entry.name) &&
+        !entry.name.startsWith('.env.') &&
+        !entry.name.startsWith('.a0-slim-') &&
+        !entry.isSymbolicLink(),
     )
     .slice(0, 250)
     .map((entry) => ({ name: entry.name, kind: entry.isDirectory() ? 'directory' : 'file' }));

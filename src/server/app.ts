@@ -13,6 +13,7 @@ import { Vault, systemKeySource } from '../providers/vault.js';
 import { ChatGPTAccounts } from '../providers/chatgpt.js';
 import { Coordinator } from '../runtime/coordinator.js';
 import { SandboxProof } from '../execution/proof.js';
+import { ModalProof, modalCredentials } from '../execution/modal.js';
 import { listWorkspace, readWorkspaceFile } from '../tools/files.js';
 
 const idParams = z.object({ id: z.string().uuid() });
@@ -34,6 +35,7 @@ export async function createApp(options: {
   const accounts = new ChatGPTAccounts(store, vault);
   const runtime = new Coordinator(store, vault, accounts);
   const sandbox = new SandboxProof(store, vault);
+  const modal = new ModalProof(store, vault);
   const readers = new Set<ReadableStreamDefaultReader<Uint8Array>>();
   const session = randomBytes(32).toString('hex');
   let pairing: string | null = options.pairingCode,
@@ -73,17 +75,15 @@ export async function createApp(options: {
       return reply
         .code(400)
         .send({ error: 'invalid_input', message: 'Check the required fields and try again.' });
-    return reply
-      .code(500)
-      .send({
-        error: 'operation_failed',
-        message: 'The operation could not be completed. Check your connection and try again.',
-      });
+    return reply.code(500).send({
+      error: 'operation_failed',
+      message: 'The operation could not be completed. Check your connection and try again.',
+    });
   });
   app.get('/api/v1/status', async (request) => ({
     paired: Date.now() <= sessionExpiry && equal(request.cookies.slim_session ?? '', session),
-    stage: 'P0 foundation',
-    version: '0.1.0-alpha.0',
+    stage: 'P1 alpha · account checks pending',
+    version: '0.1.0-alpha.1',
   }));
   app.post('/api/v1/pair', async (request, reply) => {
     const { code } = z.object({ code: z.string().max(100) }).parse(request.body);
@@ -107,7 +107,9 @@ export async function createApp(options: {
     chats: store.chats(),
     connections: store.connections(),
     receipts: store.receipts(),
+    artifacts: store.operations().map(({ before, content, ...item }) => item),
     sandboxConfigured: store.meta('sandbox:vercel') === 'configured',
+    modalConfigured: store.meta('sandbox:modal') === 'configured',
   }));
   app.post('/api/v1/projects', async (request) => {
     const input = z
@@ -122,7 +124,7 @@ export async function createApp(options: {
       throw new AppError(400, 'project_path', 'Choose a folder.');
     const contains = (parent: string, child: string) => {
       const rel = relative(parent, child);
-        return !rel || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+      return !rel || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
     };
     if (contains(root, data) || contains(data, root))
       throw new AppError(
@@ -143,6 +145,21 @@ export async function createApp(options: {
     return read
       ? { text: await readWorkspaceFile(project.root, path) }
       : { entries: await listWorkspace(project.root, path) };
+  });
+  app.post('/api/v1/projects/:id/execution', async (request) => {
+    const project = store.project(idParams.parse(request.params).id);
+    const { execution } = z
+      .object({ execution: z.enum(['none', 'docker']) })
+      .strict()
+      .parse(request.body);
+    if (execution === 'docker' && !(await runtime.docker.availability()).available)
+      throw new AppError(
+        409,
+        'sandbox_unavailable',
+        'Start your local Docker engine and install the pinned image first.',
+      );
+    store.saveProject({ ...project, execution });
+    return { ok: true };
   });
   app.post('/api/v1/connections', async (request) => {
     const input = connectionInput.parse(request.body);
@@ -214,13 +231,14 @@ export async function createApp(options: {
       })
       .strict()
       .parse(request.body);
-    store.project(input.projectId);
+    const project = store.project(input.projectId);
     const connection = store.connection(input.connectionId);
     if (!connection.model) throw new AppError(400, 'model_missing', 'Select a model first.');
     const chat = {
       id: randomUUID(),
       ...input,
       model: connection.model,
+      execution: project.execution ?? 'none',
       sessionId: null,
       status: 'idle' as const,
       createdAt: new Date().toISOString(),
@@ -235,6 +253,52 @@ export async function createApp(options: {
         .strict()
         .parse(request.body);
     return runtime.prompt(id, input.text, input.messageId);
+  });
+  app.post('/api/v1/chats/:id/steer', async (request) => {
+    const { id } = idParams.parse(request.params);
+    const input = z
+      .object({ text: z.string().trim().min(1).max(32000), messageId: z.string().uuid() })
+      .strict()
+      .parse(request.body);
+    return runtime.steer(id, input.text, input.messageId);
+  });
+  app.get('/api/v1/artifacts/:id', async (request) =>
+    store.operation(idParams.parse(request.params).id),
+  );
+  app.get('/api/v1/artifacts/:id/download', async (request, reply) => {
+    const operation = store.operation(idParams.parse(request.params).id);
+    return reply
+      .type('text/plain; charset=utf-8')
+      .header(
+        'content-disposition',
+        `attachment; filename*=UTF-8''${encodeURIComponent(operation.path.split('/').at(-1)!)}`,
+      )
+      .send(operation.content);
+  });
+  app.post('/api/v1/artifacts/:id/apply', async (request) => {
+    const { digest } = z
+      .object({ digest: z.string().regex(/^[a-f0-9]{64}$/) })
+      .strict()
+      .parse(request.body);
+    return runtime.operations.apply(idParams.parse(request.params).id, digest);
+  });
+  app.post('/api/v1/artifacts/:id/reconcile', async (request) => {
+    z.object({}).strict().parse(request.body);
+    return runtime.operations.reconcile(idParams.parse(request.params).id);
+  });
+  app.post('/api/v1/artifacts/:id/reject', async (request) => {
+    const { digest, acknowledgeConflict } = z
+      .object({
+        digest: z.string().regex(/^[a-f0-9]{64}$/),
+        acknowledgeConflict: z.boolean().default(false),
+      })
+      .strict()
+      .parse(request.body);
+    return runtime.operations.reject(
+      idParams.parse(request.params).id,
+      digest,
+      acknowledgeConflict,
+    );
   });
   app.post('/api/v1/chats/:id/cancel', async (request) => {
     await runtime.cancel(idParams.parse(request.params).id);
@@ -298,6 +362,34 @@ export async function createApp(options: {
     await vault.set('sandbox:vercel', input);
     store.setMeta('sandbox:vercel', 'configured');
     return { ok: true };
+  });
+  app.get('/api/v1/sandbox/docker', async () => runtime.docker.availability());
+  app.post('/api/v1/sandbox/docker/proof', async (request) => {
+    z.object({}).strict().parse(request.body);
+    return runtime.docker.proof();
+  });
+  app.post('/api/v1/sandbox/docker/receipts/:id/reconcile', async (request) => {
+    z.object({}).strict().parse(request.body);
+    return runtime.docker.reconcile(idParams.parse(request.params).id);
+  });
+  app.post('/api/v1/sandbox/modal', async (request) => {
+    await vault.set('sandbox:modal', modalCredentials.parse(request.body));
+    store.setMeta('sandbox:modal', 'configured');
+    return { ok: true };
+  });
+  app.post('/api/v1/sandbox/modal/proof', async (request) => {
+    z.object({ acknowledgeUsage: z.literal(true) })
+      .strict()
+      .parse(request.body);
+    return modal.run();
+  });
+  app.post('/api/v1/sandbox/modal/receipts/:id/reconcile', async (request) => {
+    z.object({}).strict().parse(request.body);
+    return modal.reconcile(idParams.parse(request.params).id);
+  });
+  app.post('/api/v1/sandbox/vercel/receipts/:id/reconcile', async (request) => {
+    z.object({}).strict().parse(request.body);
+    return sandbox.reconcile(idParams.parse(request.params).id);
   });
   app.post('/api/v1/sandbox/vercel/proof', async (request) => {
     z.object({ acknowledgeUsage: z.literal(true) })

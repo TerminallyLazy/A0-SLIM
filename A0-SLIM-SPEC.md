@@ -1,8 +1,8 @@
 # A0 SLIM — revised build specification
 
-**Revision 0.3 · 2026-10-26 · Approved direction; P0 in progress**
+**Revision 0.4 · 2026-10-26 · Local alpha; live acceptance gates remain**
 
-Owner direction: a local-first app, public GitHub repository, flexible model and sandbox connections, useful access to the Agent Zero Plugin Hub, and a polished, minimal, customizable interface. The [preliminary spec](docs/original/A0-SLIM-SPEC.md) is preserved unchanged. The user approved the direction on 2026-10-26. This specification describes the target product; delivered behavior and open gates are recorded in [P0 verification](docs/verification/P0.md).
+Owner direction: a local-first app, public GitHub repository, flexible model and sandbox connections, useful access to the Agent Zero Plugin Hub, and a polished, minimal, customizable interface. The [preliminary spec](docs/original/A0-SLIM-SPEC.md) is preserved unchanged. The user approved the direction on 2026-10-26. This specification describes the target product; delivered behavior and open gates are recorded in [P0 verification](docs/verification/P0.md) and [P1 verification](docs/verification/P1.md).
 
 ## 1. Product and scope
 
@@ -98,17 +98,28 @@ The preferred new integration uses OpenAI's documented local OSS flow: stable ho
 
 The inference contract uses public `POST /v1/responses`, `store:false`, `stream:true`, account-aware model choices, and explicit completion handling. Unsupported parameters and tool types must be removed/rejected rather than guessed. See [inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference) and [preview limits](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations).
 
-**Known gap:** libfx 0.0.14's built-in `codex` helper uses a Codex-client flow, while its custom provider is Chat Completions. P0 must prove a narrow in-process protocol bridge through libfx's documented `fetch` seam. The bridge converts messages and function calls to the supported public Responses shape and maps streamed results back without losing call IDs, errors, cancellation or terminal status. It has an internal endpoint identity intercepted in-process, never a public proxy. Credentials attach only at the OpenAI fetch boundary.
+**Implemented bridge, bounded compatibility:** libfx 0.0.14's built-in `codex` helper uses a Codex-client flow, while its custom provider is Chat Completions. The alpha implements a narrow in-process protocol bridge through libfx's documented `fetch` seam. The bridge converts messages and function calls to the supported public Responses shape and maps streamed results back without losing call IDs, errors, cancellation or terminal status. It has an internal endpoint identity intercepted in-process, never a public proxy. Credentials attach only at the OpenAI fetch boundary.
 
-Acceptance includes a two-step tool round trip, restart with history, account switch, token refresh, revocation and an error after streaming starts. If the bridge cannot preserve semantics, record the blocker and propose an upstream supported adapter or a separately scoped Codex app-server mode. Do not quietly replace libfx or ship a reverse-engineered endpoint as the approved path. No live ChatGPT inference test has been performed. The foundation bridge passes synthetic text/function round trips and rejects reasoning items because encrypted reasoning-state replay is not implemented. Retaining that state across tool calls, restart, and context compaction remains a release gate.
+Acceptance includes a two-step tool round trip, restart with history, account switch, token refresh, revocation and an error after streaming starts. If the bridge cannot preserve semantics, record the blocker and propose an upstream supported adapter or a separately scoped Codex app-server mode. Do not quietly replace libfx or ship a reverse-engineered endpoint as the approved path. Live ChatGPT text/function requests and an approved synthetic artifact have passed. Completed provider output, including encrypted reasoning and message phase, is retained in an encrypted account/chat/model-scoped journal before tool dispatch. Some live subscription streams carry completed items separately and leave the terminal output array empty; the bridge accepts those items only after terminal success. File-evidence notes inserted by libfx on restoration are retained separately as user context. JSON arguments are canonicalized for stable native replay. Changed or compacted history fails closed; automatic compaction and fork mapping are not implemented. Real reasoning-bearing output, refresh/revocation, quota behavior and additional models remain separate acceptance gates. See the verification records for restart evidence and limits.
 
 Model selection in a new draft stays in the draft until first Send. Saving a preset or browsing model choices must not create a remote agent session. Freeze the effective configuration on accepted turns. Keep stable libfx agent identities per connection/profile revision; when switching providers, show the data transfer and fork into a new mapped runtime session with a deliberate context handoff. Same-provider model changes apply only to the next turn after capability checks. This avoids mutating one shared named agent's configuration underneath existing sessions.
 
 ## 5. Execution environments and adding services
 
-Onboarding offers **No code execution**, **Cloud sandbox**, or **Trusted local process**. Read-only chat/research remains usable without a sandbox account. A configured sandbox is the recommended environment for arbitrary code. Trusted local mode clearly states that commands have the host user's OS permissions; a working-directory check is not isolation.
+The alpha offers **No code execution** or **Local Docker** for new chats, plus synthetic-only **Cloud sandbox** connection checks. The target also includes explicitly opted-in **Trusted local process** execution. Read-only chat/research remains usable without a sandbox account. A configured sandbox is the recommended environment for arbitrary code. Trusted local mode clearly states that commands have the host user's OS permissions; a working-directory check is not isolation.
 
-The “Add environment” flow is: choose service → enter connection details → test connection → inspect supported capabilities → select region/template/network policy and limits → save → select per project. Built-in adapters first cover Vercel Sandbox and E2B; Daytona follows. Users can add a compatible service by URL/API key through the versioned Slim Runner protocol; an arbitrary vendor API still requires an adapter. Advanced users can install a reviewed adapter package. No editing application source is needed for an existing adapter.
+The “Add environment” flow is: choose service → enter connection details → test connection → inspect supported capabilities → select region/template/network policy and limits → save → select per project. Following the owner’s free-option request, built-in work starts with local Docker, Vercel Sandbox and Modal. E2B and Daytona remain planned. Users can add a compatible service by URL/API key through the versioned Slim Runner protocol; an arbitrary vendor API still requires an adapter. Advanced users can install a reviewed adapter package. No editing application source is needed for an existing adapter.
+
+The alpha's local Docker runner pins its Node image by digest, permits only a local Unix-socket engine, and creates one disposable container per call. It uses no network, host mounts or credentials; drops capabilities; runs non-root; limits CPU, memory, process count, output and execution time; and verifies removal. Unknown cleanup blocks new work until exact-resource reconciliation. The project default is copied into each new chat and displayed as its effective environment.
+
+Cloud check adapters persist identity and scope before creation, keep project data local, and enforce a 60-second sandbox TTL. Vercel reconciles stop/deletion; Modal reconciles termination. A Modal app/base-image cache can remain after stopped compute. A timed-out creation stays unknown even if the SDK later completes it; recovery uses the original name and ownership tags. Cloud agent execution and the general Runner protocol below remain target work.
+
+| Option | Free-use model, checked 2026-10-26 | Alpha capability |
+| --- | --- | --- |
+| Local Docker | No cloud compute fee; local engine/resources required | Agent Node.js execution, real local checks passed |
+| Vercel Hobby | 5 CPU hours, 420 GB-hours, 5,000 creations monthly; quota pauses | Configurable synthetic check; live account pending |
+| Modal Starter | $30 monthly compute credit; additional usage may be billed | Configurable synthetic check; live account pending |
+| E2B / Daytona | One-time or introductory credits; see current pricing | Planned |
 
 ```typescript
 // Proposed Slim contract, not an existing vendor API.
@@ -142,7 +153,9 @@ Expose only enabled tools that the current project, model and execution environm
 | Tool | Replay classification | Design |
 | --- | --- | --- |
 | `read_file`, `list_dir` | `idempotent:true`, `writes:false` | Authorized project root, bounded output, safe path handling. |
-| `write_file`, `apply_patch` | Initially `false,true` | Preview/approval policy; atomic replacement and conflict detection. Upgrade replay safety only with tested receipts. |
+| `write_file` | `true,true` for staging only | Immutable, deduplicated proposal; exact browser approval performs atomic application. Unknown outcomes block new proposals until reconciliation. |
+| `apply_patch` | Planned | Must use the same reviewed-operation boundary. |
+| `run_javascript` | `true,true` with owned receipt | Disposable local Docker computation; repeated call IDs reuse receipts, unknown cleanup blocks further execution. |
 | `code_execution` | `false,true` | Execution adapter only; shell semantics explicit; no automatic retry of unknown effects. |
 | `web_search` | `true,false` for ordinary lookup | Configured search connector; citations returned as data. Gateway provider search is capability-specific. |
 | `memory_save`, `memory_delete` | `true,true` only with atomic operation-key deduplication | Transaction includes mutation and receipt; otherwise classify non-idempotent. |

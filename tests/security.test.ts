@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile, symlink, mkdir } from 'node:fs/promises';
+import { realpath, mkdtemp, rm, writeFile, symlink, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Store } from '../src/storage/store.js';
@@ -42,7 +42,7 @@ test('vault authenticates ciphertext against the record ID and never stores the 
 });
 
 test('file tools reject traversal, sensitive files, links, binary and oversize data', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'slim-files-'));
+  const dir = await realpath(await mkdtemp(join(tmpdir(), 'slim-files-')));
   const root = join(dir, 'project');
   await mkdir(root);
   await writeFile(join(root, 'note.md'), 'Readable note');

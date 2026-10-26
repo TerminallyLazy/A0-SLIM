@@ -9,6 +9,8 @@ type ProofSandbox = Pick<
   Sandbox,
   'name' | 'writeFiles' | 'runCommand' | 'readFileToBuffer' | 'stop'
 >;
+type RecoverableSandbox = Pick<Sandbox, 'name' | 'status' | 'tags' | 'stop' | 'delete'>;
+type Getter = (options: Parameters<typeof Sandbox.get>[0]) => Promise<RecoverableSandbox>;
 type Factory = (options: Parameters<typeof Sandbox.create>[0]) => Promise<ProofSandbox>;
 /** A bounded synthetic probe; it never uploads the user's project or model credentials. */
 export class SandboxProof {
@@ -17,7 +19,101 @@ export class SandboxProof {
     private store: Store,
     private vault: Vault,
     private create: Factory = (options) => Sandbox.create(options),
+    private get: Getter = (options) => Sandbox.get(options),
   ) {}
+  async reconcile(id: string) {
+    if (this.running)
+      throw new AppError(409, 'proof_running', 'A sandbox check is already running.');
+    const receipt = this.store
+      .receipts()
+      .find((r) => r.id === id && r.kind === 'vercel-sandbox-proof');
+    if (!receipt || typeof receipt.environmentId !== 'string')
+      throw new AppError(404, 'receipt_missing', 'Sandbox receipt not found.');
+    if (receipt.cleanup !== 'unknown' && receipt.cleanup !== 'stopped') return receipt;
+    this.running = true;
+    try {
+      const credentials = await this.vault.get<SandboxCredentials>('sandbox:vercel');
+      const scope = receipt.scope as { teamId: string; projectId: string } | undefined;
+      if (
+        !credentials ||
+        !scope ||
+        credentials.teamId !== scope.teamId ||
+        credentials.projectId !== scope.projectId
+      )
+        throw new AppError(
+          409,
+          'sandbox_scope',
+          'Reconnect the original Vercel team and project to reconcile this resource.',
+        );
+      let sandbox: RecoverableSandbox;
+      try {
+        sandbox = await this.get({
+          ...credentials,
+          name: receipt.environmentId,
+          resume: false,
+          signal: AbortSignal.timeout(15_000),
+        });
+      } catch (error) {
+        if (
+          receipt.deletionConfirmed === true &&
+          (error as { response?: Response }).response?.status === 404
+        ) {
+          receipt.cleanup = 'deleted';
+          receipt.reconciledAt = new Date().toISOString();
+          delete receipt.reconcileMessage;
+          this.store.receipt(receipt as { id: string });
+          return receipt;
+        }
+        throw error;
+      }
+      if (
+        sandbox.name !== receipt.environmentId ||
+        sandbox.tags?.proof !== receipt.id ||
+        sandbox.tags?.app !== 'a0-slim'
+      )
+        throw new AppError(
+          409,
+          'sandbox_identity',
+          'The remote resource did not match this application’s receipt.',
+        );
+      const stopped =
+        sandbox.status === 'stopped'
+          ? { status: 'stopped' }
+          : await sandbox.stop({ signal: AbortSignal.timeout(15_000) });
+      receipt.stopStatus = stopped.status;
+      if (stopped.status !== 'stopped') throw new Error('Stop remains unconfirmed.');
+      receipt.cleanup = 'stopped';
+      this.store.receipt(receipt as { id: string });
+      await sandbox.delete({ deleteOrphanSnapshots: true, signal: AbortSignal.timeout(15_000) });
+      receipt.deletionConfirmed = true;
+      this.store.receipt(receipt as { id: string });
+      try {
+        await this.get({
+          ...credentials,
+          name: receipt.environmentId,
+          resume: false,
+          signal: AbortSignal.timeout(15_000),
+        });
+      } catch (error) {
+        if ((error as { response?: Response }).response?.status === 404)
+          receipt.cleanup = 'deleted';
+        else throw error;
+      }
+      delete receipt.reconcileMessage;
+      receipt.reconciledAt = new Date().toISOString();
+      this.store.receipt(receipt as { id: string });
+      return receipt;
+    } catch (error) {
+      receipt.reconcileMessage =
+        error instanceof AppError
+          ? error.message
+          : 'Remote cleanup could not be confirmed. Recheck this exact environment in Vercel; no new resource was created.';
+      this.store.receipt(receipt as { id: string });
+      return receipt;
+    } finally {
+      this.running = false;
+    }
+  }
   async run() {
     if (this.running)
       throw new AppError(409, 'proof_running', 'A sandbox check is already running.');
@@ -29,7 +125,7 @@ export class SandboxProof {
       throw new AppError(
         409,
         'sandbox_unreconciled',
-        'A previous sandbox outcome is unknown. Inspect it in Vercel; automatic repetition is disabled until reconciliation is implemented.',
+        'A previous sandbox outcome is unknown. Use Recheck and stop to reconcile it before creating another sandbox.',
       );
     this.running = true;
     let sandbox: ProofSandbox | undefined;
@@ -44,12 +140,15 @@ export class SandboxProof {
       const credentials = await this.vault.get<SandboxCredentials>('sandbox:vercel');
       if (!credentials)
         throw new AppError(400, 'sandbox_missing', 'Save a Vercel Sandbox connection first.');
+      receipt.scope = { teamId: credentials.teamId, projectId: credentials.projectId };
+      receipt.environmentId = `a0-slim-${receipt.id}`;
       this.store.receipt(receipt);
       // Persist intent before creation. A failed response may still have created a resource.
       receipt.cleanup = 'unknown';
       this.store.receipt(receipt);
       sandbox = await this.create({
         ...credentials,
+        name: String(receipt.environmentId),
         timeout: 60_000,
         persistent: false,
         networkPolicy: 'deny-all',
@@ -58,7 +157,9 @@ export class SandboxProof {
         tags: { app: 'a0-slim', proof: receipt.id },
         signal: AbortSignal.timeout(30_000),
       });
-      receipt.environmentId = sandbox.name;
+      if (sandbox.name !== receipt.environmentId)
+        throw new Error('Sandbox identity did not match creation intent.');
+      receipt.creationConfirmed = true;
       this.store.receipt(receipt);
       await sandbox.writeFiles(
         [{ path: 'proof.txt', content: 'A0 SLIM synthetic sandbox proof\n' }],

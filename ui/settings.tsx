@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  ArrowUpRight,
-  Check,
-  ChevronDown,
-  KeyRound,
-  Plus,
-  ShieldCheck,
-  Terminal,
-} from 'lucide-react';
+import { ArrowUpRight, ChevronDown, KeyRound, Plus, ShieldCheck, Terminal } from 'lucide-react';
 import type { Connection } from '../src/domain.js';
 import { api } from './api.js';
 import { Heading } from './workspace.js';
@@ -66,8 +58,9 @@ export function Connections({
         </button>
       </div>
       <p className="fine">
-        ChatGPT reasoning-state replay is still a P0 compatibility gate. Sign-in and model discovery
-        do not verify inference. Unsupported reasoning responses stop with an error.
+        ChatGPT text and function conversations keep encrypted provider state locally. Sign-in and
+        model discovery do not verify inference. Changed or compacted history requires a new chat
+        with a reviewed summary.
       </p>
       {adding && (
         <form
@@ -256,142 +249,4 @@ export function Connections({
 }
 function PlugMark() {
   return <KeyRound size={22} />;
-}
-export function Environments({
-  configured,
-  receipts,
-  refresh,
-  act,
-}: Actions & { configured: boolean; receipts: Record<string, any>[] }) {
-  const [busy, setBusy] = useState(false),
-    [editing, setEditing] = useState(false),
-    [consent, setConsent] = useState(false);
-  return (
-    <>
-      <Heading label="A place for the work" title="Boundaries you can see.">
-        The foundation runs with code execution off. This synthetic check tests the first cloud
-        sandbox adapter.
-      </Heading>
-      <div className="notice">
-        <ShieldCheck size={18} />
-        <div>
-          <strong>Project files stay on your computer during this check.</strong>
-          <p>
-            The probe creates a temporary sandbox, writes a synthetic note, runs Node, reads the
-            result, and requests stop. It denies outbound network and exposes no ports.
-          </p>
-        </div>
-      </div>
-      <div className="connection-row">
-        <div className="connection-glyph">
-          <Terminal size={20} />
-        </div>
-        <div className="connection-info">
-          <h3>Vercel Sandbox</h3>
-          <p>{configured ? 'Credentials saved · live verification available' : 'Not configured'}</p>
-        </div>
-        <button onClick={() => setEditing(!editing)}>
-          {configured ? 'Update connection' : 'Configure'}
-        </button>
-      </div>
-      {editing && (
-        <form
-          className="settings-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const form = event.currentTarget,
-              data = new FormData(form);
-            setBusy(true);
-            void act(async () => {
-              await api('/sandbox/vercel', Object.fromEntries(data));
-              form.reset();
-              setEditing(false);
-              await refresh();
-            }).finally(() => setBusy(false));
-          }}
-        >
-          <div className="form-grid">
-            <label>
-              Team ID
-              <input name="teamId" required autoComplete="off" />
-            </label>
-            <label>
-              Project ID
-              <input name="projectId" required autoComplete="off" />
-            </label>
-          </div>
-          <label>
-            Access token
-            <input name="token" type="password" required autoComplete="off" />
-          </label>
-          <button className="primary" disabled={busy}>
-            Save connection
-          </button>
-        </form>
-      )}
-      {configured && (
-        <div className="proof-form">
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
-            />{' '}
-            Create a temporary sandbox using my Vercel account. Provider usage may be billed.
-          </label>
-          <button
-            className="primary"
-            disabled={!consent || busy}
-            onClick={() => {
-              setBusy(true);
-              void act(async () => {
-                await api('/sandbox/vercel/proof', { acknowledgeUsage: true });
-                setConsent(false);
-                await refresh();
-              }).finally(() => setBusy(false));
-            }}
-          >
-            {busy ? 'Checking the sandbox…' : 'Run synthetic check'} <ArrowUpRight size={16} />
-          </button>
-        </div>
-      )}
-      <div className="list-label">
-        Verification receipts <span>{receipts.length}</span>
-      </div>
-      {!receipts.length && (
-        <p className="empty-row">No sandbox has been created by this application.</p>
-      )}
-      {receipts.map((receipt) => (
-        <div className="receipt" key={receipt.id}>
-          <div>
-            <Check size={16} />
-            <strong>
-              {receipt.status === 'passed'
-                ? 'Synthetic artifact matched'
-                : receipt.status === 'pending'
-                  ? 'Check interrupted or still pending'
-                  : 'Check did not pass'}
-            </strong>
-            <span className="pill">Cleanup: {receipt.cleanup}</span>
-          </div>
-          <p>
-            {receipt.environmentId ?? 'Environment ID unavailable'} ·{' '}
-            {new Date(receipt.startedAt).toLocaleString()}
-          </p>
-          {receipt.message && <p>{receipt.message}</p>}
-          {receipt.cleanup === 'unknown' && (
-            <p className="error">
-              Inspect this environment in Vercel before retrying. The service could not confirm
-              cleanup.
-            </p>
-          )}
-        </div>
-      ))}
-      <p className="fine">
-        The temporary session has a 60-second TTL and persistence disabled. A successful probe does
-        not enable agent code execution. Additional adapters and artifact approval follow in later
-        stages.
-      </p>
-    </>
-  );
 }

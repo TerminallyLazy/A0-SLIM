@@ -1,19 +1,27 @@
 /** Manual browser harness: isolated temporary data and a synthetic local model. */
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { realpath, mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createApp } from '../../src/server/app.js';
 import { startModelFixture } from './model-server.js';
 process.umask(0o077);
-const dir = await mkdtemp(join(tmpdir(), 'slim-ui-')),
+const dir = await realpath(await mkdtemp(join(tmpdir(), 'slim-ui-'))),
   root = join(dir, 'project');
 await mkdir(root);
 await writeFile(
   join(root, 'README.md'),
   '# Synthetic project\n\nThis browser check uses only a local model fixture.\n',
 );
-const fixture = await startModelFixture({ tool: 'list_dir', delayMs: 300 });
+const fixture = await startModelFixture({
+  tool: 'write_file',
+  toolInput: {
+    path: 'field-notes.md',
+    content:
+      '# A little room to think\n\nA synthetic artifact created in the local UI check.\n\n- Gather the notes.\n- Choose one clear next step.\n- Leave a trail for tomorrow.\n',
+  },
+  delayMs: 300,
+});
 const { app, store } = await createApp({
   dataDir: join(dir, 'data'),
   origin: 'http://127.0.0.1:4311',

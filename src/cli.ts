@@ -29,7 +29,7 @@ try {
   const { app } = await createApp({ dataDir, origin, pairingCode: code, staticDir });
   await app.listen({ host: '127.0.0.1', port });
   console.log(
-    `\nA0 SLIM · P0 foundation\n${origin}\nPair this browser within 10 minutes: ${code}\n\nPress Ctrl+C to stop the local service.\n`,
+    `\nA0 SLIM · Local alpha\n${origin}\nPair this browser within 10 minutes: ${code}\n\nPress Ctrl+C to stop the local service.\n`,
   );
   let stopping = false;
   const stop = async () => {

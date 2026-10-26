@@ -747,6 +747,60 @@ kbd {
 .proof-form {
   padding: 20px 0;
 }
+.environment-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 24px;
+  margin: 20px auto;
+  background: var(--surface);
+}
+.environment-card > p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.environment-heading {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.environment-heading > div:nth-child(2) {
+  flex: 1;
+  min-width: 150px;
+}
+.environment-heading h3 {
+  margin: 0 0 5px;
+}
+.environment-heading p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.environment-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+.environment-choice {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.environment-choice label {
+  display: grid;
+  gap: 10px;
+  font-size: 13px;
+}
+.environment-choice select {
+  max-width: 100%;
+}
+.setup-command {
+  overflow-wrap: anywhere;
+  font-family: monospace;
+}
 .checkbox {
   flex-direction: row;
   align-items: flex-start;
@@ -1250,4 +1304,110 @@ kbd {
     transition: none !important;
     scroll-behavior: auto !important;
   }
+}
+
+.artifact-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  background: var(--soft);
+  border-radius: 12px;
+  text-align: left;
+  color: var(--text);
+}
+.artifact-banner span {
+  flex: 1;
+  font-size: 12px;
+}
+.artifact-empty {
+  padding: 28px 12px;
+  text-align: center;
+  opacity: 0.7;
+}
+.artifact-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  border-radius: 8px;
+}
+.artifact-item.selected {
+  background: var(--soft);
+}
+.artifact-item span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.artifact-item small {
+  display: block;
+  font-size: 10px;
+  opacity: 0.65;
+  margin-top: 5px;
+  text-transform: capitalize;
+}
+.artifact-review {
+  margin-top: 24px;
+}
+.artifact-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.artifact-title .pill {
+  margin-left: auto;
+}
+.artifact-review details {
+  font-size: 11px;
+  margin-top: 16px;
+}
+.artifact-review summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.artifact-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 320px;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.7;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  tab-size: 2;
+}
+.artifact-code.after {
+  border-left: 2px solid var(--accent);
+}
+.artifact-code.before {
+  opacity: 0.75;
+}
+.artifact-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.artifact-actions button {
+  font-size: 11px;
+  padding: 9px 10px;
+}
+.artifact-actions a {
+  font-size: 11px;
+}
+.conflict-review .checkbox {
+  font-size: 11px;
+  line-height: 1.7;
 }

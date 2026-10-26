@@ -15,3 +15,7 @@ Brand names and logos identify their respective projects. This project does not 
 Pinned runtime dependency: `libfx@0.0.14`, from https://github.com/vercel-labs/fx, Apache-2.0. The npm package supplies its native binaries, WASM and source; these are not checked into this repository. `scripts/patch-libfx.cjs` applies a narrow stream-cancellation fix to the pinned package during installation. Its source hashes and rationale are documented in `docs/verification/P0.md`. Preserve applicable dependency notices when distributing the application.
 
 Other dependency versions and resolved integrity values are pinned in `package-lock.json`; their licenses remain in the installed packages.
+
+## Modal
+
+The optional cloud check uses `modal@0.11.1`, Apache-2.0, from https://github.com/modal-labs/modal-client. The SDK is installed through npm and is not vendored. Preserve its applicable notices in any distributed application.

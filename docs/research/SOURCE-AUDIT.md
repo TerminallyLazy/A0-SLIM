@@ -26,7 +26,7 @@ Research date: **2026-10-26**. This is a documentation/source inspection, not a 
 | [Node release schedule](https://nodejs.org/en/about/previous-releases) | Node 24 is LTS; Node 20 is EOL at research time. | Proposed runtime baseline is Node 24. |
 | [Agent Zero Plugin Index README](https://github.com/agent0ai/a0-plugins/blob/main/README.md), fetched through GitHub connector | Index metadata points to repos with `plugin.yaml`; allowed index fields are limited; publication recovery behavior is documented. | Keep Slim compatibility metadata separate and retain the last usable catalog. |
 
-No provider credentials were read and no billable inference, sandbox creation, plugin installation or model download was performed. The npm package was inspected in a temporary research directory without installing/executing it. Documentation can drift; recheck the adopted versions before implementation.
+During the initial research phase, no provider credentials were read and no billable inference, sandbox creation, plugin installation or model download was performed. The npm package was inspected in a temporary research directory without installing/executing it. Documentation can drift; recheck the adopted versions before implementation.
 
 ## Agent Zero source findings
 
@@ -63,3 +63,19 @@ The original document at its user-provided location was not changed. The copied 
 ## Planning verification boundary
 
 Repository publication, document integrity, links and prototype rendering are checkable now. Live model access, OAuth consent/refresh, real sandbox cleanup, native/WASM packaging, plugin execution and performance budgets are implementation gates. Do not turn “documented” into “tested.”
+
+
+## Implementation addendum — 2026-10-26
+
+The owner subsequently authorized implementation and connected ChatGPT in the app. The [alpha evidence](../verification/P1.md) records synthetic-only project data used with that live subscription, approved artifact bytes, restored conversations, and real local Docker cleanup. No account identity, token, protocol ciphertext or private transcript is published here. No cloud sandbox has been created during these checks.
+
+| Current primary source | Applied finding |
+| --- | --- |
+| [OpenAI stateless reasoning](https://developers.openai.com/api/docs/guides/reasoning) | Current stateless output includes encrypted reasoning by default. Preserve completed provider items; do not reduce them to visible text. Live reasoning-bearing acceptance remains separate. |
+| [OpenAI preview contract](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations) | Keep HTTP stateless, use explicit history, avoid unsupported parameters and hosted tools. |
+| [Vercel Sandbox pricing](https://vercel.com/docs/sandbox/pricing) | Hobby monthly allowances include 5 CPU hours, 420 GB-hours memory and 5,000 creations. Hobby quota pauses new creation; paid plans can incur usage. |
+| [Modal pricing](https://modal.com/pricing) | Starter includes $30 monthly compute credit; do not equate an account plan with remaining free usage. |
+| [Modal Sandboxes](https://modal.com/docs/guide/sandboxes), [JS Sandbox API](https://modal.com/docs/sdk/js/latest/Sandbox), [network controls](https://modal.com/docs/guide/sandbox-networking) | Pinned npm `modal@0.11.1`; name/tags, blocked networking, no mounts/secrets/identity token, bounded TTL and explicit termination. Local package types and implementation were inspected before integration. |
+| [E2B pricing](https://e2b.dev/pricing), [Daytona pricing](https://www.daytona.io/pricing) | $100 one-time E2B credit and $200 introductory Daytona compute are trial offers; no recurring free allowance is asserted for these adapters. |
+
+Native libfx restoration inserts a file-evidence note that was absent from the original provider requests. The bridge preserves that exact, file-call-backed metadata as supplemental user context while replaying the completed provider history. This is a locally observed behavior with a native regression test, not a documented broad guarantee for future libfx versions. The native package remains pinned.

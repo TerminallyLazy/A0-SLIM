@@ -15,3 +15,6 @@ workspace/
 test-results/
 playwright-report/
 .cache/
+
+# Generated acceptance artifact; the input fixture is public.
+examples/live-check/result.txt

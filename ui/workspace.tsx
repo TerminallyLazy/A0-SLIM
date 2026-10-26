@@ -20,15 +20,19 @@ import {
   X,
 } from 'lucide-react';
 import type { Chat, Connection, Project } from '../src/domain.js';
+import { Artifacts, type ArtifactSummary } from './artifacts.js';
 import { api } from './api.js';
-import { Connections, Environments } from './settings.js';
+import { Connections } from './settings.js';
+import { Environments } from './environments.js';
 
 type State = {
   projects: Project[];
   chats: Chat[];
   connections: Connection[];
   receipts: Record<string, any>[];
+  artifacts: ArtifactSummary[];
   sandboxConfigured: boolean;
+  modalConfigured: boolean;
 };
 type Line = { cursor: number; event: Record<string, any> };
 type View = 'chat' | 'connections' | 'environments' | 'appearance' | 'roadmap';
@@ -37,7 +41,9 @@ const empty: State = {
   chats: [],
   connections: [],
   receipts: [],
+  artifacts: [],
   sandboxConfigured: false,
+  modalConfigured: false,
 };
 export function Logo({ small = false }: { small?: boolean }) {
   return (
@@ -89,6 +95,7 @@ export function App() {
     chat = state.chats.find((c) => c.id === chatId);
   const connection = state.connections.find((c) => c.id === (chat?.connectionId ?? connectionId));
   const running = chat?.status === 'running';
+  const execution = chat ? (chat.execution ?? 'none') : (project?.execution ?? 'none');
   const refresh = async () => {
     const next = await api<State>('/state');
     setState(next);
@@ -164,7 +171,7 @@ export function App() {
                       ? previous
                       : [...previous, line],
                   );
-                  if (line.event.type === 'turn_start' || line.event.type === 'turn_end')
+                  if (['turn_start', 'turn_end', 'tool_end'].includes(line.event.type))
                     void refresh().catch(() => {});
                 }
             }
@@ -246,7 +253,7 @@ export function App() {
   };
   async function send(event: FormEvent) {
     event.preventDefault();
-    if (!prompt.trim() || sendLock.current || running) return;
+    if (!prompt.trim() || sendLock.current) return;
     sendLock.current = true;
     setBusy(true);
     await act(async () => {
@@ -260,7 +267,10 @@ export function App() {
         id = created.id;
         setChatId(id);
       }
-      await api(`/chats/${id}/messages`, { text: prompt, messageId: crypto.randomUUID() });
+      await api(`/chats/${id}/${running ? 'steer' : 'messages'}`, {
+        text: prompt,
+        messageId: crypto.randomUUID(),
+      });
       setPrompt('');
       await refresh();
     });
@@ -279,7 +289,7 @@ export function App() {
     return (
       <main className="pair">
         <div className="brand">
-          <Logo /> A0 SLIM <span className="pill">Foundation</span>
+          <Logo /> A0 SLIM <span className="pill">Local alpha</span>
         </div>
         <div className="pair-card">
           <div className="eyebrow">A workspace of your own</div>
@@ -450,7 +460,7 @@ export function App() {
                 }[view]}
           </strong>
           <div className="workbar-right">
-            <span className="pill">P0 foundation</span>
+            <span className="pill">Local alpha</span>
             <button
               className={`icon ${inspector ? 'selected' : ''}`}
               aria-label="Toggle project inspector"
@@ -532,6 +542,28 @@ export function App() {
               )}
             </div>
             <div className="composer-wrap">
+              {state.artifacts.some(
+                (a) =>
+                  a.projectId === projectId &&
+                  ['pending', 'unknown', 'conflict'].includes(a.status),
+              ) && (
+                <button
+                  className="artifact-banner"
+                  onClick={() => {
+                    setInspector(true);
+                    setTab('artifacts');
+                  }}
+                >
+                  <FileText size={16} />
+                  <span>Artifacts ready for review</span>
+                  <ArrowUpRight size={15} />
+                </button>
+              )}
+              {chat?.lastStop && (
+                <p className="notice" role="status">
+                  {chat.lastStop}
+                </p>
+              )}
               {chat?.status === 'interrupted' && (
                 <p className="notice">
                   This turn was interrupted. Saved activity is available; review it before sending a
@@ -546,7 +578,9 @@ export function App() {
                   id="prompt"
                   value={prompt}
                   onChange={(event) => setPrompt(event.target.value)}
-                  placeholder="Bring a question. Leave with a direction."
+                  placeholder={
+                    running ? 'Redirect this task…' : 'Bring a question. Leave with a direction.'
+                  }
                   rows={2}
                   onKeyDown={(event) => {
                     if (
@@ -555,7 +589,7 @@ export function App() {
                       !event.nativeEvent.isComposing
                     ) {
                       event.preventDefault();
-                      if (!running) event.currentTarget.form?.requestSubmit();
+                      event.currentTarget.form?.requestSubmit();
                     }
                   }}
                 />
@@ -579,8 +613,17 @@ export function App() {
                     ))}
                   </select>
                   <span className="boundary">
-                    <ShieldCheck size={13} /> Read-only files
+                    <ShieldCheck size={13} /> Review before applying
                   </span>
+                  {running && prompt.trim() && (
+                    <button
+                      type="submit"
+                      disabled={busy}
+                      title="Stop this turn and continue with your direction"
+                    >
+                      Redirect
+                    </button>
+                  )}
                   {running ? (
                     <button
                       className="send"
@@ -612,7 +655,7 @@ export function App() {
                     ? 'Working · closing the tab keeps this turn running'
                     : streamStatus || 'Your project. Your connections.'}
                 </span>
-                <span>Execution off</span>
+                <span>{execution === 'docker' ? 'Local Docker' : 'Execution off'}</span>
               </div>
             </div>
           </>
@@ -624,6 +667,8 @@ export function App() {
             {view === 'environments' && (
               <Environments
                 configured={state.sandboxConfigured}
+                modalConfigured={state.modalConfigured}
+                project={project}
                 receipts={state.receipts}
                 refresh={refresh}
                 act={act}
@@ -740,9 +785,9 @@ export function App() {
       {inspector && (
         <aside className="inspector">
           <div className="inspector-tabs">
-            {['activity', 'files'].map((t) => (
+            {['activity', 'files', 'artifacts'].map((t) => (
               <button key={t} className={tab === t ? 'selected' : ''} onClick={() => setTab(t)}>
-                {t === 'activity' ? 'Activity' : 'Files'}
+                {t === 'activity' ? 'Activity' : t === 'files' ? 'Files' : 'Artifacts'}
               </button>
             ))}
             <button
@@ -754,7 +799,13 @@ export function App() {
             </button>
           </div>
           <div className="inspector-body">
-            {tab === 'files' ? (
+            {tab === 'artifacts' ? (
+              <Artifacts
+                items={state.artifacts.filter((a) => a.projectId === projectId)}
+                refresh={refresh}
+                act={act}
+              />
+            ) : tab === 'files' ? (
               <Files project={project} act={act} />
             ) : (
               <>
@@ -767,11 +818,11 @@ export function App() {
                 </div>
                 <div className="detail">
                   <span>Execution</span>
-                  <span>Off</span>
+                  <span>{execution === 'docker' ? 'Local Docker' : 'Off'}</span>
                 </div>
                 <div className="detail">
                   <span>Files</span>
-                  <span>Read-only</span>
+                  <span>Approval required</span>
                 </div>
                 <div className="detail">
                   <span>Chat</span>
@@ -785,7 +836,7 @@ export function App() {
                         <Circle size={8} />
                         <span>
                           {l.event.type === 'tool_start'
-                            ? `Reading · ${l.event.name}`
+                            ? `Tool · ${l.event.name}`
                             : l.event.type === 'tool_end'
                               ? l.event.isError
                                 ? 'Tool returned an error'
@@ -796,7 +847,7 @@ export function App() {
                     ))}
                 </div>
                 <p className="fine">
-                  This build can read selected project files. Writes, shell commands, and background
+                  File changes appear as reviewable artifacts. Shell commands and background
                   scheduling are not enabled.
                 </p>
               </>
@@ -883,7 +934,7 @@ function Transcript({ lines }: { lines: Line[] }) {
     if (event.type === 'tool_start')
       entries.push({
         type: 'tool',
-        text: `${event.name} · ${JSON.stringify(event.input ?? {})}`,
+        text: `${event.name === 'write_file' ? 'Drafting artifact' : event.name === 'list_dir' ? 'Inspecting folder' : event.name === 'read_file' ? 'Reading file' : event.name}${typeof event.input?.path === 'string' ? ` · ${event.input.path}` : ''}`,
         key: cursor,
       });
     if (event.type === 'turn_end' && event.error)

@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { chmodSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import type { Operation } from '../policy/operations.js';
 import type { Chat, Connection, Project } from '../domain.js';
 import { AppError } from '../domain.js';
 
@@ -23,11 +24,26 @@ export class Store {
       CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, data TEXT NOT NULL);
     `);
     const version = this.meta('schema_version');
-    if (version && version !== '1')
+    if (version && !['1', '2'].includes(version))
       throw new Error(
         'Unsupported database schema. Back up the data before changing application versions.',
       );
-    this.setMeta('schema_version', '1');
+    if (version === '1') {
+      const backups = join(dir, 'backups');
+      mkdirSync(backups, { recursive: true, mode: 0o700 });
+      const backup = join(backups, `schema-1-${Date.now()}-${randomUUID()}.db`);
+      this.db.prepare('VACUUM INTO ?').run(backup);
+      chmodSync(backup, 0o600);
+    }
+    this.db.transaction(() => {
+      this.db.exec(
+        'CREATE TABLE IF NOT EXISTS operations (id TEXT PRIMARY KEY, data TEXT NOT NULL)',
+      );
+      this.setMeta('schema_version', '2');
+    })();
+    this.db.pragma('synchronous = FULL');
+    for (const operation of this.operations())
+      if (operation.status === 'running') this.saveOperation({ ...operation, status: 'unknown' });
     if (!this.meta('host_id')) this.setMeta('host_id', `urn:uuid:${randomUUID()}`);
     for (const chat of this.chats())
       if (chat.status === 'running') this.saveChat({ ...chat, status: 'interrupted' });
@@ -41,12 +57,15 @@ export class Store {
   setMeta(key: string, value: string) {
     this.db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run(key, value);
   }
-  private list<T>(table: 'connections' | 'projects' | 'chats' | 'receipts'): T[] {
+  private list<T>(table: 'connections' | 'projects' | 'chats' | 'receipts' | 'operations'): T[] {
     return (
       this.db.prepare(`SELECT data FROM ${table} ORDER BY rowid DESC`).all() as { data: string }[]
     ).map((row) => JSON.parse(row.data) as T);
   }
-  private save(table: 'connections' | 'projects' | 'chats' | 'receipts', value: { id: string }) {
+  private save(
+    table: 'connections' | 'projects' | 'chats' | 'receipts' | 'operations',
+    value: { id: string },
+  ) {
     this.db
       .prepare(`INSERT INTO ${table} VALUES (?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data`)
       .run(value.id, JSON.stringify(value));
@@ -89,6 +108,17 @@ export class Store {
   }
   receipts() {
     return this.list<Record<string, unknown>>('receipts');
+  }
+  operations() {
+    return this.list<Operation>('operations');
+  }
+  operation(id: string) {
+    const operation = this.operations().find((o) => o.id === id);
+    if (!operation) throw new AppError(404, 'operation_missing', 'Artifact not found.');
+    return operation;
+  }
+  saveOperation(operation: Operation) {
+    this.save('operations', operation);
   }
   close() {
     this.db.close();

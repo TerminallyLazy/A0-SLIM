@@ -6,7 +6,9 @@ export type FixtureRequest = {
   tools?: Array<{ function: { name: string } }>;
 };
 
-export async function startModelFixture(options: { delayMs?: number; tool?: string } = {}) {
+export async function startModelFixture(
+  options: { delayMs?: number; tool?: string; toolInput?: unknown; alwaysTool?: boolean } = {},
+) {
   const requests: FixtureRequest[] = [];
   const sockets = new Set<import('node:net').Socket>();
   const server = createServer(async (request: IncomingMessage, response: ServerResponse) => {
@@ -27,7 +29,7 @@ export async function startModelFixture(options: { delayMs?: number; tool?: stri
     const hasToolResult = input.messages
       .slice(latestUser + 1)
       .some((message) => message.role === 'tool');
-    if (options.tool && !hasToolResult) {
+    if (options.tool && (options.alwaysTool || !hasToolResult)) {
       chunk({
         role: 'assistant',
         tool_calls: [
@@ -35,7 +37,7 @@ export async function startModelFixture(options: { delayMs?: number; tool?: stri
             index: 0,
             id: 'fixture-call',
             type: 'function',
-            function: { name: options.tool, arguments: '{}' },
+            function: { name: options.tool, arguments: JSON.stringify(options.toolInput ?? {}) },
           },
         ],
       });

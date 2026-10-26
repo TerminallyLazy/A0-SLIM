@@ -21,7 +21,7 @@ export type Connection = {
   verifiedAt: string | null;
   account?: { subject: string; clientId: string; label: string };
 };
-export type Project = { id: string; name: string; root: string };
+export type Project = { id: string; name: string; root: string; execution?: 'none' | 'docker' };
 export type Chat = {
   id: string;
   title: string;
@@ -29,7 +29,9 @@ export type Chat = {
   connectionId: string;
   model: string;
   sessionId: string | null;
+  execution?: 'none' | 'docker';
   status: 'idle' | 'running' | 'interrupted';
+  lastStop?: string;
   createdAt: string;
 };
 export type AppEvent = {

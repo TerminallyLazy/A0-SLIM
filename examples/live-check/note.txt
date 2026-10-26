@@ -1,0 +1,4 @@
+A0 SLIM live-check fixture.
+The sample project is named Paper Garden.
+Its only task is to grow three imaginary green leaves.
+This file is synthetic and contains no personal or account data.
