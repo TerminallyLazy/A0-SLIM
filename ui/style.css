@@ -2134,3 +2134,85 @@ progress {
   flex: 1;
   min-width: 160px;
 }
+.agent-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 28px;
+  align-items: start;
+}
+.settings-card {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  min-width: 0;
+  margin-bottom: 20px;
+}
+.settings-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  font-size: 17px;
+}
+.settings-card p,
+.settings-card small {
+  color: var(--muted);
+  line-height: 1.65;
+}
+.settings-card p {
+  font-size: 13px;
+}
+.settings-card a {
+  font-size: 13px;
+}
+.agent-form {
+  display: grid;
+  gap: 14px;
+}
+.agent-form label:not(.check-row) {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+.agent-form input:not([type='checkbox']),
+.agent-form select,
+.agent-form textarea {
+  width: 100%;
+  min-width: 0;
+}
+.agent-form p,
+.agent-form h2 {
+  margin: 0;
+}
+.agent-form button {
+  justify-self: start;
+}
+.agent-command {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.agent-permission {
+  padding: 16px;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  max-height: 340px;
+  overflow: auto;
+}
+.agent-permission h3 {
+  margin-top: 0;
+  font-size: 14px;
+}
+.agent-permission pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .agent-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}

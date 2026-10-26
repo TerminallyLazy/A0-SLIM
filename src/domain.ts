@@ -23,6 +23,7 @@ export type Connection = {
 };
 export type Project = { id: string; name: string; root: string; execution?: 'none' | 'docker' };
 export type Chat = {
+  backend?: 'acp';
   id: string;
   title: string;
   projectId: string;

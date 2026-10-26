@@ -43,3 +43,7 @@ Unchanged official SVG artwork is retained in `ui/public/providers/`. Exact sour
 ## Markdown rendering
 
 `react-markdown` 10.1.0 and `remark-gfm` 4.0.1 are MIT-licensed packages from https://github.com/remarkjs/react-markdown and https://github.com/remarkjs/remark-gfm. They and their unified/micromark dependencies are installed from the pinned npm graph, not vendored. Retain the installed licenses when distributing the app.
+
+## Agent Client Protocol SDK
+
+Pinned dependency: `@agentclientprotocol/sdk@2.0.2`, Apache-2.0, Zed Industries. Source: https://github.com/agentclientprotocol/typescript-sdk. Uses the stable ACP v1 interface. Preserve its packaged LICENSE and applicable notices when distributing. Agent executables are separately installed and licensed; none are bundled by SLIM.

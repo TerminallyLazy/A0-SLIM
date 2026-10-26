@@ -449,7 +449,7 @@ export function ExtensionWorkspace({ project, act }: { project?: Project; act: A
                   Transport
                   <select value={transport} onChange={(e) => setTransport(e.target.value)}>
                     <option value="http">Streamable HTTP</option>
-                    <option value="agent-zero">Agent Zero bridge · preview</option>
+                    <option value="agent-zero">Agent Zero MCP tools · preview</option>
                     <option value="stdio">Local stdio · full trust</option>
                   </select>
                 </label>
@@ -718,9 +718,9 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
       <div className="permission-note">
         <ShieldCheck size={18} />
         <span>
-          Python plugins and Agent Zero UI hooks require an Agent Zero instance. Connect its MCP
-          server through the Agent Zero bridge preset in Skills & MCP. Only exposed, approved remote
-          tools are available. Review and import portable SKILL.md instructions separately.
+          Python plugins run in Agent Zero. Use Agents to connect the whole agent over ACP, or
+          connect its MCP server here for individual remote tools. Agent Zero UI hooks do not become
+          native SLIM screens. Review and import portable SKILL.md instructions separately.
         </span>
       </div>
       {selected && (

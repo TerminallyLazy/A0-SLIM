@@ -21,6 +21,7 @@ import { createE2BDriver } from '../execution/e2b.js';
 import { createDaytonaDriver } from '../execution/daytona.js';
 import { listWorkspace, readWorkspaceFile } from '../tools/files.js';
 import { extensionRoutes } from './extensions.js';
+import { ACPClient } from '../acp/client.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const equal = (a: string, b: string) =>
@@ -40,6 +41,8 @@ export async function createApp(options: {
   const vault = new Vault(store, options.keySource ?? systemKeySource(store.dir));
   const accounts = new ChatGPTAccounts(store, vault);
   const runtime = new Coordinator(store, vault, accounts);
+  const acp = new ACPClient(store);
+  const chatRuntime = (id: string) => (store.chat(id).backend === 'acp' ? acp : runtime);
   const sandbox = new SandboxProof(store, vault);
   const modal = new ModalProof(store, vault);
   const additionalClouds = {
@@ -124,6 +127,7 @@ export async function createApp(options: {
     chats: store.chats(),
     delegations: runtime.delegations.list().map(({ assignment, inputHash, ...record }) => record),
     connections: store.connections(),
+    acp: acp.state(),
     receipts: store.receipts(),
     environments: environmentStatus(store, {
       docker: runtime.docker.busy,
@@ -259,10 +263,24 @@ export async function createApp(options: {
         projectId: z.string().uuid(),
         connectionId: z.string().uuid(),
         title: z.string().trim().min(1).max(100),
+        backend: z.enum(['acp']).optional(),
       })
       .strict()
       .parse(request.body);
     const project = store.project(input.projectId);
+    if (input.backend === 'acp') {
+      const profile = acp.profile(input.connectionId);
+      const chat = {
+        ...input,
+        id: randomUUID(),
+        model: profile.name,
+        sessionId: null,
+        status: 'idle' as const,
+        createdAt: new Date().toISOString(),
+      };
+      store.saveChat(chat);
+      return chat;
+    }
     const connection = store.connection(input.connectionId);
     if (!connection.model) throw new AppError(400, 'model_missing', 'Select a model first.');
     const chat = {
@@ -285,7 +303,7 @@ export async function createApp(options: {
         .object({ text: z.string().trim().min(1).max(32000), messageId: z.string().uuid() })
         .strict()
         .parse(request.body);
-    return runtime.prompt(id, input.text, input.messageId);
+    return chatRuntime(id).prompt(id, input.text, input.messageId);
   });
   app.post('/api/v1/chats/:id/steer', async (request) => {
     const { id } = idParams.parse(request.params);
@@ -293,6 +311,7 @@ export async function createApp(options: {
       .object({ text: z.string().trim().min(1).max(32000), messageId: z.string().uuid() })
       .strict()
       .parse(request.body);
+    if (store.chat(id).backend === 'acp') return acp.steer();
     return runtime.steer(id, input.text, input.messageId);
   });
   app.get('/api/v1/artifacts/:id', async (request) =>
@@ -334,18 +353,21 @@ export async function createApp(options: {
     );
   });
   app.post('/api/v1/chats/:id/cancel', async (request) => {
-    await runtime.cancel(idParams.parse(request.params).id);
+    const id = idParams.parse(request.params).id;
+    await chatRuntime(id).cancel(id);
     return { ok: true };
   });
-  app.post('/api/v1/chats/:id/resume', async (request) =>
-    runtime.resume(idParams.parse(request.params).id),
-  );
+  app.post('/api/v1/chats/:id/resume', async (request) => {
+    const id = idParams.parse(request.params).id;
+    if (store.chat(id).backend === 'acp') return acp.resume();
+    return runtime.resume(id);
+  });
   app.get('/api/v1/chats/:id/events', async (request, reply) => {
     const { id } = idParams.parse(request.params),
       { cursor } = z
         .object({ cursor: z.coerce.number().int().nonnegative().default(0) })
         .parse(request.query);
-    const source = await runtime.stream(id, cursor);
+    const source = await chatRuntime(id).stream(id, cursor);
     const reader = source.getReader();
     readers.add(reader);
     const stop = () => {
@@ -467,6 +489,35 @@ export async function createApp(options: {
       .parse(request.body);
     return sandbox.run();
   });
+  app.post('/api/v1/agents', async (request) => acp.add(request.body));
+  app.post('/api/v1/agents/:id/check', async (request) => {
+    z.object({}).strict().parse(request.body);
+    return acp.check(idParams.parse(request.params).id);
+  });
+  app.post('/api/v1/agents/:id/disabled', async (request) => {
+    const { disabled } = z.object({ disabled: z.boolean() }).strict().parse(request.body);
+    await acp.disable(idParams.parse(request.params).id, disabled);
+    return { ok: true };
+  });
+  app.post('/api/v1/agent-permissions/:id', async (request) => {
+    const { optionId } = z
+      .object({ optionId: z.string().max(2000) })
+      .strict()
+      .parse(request.body);
+    acp.decide(idParams.parse(request.params).id, optionId);
+    return { ok: true };
+  });
+  app.post('/api/v1/agent-turns/:id/review', async (request) => {
+    const { resolution } = z
+      .object({
+        acknowledgeExternalReview: z.literal(true),
+        resolution: z.string().trim().min(20).max(2000),
+      })
+      .strict()
+      .parse(request.body);
+    acp.review(idParams.parse(request.params).id, resolution);
+    return { ok: true };
+  });
   extensionRoutes(app, store, runtime.extensions);
   if (options.staticDir && existsSync(options.staticDir)) {
     await app.register(serveStatic, { root: resolve(options.staticDir), index: ['index.html'] });
@@ -475,8 +526,9 @@ export async function createApp(options: {
     await Promise.allSettled([...readers].map((reader) => reader.cancel()));
   });
   app.addHook('onClose', async () => {
+    await acp.close();
     await runtime.close();
     store.close();
   });
-  return { app, store, vault, runtime };
+  return { app, store, vault, runtime, acp };
 }

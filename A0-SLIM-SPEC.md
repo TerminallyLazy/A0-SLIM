@@ -1,6 +1,6 @@
 # A0 SLIM — revised build specification
 
-**Revision 0.6 · 2026-10-26 · Local alpha; live acceptance gates remain**
+**Revision 0.7 · 2026-10-26 · Local alpha; live acceptance gates remain**
 
 Owner direction: a local-first app, public GitHub repository, flexible model and sandbox connections, useful access to the Agent Zero Plugin Hub, and a polished, minimal, customizable interface. The [preliminary spec](docs/original/A0-SLIM-SPEC.md) is preserved unchanged. The user approved the direction on 2026-10-26. This specification describes the target product; delivered behavior and open gates are recorded in [P0 verification](docs/verification/P0.md) [P1 verification](docs/verification/P1.md), and [P2 verification](docs/verification/P2.md).
 
@@ -8,7 +8,7 @@ Owner direction: a local-first app, public GitHub repository, flexible model and
 
 A0 SLIM is an approachable local agent workspace for research, coding, file work, and repeatable tasks. A user chooses a project, selects a model and execution environment, asks for an outcome, and follows progress through an inspectable activity timeline and real artifacts. The agent can remember approved knowledge and delegate bounded tasks.
 
-The product runs a Node service on the user's computer and serves its UI to a browser. Closing the tab does not stop active work; stopping the service does. Remote model services and cloud sandboxes are optional connections. Local-only work is possible when a suitable local model is configured. No local Docker installation is required for the core app.
+The product runs a Node service on the user's computer and serves its UI to a browser. Closing the tab does not stop active work. Stopping the service cancels owned native work; external ACP agents may continue remotely and require outcome review. Remote model services and cloud sandboxes are optional connections. Local-only work is possible when a suitable local model is configured. No local Docker installation is required for the core app.
 
 The first release serves one trusted OS user with multiple projects. Multi-user hosting, billing, team tenancy, full Agent Zero feature parity, native desktop packaging, and an always-on remote worker are separate future projects. Browser/desktop/office automation may later arrive through adapters or an Agent Zero bridge; it is not falsely presented as impossible without Docker.
 
@@ -41,6 +41,8 @@ flowchart TB
   UI[Browser workspace] --> API[Local API and authentication]
   API --> Sessions[Session coordinator and policy]
   Sessions --> Runtime[libfx runtime adapter]
+  Sessions --> ACP[ACP client over stdio]
+  ACP --> Agents[Agent Zero and other external agents]
   Runtime --> Models[Model connection registry]
   Runtime --> Tools[Policy checked tool registry]
   Models --> Gateway[AI Gateway and compatible APIs]
@@ -58,6 +60,7 @@ flowchart TB
 Proposed ownership:
 
 - `src/runtime/`: libfx construction, event normalization, session-to-agent mapping, provider protocol bridges; no UI dependencies.
+- `src/acp/`: external-agent profiles, protocol negotiation, session mapping, permissions, events and recovery; independent of libfx and model providers.
 - `src/providers/`: connection metadata, credentials references, catalog/capability probes, auth lifecycle. Secrets never enter browser state or prompts.
 - `src/execution/`: sandbox adapters, job receipts, workspace transfer and artifact collection.
 - `src/tools/`: small built-in tools calling owned services; registration is explicit and validated.
@@ -204,11 +207,25 @@ Four extension routes:
 1. **Skills:** Markdown instructions and opt-in resources. Scripts still run through the selected execution adapter. Skill loading does not bypass permissions.
 2. **MCP tools:** supported through libfx's adapter, with configured transports, server identity, authentication, timeouts and health. Treat remote annotations as hints; writes are conservative by default. A local stdio server is executable host code, so starting it is an installation capability, not just loading metadata.
 3. **Slim extensions:** versioned `a0-slim.plugin.json` with ID, version, runtime API range, entry point, settings schema, contributions and permissions. Contributions initially include providers, embedding backends, execution adapters, tools, skills and theme tokens. Trusted built-in adapters may run in-process; third-party executable extensions need an isolated runner or an explicit full-trust installation choice. A Node worker process alone is not a security sandbox.
-4. **Agent Zero bridge:** optional connection to an existing Agent Zero instance, exposing supported remote operations. Python plugin behavior stays on Agent Zero. This does not make its WebUI fragments or arbitrary API handlers native Slim components. Bridge compatibility is a separately tested P2/later surface.
+4. **External agents over ACP:** use the generic ACP client for a whole Agent Zero conversation and its existing runtime behavior. Keep the Agent Zero MCP preset for individual tools in native SLIM chats. Python plugin behavior and memory stay in Agent Zero; neither protocol makes its WebUI fragments or arbitrary API handlers native SLIM components. Assess each plugin and agent separately.
 
 Install flow: source and revision → compatibility → permissions and dependency summary → download/validate → stage → explicit enable → health check → rollback on failure. No executing installation hooks while browsing. Updates pin a resolved revision, show new permissions, and retain the previous working version. Disable/uninstall cancels owned work and offers keep/delete plugin-owned data. Unknown/incompatible plugins offer “View source” or bridge guidance instead of a misleading Install button.
 
 Avoid arbitrary UI JavaScript injection into the main origin. Start with declarative settings and theme contributions. Rich third-party screens later need a separate-origin/sandboxed surface and narrow message protocol. MCP Apps/Generative UI compatibility is not implied by basic MCP tool support.
+
+### 8.1 ACP agent connections — approved 2026-10-26
+
+Keep the native Node/libfx runtime and MCP support. Add a separate external-agent backend using the official `@agentclientprotocol/sdk@2.0.2` stable ACP v1 interface over stdio. The draft selector chooses a native model connection or an ACP agent; the first Send freezes the backend and profile for that chat. Existing chats retain their runtime identities. Do not wrap an ACP agent as a model provider or silently migrate native conversations.
+
+Agent Zero is the first preset: an explicitly selected, installed `a0` executable, `acp [--host <instance-url>] --transport connector`, and the CLI's own sign-in. Generic profiles accept an absolute executable and an argument array, never a shell command. Profiles are immutable; disable/re-enable or save a replacement. No automatic installation, agent downloads, API-key forwarding, MCP-server forwarding, shared memory or Python-plugin installation. ACP starts a trusted process with OS-user authority. In the inspected Agent Zero connector, host read/write and execution are governed by Agent Zero settings rather than ACP client capabilities; disclose this before enabling it.
+
+Initialize with the supported protocol version and declared client capabilities. Check connection performs only initialization, closes the connector, and reports the agent/version; it is not proof of authentication, inference or plugin compatibility. First Send creates a session with the selected canonical project root. Reconnection loads the exact saved session only when supported; never replace an unloadable session automatically. Saved local activity can be viewed without starting an agent. Suppress load-history replay already represented in the local transcript; remote changes made outside SLIM are not synchronized in this preview.
+
+Deliver text/Markdown streaming, tool activity, plans, pending one-time permission decisions, Stop and persisted cursor replay. SLIM can optionally serve bounded project text-file reads using its existing sensitive-path/symlink checks. File-write and terminal callbacks are not advertised or implemented. Missing capabilities do not constrain tools an external agent runs independently. Grant only an offered one-time permission for the exact pending request; discard pending approvals on Stop or disconnect. Persistent grants, attachments, remote HTTP ACP, interactive ACP authentication, model/mode configuration and delegated ACP subagents are deferred.
+
+Persist prompt intent and message hash before dispatch. Duplicate IDs do not resend. A process crash, lost connection or unconfirmed Stop after dispatch leaves an unknown outcome; all new ACP tasks are held, including through duplicate profiles, until the user records an external outcome review. Never automatically retry a prompt. Stop sends `session/cancel`, cancels permission requests and waits for the prompt's terminal response. Killing the local connector does not prove remote work stopped. Do not send `session/close` as generic cleanup: Agent Zero's implementation removes the remote chat.
+
+Bound connection startup, session setup, turns (10 minutes), incoming frames (1 MiB), retained update volume per turn (2 MiB or 10,000 updates), concurrent connectors (8), and pending permission requests (32). These client limits are not token/cost limits on external agents. Native provider budgets, tool approvals, MCP permissions and memory grants remain native-runtime boundaries. Verify transport, cancellation, permission, path, replay, duplicate-ID and recovery behavior using an independent synthetic stdio peer. Record installed Agent Zero handshake separately from an owner-authorized live task and second-agent acceptance.
 
 ## 9. Sessions, streaming and local access
 
@@ -290,7 +307,7 @@ The real Vercel synthetic sandbox check subsequently passed with artifact bytes,
 
 Current preview boundaries: text-only skill import, one revision of rollback, manual MCP approvals followed by a new user message, no MCP OAuth/Apps, no native plugin installation, no shared memory, no document ingestion, no browser embedding worker. Subordinates are read-only research/review agents; profile/model overrides and child writes, MCP or execution are not delivered. New chats use the P2 runtime identity; existing chats keep their original tool set. Downloads resume completed checksum-verified files, not partial byte ranges. Hosted model revision labels partition indexes but cannot guarantee provider-side weight immutability. Optional inference libraries remain part of the source installation footprint.
 
-Deliver SQLite memory with lexical and optional local embeddings, model download management, bounded subordinates, MCP/skills, compatibility-aware Plugin Hub, and validated cloud agent execution on the existing sandbox adapters. Prototype the Agent Zero bridge and direct Anthropic adapter behind documented capability gates.
+Deliver SQLite memory with lexical and optional local embeddings, model download management, bounded subordinates, MCP/skills, compatibility-aware Plugin Hub, and validated cloud agent execution on the existing sandbox adapters. Deliver the generic ACP client starting with Agent Zero; retain optional MCP tool connections. Gate real-agent compatibility and direct Anthropic support on separate acceptance evidence.
 
 Acceptance: the same execution conformance suite passes for two services; reindexing never mixes vector spaces; a plugin can be disabled/rolled back without orphaned jobs; unknown Python plugins are never installed as native Node extensions. Prove one real compatible extension and one deliberately incompatible entry. Browser embeddings are experimental until eviction/offline tests pass.
 

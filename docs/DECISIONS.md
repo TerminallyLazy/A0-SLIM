@@ -85,3 +85,12 @@ The libfx stream initialization/cancel race receives a small checked installatio
 - Before continuing an interrupted child, block its model transport and follow the previous message's exact terminal event. Keep the last submitted child message ID independently of attempted continuation receipts. Unknown cleanup remains interrupted even when the user also requested Stop.
 - Allow up to 40 seconds, bounded by the assignment deadline, for recovery. The pinned local backend uses a 30-second stale in-band write lock and retries acquisition for up to 35 seconds. Do not delete native locks or rewrite its journal to force continuation.
 - Reject new grandchildren from child assignments that are no longer running. Preserve completed duplicate-call receipts and existing runtime identities.
+
+## ACP external agents — 2026-10-26
+
+- Follow the owner's approved ACP direction. Keep libfx as SLIM's native runtime and MCP as its tool protocol; route explicitly selected whole-agent chats through a separate ACP client.
+- Pin the official SDK 2.0.2, stable ACP v1, stdio. Agent Zero is the first preset, using its existing A0 CLI connector with its own authentication and runtime. No custom Python bridge or native plugin loader is introduced.
+- Retain the Agent Zero MCP preset for individual tools. Rename UI guidance so it no longer implies MCP is required for whole-agent access.
+- Expose full host trust explicitly. Agent Zero's connector controls host writes/commands through its own configuration and may not use client permission callbacks. SLIM's optional safe read callback and absent terminal capability are not a sandbox claim.
+- Preserve prompt intent, exact session identity, one-time permission decisions and unknown outcomes. Never resend on viewer reconnect or recover an ambiguous prompt automatically. Hold all new ACP work until external review, including duplicate connection profiles. Never use Agent Zero session/close for cleanup because it removes its chat.
+- Scope initial support to text sessions, tool/plan updates, client read requests and permissions. Agent-specific auth, model/mode controls, attachments, MCP forwarding and HTTP transport remain explicit later capabilities. Live task evidence and second-agent conformance remain separate from fixture coverage.

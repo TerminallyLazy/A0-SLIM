@@ -25,6 +25,7 @@ import type { EnvironmentStatus } from '../src/execution/status.js';
 import { Artifacts, type ArtifactSummary } from './artifacts.js';
 import { api } from './api.js';
 import { Connections } from './settings.js';
+import { AgentConnections, AgentPermissions, type ACPState } from './agents.js';
 import { Environments } from './environments.js';
 import { ExtensionWorkspace, PluginHubView } from './extensions.js';
 import { MemoryWorkspace } from './memory.js';
@@ -32,6 +33,7 @@ import { Markdown } from './markdown.js';
 import { DelegatedTasks, type DelegationSummary } from './delegations.js';
 
 type State = {
+  acp: ACPState;
   projects: Project[];
   chats: Chat[];
   connections: Connection[];
@@ -45,8 +47,16 @@ type State = {
 };
 type Line = { cursor: number; event: Record<string, any> };
 type View =
-  'chat' | 'connections' | 'environments' | 'appearance' | 'extensions' | 'hub' | 'memory';
+  | 'chat'
+  | 'agents'
+  | 'connections'
+  | 'environments'
+  | 'appearance'
+  | 'extensions'
+  | 'hub'
+  | 'memory';
 const empty: State = {
+  acp: { profiles: [], permissions: [], holds: [], connected: [] },
   projects: [],
   chats: [],
   connections: [],
@@ -98,13 +108,24 @@ export function App() {
   const project = state.projects.find((p) => p.id === projectId),
     chat = state.chats.find((c) => c.id === chatId);
   const connection = state.connections.find((c) => c.id === (chat?.connectionId ?? connectionId));
+  const external = chat ? chat.backend === 'acp' : connectionId.startsWith('acp:');
+  const agent = state.acp.profiles.find(
+    (p) => p.id === (chat?.connectionId ?? connectionId.slice(4)),
+  );
   const running = chat?.status === 'running';
   const execution = chat ? (chat.execution ?? 'none') : (project?.execution ?? 'none');
   const refresh = async () => {
     const next = await api<State>('/state');
     setState(next);
     setProjectId((id) => id || next.projects[0]?.id || '');
-    setConnectionId((id) => id || next.connections[0]?.id || '');
+    setConnectionId(
+      (id) =>
+        id ||
+        next.connections[0]?.id ||
+        (next.acp.profiles.find((p) => !p.disabled)
+          ? `acp:${next.acp.profiles.find((p) => !p.disabled)!.id}`
+          : ''),
+    );
   };
   const act = async (fn: () => Promise<unknown>) => {
     setError('');
@@ -282,7 +303,8 @@ export function App() {
       if (!id) {
         const created = await api<Chat>('/chats', {
           projectId,
-          connectionId,
+          connectionId: external ? agent?.id : connectionId,
+          ...(external ? { backend: 'acp' } : {}),
           title: prompt.trim().slice(0, 70),
         });
         id = created.id;
@@ -428,6 +450,7 @@ export function App() {
           {(
             [
               ['connections', Plug, 'Connections'],
+              ['agents', MessageSquare, 'Agents'],
               ['environments', Terminal, 'Environments'],
               ['extensions', Plug, 'Skills & MCP'],
               ['hub', Layers, 'Plugin Hub'],
@@ -466,6 +489,7 @@ export function App() {
               ? (chat?.title ?? 'New chat')
               : {
                   connections: 'Models & accounts',
+                  agents: 'Agents',
                   environments: 'Environments',
                   appearance: 'Appearance',
                   extensions: 'Skills & MCP',
@@ -476,21 +500,25 @@ export function App() {
           <div className="workbar-right">
             <button
               className="sandbox-status"
-              onClick={() => navigate('environments')}
+              onClick={() => navigate(external ? 'agents' : 'environments')}
               title={
-                execution === 'docker'
-                  ? 'This chat uses disposable Docker containers for code calls. Open Environments for readiness and cleanup.'
-                  : 'No sandbox is enabled for this chat. Open Environments to configure one.'
+                external
+                  ? 'The external agent controls its execution environment and permissions.'
+                  : execution === 'docker'
+                    ? 'This chat uses disposable Docker containers for code calls. Open Environments for readiness and cleanup.'
+                    : 'No sandbox is enabled for this chat. Open Environments to configure one.'
               }
             >
               <Terminal size={14} />
-              {execution !== 'docker'
-                ? 'Sandbox off'
-                : state.environments.docker?.activity === 'working'
-                  ? 'Docker · working'
-                  : state.environments.docker?.activity === 'unknown'
-                    ? 'Docker · needs review'
-                    : 'Docker · no active sandbox'}
+              {external
+                ? `${agent?.name ?? 'Agent'} · ${state.acp.connected.includes(chatId) ? 'connected' : 'disconnected'}`
+                : execution !== 'docker'
+                  ? 'Sandbox off'
+                  : state.environments.docker?.activity === 'working'
+                    ? 'Docker · working'
+                    : state.environments.docker?.activity === 'unknown'
+                      ? 'Docker · needs review'
+                      : 'Docker · no active sandbox'}
             </button>
             <span className="pill">Local alpha</span>
             <button
@@ -523,7 +551,7 @@ export function App() {
                   <span>Subordinate · read-only · level {chat.depth}</span>
                 </p>
               )}
-              {chat && chat.capabilitiesVersion !== 2 && (
+              {chat && !external && chat.capabilitiesVersion !== 2 && (
                 <p className="permission-note">
                   This earlier chat retains its original tool set for recovery compatibility. Start
                   a new chat to use skills, MCP, and project memory.
@@ -544,7 +572,7 @@ export function App() {
                     <br />
                     working on?
                   </h1>
-                  <p>Select a project and model, then describe the task.</p>
+                  <p>Select a project and a model or agent, then describe the task.</p>
                   <div className="suggestions">
                     <button
                       onClick={() =>
@@ -573,7 +601,7 @@ export function App() {
                       <ArrowUpRight size={15} />
                     </button>
                   </div>
-                  {(!project || !connection) && (
+                  {(!project || (!connection && !agent)) && (
                     <div className="setup-line">
                       <span>{!project ? '01' : '02'}</span>
                       <button
@@ -586,9 +614,9 @@ export function App() {
                   )}
                 </div>
               ) : (
-                <Transcript lines={lines} />
+                <Transcript lines={lines} agentName={external ? agent?.name : undefined} />
               )}
-              {chat && (
+              {chat && !external && (
                 <DelegatedTasks
                   chat={chat}
                   chats={state.chats}
@@ -599,6 +627,17 @@ export function App() {
               )}
             </div>
             <div className="composer-wrap">
+              {external && (
+                <>
+                  <AgentPermissions state={state.acp} chatId={chatId} act={act} refresh={refresh} />
+                  {state.acp.holds.length > 0 && (
+                    <p className="notice">
+                      An external outcome needs review.{' '}
+                      <button onClick={() => navigate('agents')}>Review in Agents</button>
+                    </p>
+                  )}
+                </>
+              )}
               {state.artifacts.some(
                 (a) =>
                   a.projectId === projectId &&
@@ -647,13 +686,22 @@ export function App() {
               ) : (
                 <form className="composer" onSubmit={send}>
                   <label className="sr-only" htmlFor="prompt">
-                    Message A0 SLIM
+                    {external ? `Message ${agent?.name ?? 'agent'}` : 'Message A0 SLIM'}
                   </label>
                   <textarea
                     id="prompt"
                     value={prompt}
                     onChange={(event) => setPrompt(event.target.value)}
-                    placeholder={running ? 'Redirect this task…' : 'Message A0 SLIM…'}
+                    disabled={external && running}
+                    placeholder={
+                      external
+                        ? running
+                          ? 'Wait for the agent or use Stop…'
+                          : `Message ${agent?.name ?? 'agent'}…`
+                        : running
+                          ? 'Redirect this task…'
+                          : 'Message A0 SLIM…'
+                    }
                     rows={2}
                     onKeyDown={(event) => {
                       if (
@@ -668,27 +716,35 @@ export function App() {
                   />
                   <div className="composer-actions">
                     <label className="sr-only" htmlFor="model-select">
-                      Model connection
+                      Model or agent
                     </label>
                     <select
                       id="model-select"
                       disabled={!!chatId}
-                      value={chat?.connectionId ?? connectionId}
+                      value={chat ? `${external ? 'acp:' : ''}${chat.connectionId}` : connectionId}
                       onChange={(event) => setConnectionId(event.target.value)}
                     >
                       <option value="" disabled>
-                        Choose a model
+                        Choose a model or agent
                       </option>
                       {state.connections.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name} · {c.model || 'Select model in Connections'}
                         </option>
                       ))}
+                      {state.acp.profiles
+                        .filter((p) => !p.disabled || p.id === chat?.connectionId)
+                        .map((p) => (
+                          <option key={p.id} value={`acp:${p.id}`}>
+                            {p.name} · ACP{p.disabled ? ' · disabled' : ''}
+                          </option>
+                        ))}
                     </select>
                     <span className="boundary">
-                      <ShieldCheck size={13} /> Review before applying
+                      <ShieldCheck size={13} />{' '}
+                      {external ? 'Agent permissions apply' : 'Review before applying'}
                     </span>
-                    {running && prompt.trim() && (
+                    {running && !external && prompt.trim() && (
                       <button
                         type="submit"
                         disabled={busy}
@@ -715,7 +771,14 @@ export function App() {
                         className="send"
                         type="submit"
                         aria-label="Send message"
-                        disabled={busy || !project || !connection?.model || !prompt.trim()}
+                        disabled={
+                          busy ||
+                          !project ||
+                          (external
+                            ? !agent || agent.disabled || state.acp.holds.length > 0
+                            : !connection?.model) ||
+                          !prompt.trim()
+                        }
                       >
                         <ArrowUp size={18} />
                       </button>
@@ -730,13 +793,20 @@ export function App() {
                     : streamStatus || 'Ready'}
                 </span>
                 <span>
-                  {execution === 'docker' ? 'Docker starts per code call' : 'No sandbox enabled'}
+                  {external
+                    ? 'Execution managed by the agent'
+                    : execution === 'docker'
+                      ? 'Docker starts per code call'
+                      : 'No sandbox enabled'}
                 </span>
               </div>
             </div>
           </>
         ) : (
           <div className="settings-content">
+            {view === 'agents' && (
+              <AgentConnections state={state.acp} refresh={refresh} act={act} />
+            )}
             {view === 'connections' && (
               <Connections connections={state.connections} refresh={refresh} act={act} />
             )}
@@ -975,7 +1045,7 @@ export function App() {
   );
 }
 
-function Transcript({ lines }: { lines: Line[] }) {
+function Transcript({ lines, agentName }: { lines: Line[]; agentName?: string }) {
   const entries: Array<{ type: string; text: string; key: number }> = [];
   for (const { cursor, event } of lines) {
     if (event.type === 'turn_start')
@@ -995,6 +1065,20 @@ function Transcript({ lines }: { lines: Line[] }) {
         text: `${event.name === 'write_file' ? 'Drafting artifact' : event.name === 'list_dir' ? 'Inspecting folder' : event.name === 'read_file' ? 'Reading file' : event.name === 'call_subordinate' ? 'Delegating task' : event.name}${typeof event.input?.path === 'string' ? ` · ${event.input.path}` : event.name === 'call_subordinate' && event.input?.name ? ` · ${event.input.name}` : ''}`,
         key: cursor,
       });
+    if (event.type === 'acp_plan')
+      entries.push({
+        type: 'tool',
+        text: event.entries
+          .map((e: { status: string; content: string }) => `${e.status}: ${e.content}`)
+          .join('\n'),
+        key: cursor,
+      });
+    if (event.type === 'acp_permission')
+      entries.push({
+        type: 'tool',
+        text: `Permission decision: ${event.title} · ${event.optionId}`,
+        key: cursor,
+      });
     if (event.type === 'turn_end' && event.error)
       entries.push({ type: 'error', text: String(event.error), key: cursor });
   }
@@ -1004,7 +1088,7 @@ function Transcript({ lines }: { lines: Line[] }) {
         <div key={entry.key} className={`message ${entry.type}`}>
           {entry.type === 'assistant' && (
             <div className="assistant-label">
-              <Logo small /> A0 SLIM
+              {!agentName && <Logo small />} {agentName ?? 'A0 SLIM'}
             </div>
           )}
           {entry.type === 'tool' && <FileText size={14} />}
