@@ -12,7 +12,6 @@ const installer = await readFile(
 );
 const temp = await mkdtemp(join(tmpdir(), 'slim-installer-'));
 const children = new Set();
-const environments = [];
 try {
   const thin = join(temp, 'tools');
   await mkdir(thin);
@@ -148,12 +147,11 @@ try {
       A0_SLIM_PORT: String(port),
       A0_SLIM_NO_BROWSER: '1',
     };
-    environments.push(env);
     await run(mode, env);
     await run(mode, { ...env, PATH: `${refusedCurl}:${env.PATH}` }, true);
     console.log(`${mode}: repeat installation passed with downloads disabled`);
   }
-  console.log('Both installer paths passed; no model accounts or cloud sandboxes were used.');
+  console.log('Installer checks passed; no model accounts or cloud sandboxes were used.');
 } finally {
   for (const child of children) {
     try {
