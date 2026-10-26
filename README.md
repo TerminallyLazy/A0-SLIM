@@ -51,6 +51,8 @@ Vercel setup retains the Team and Project IDs when reopened. Leave the token bla
 
 For native chats, the header shows **Sandbox off** or current Docker activity. ACP chats show their agent connection and identify execution as managed by the external agent. Provider cards distinguish unsaved, unverified, changed, passed and failed connection checks, show the check time, and separately report active work or unknown cleanup. A past passing check is not a persistent live connection. Local status refreshes every three seconds while the tab is visible; it does not poll or create provider resources.
 
+Perplexity **SPACE** is assessed as a future self-hosted execution connection. Its documented server setup needs Linux/KVM; the Mac app would connect over HTTP/SSE. The [integration assessment](docs/research/SPACE.md) explains the dedicated adapter and verification gates. SPACE is not yet a selectable provider.
+
 ### Current boundaries
 
 The ChatGPT bridge supports text and function tools. It rejects missing reasoning state, changed/compacted history and unsupported output rather than continuing with incomplete context. Use a new chat with a reviewed summary when that guard stops a conversation. Live reasoning-bearing output, refresh/revocation and quota recovery still need separate account acceptance; synthetic tests cover these contracts.

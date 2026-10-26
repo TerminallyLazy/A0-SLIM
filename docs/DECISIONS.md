@@ -94,3 +94,10 @@ The libfx stream initialization/cancel race receives a small checked installatio
 - Expose full host trust explicitly. Agent Zero's connector controls host writes/commands through its own configuration and may not use client permission callbacks. SLIM's optional safe read callback and absent terminal capability are not a sandbox claim.
 - Preserve prompt intent, exact session identity, one-time permission decisions and unknown outcomes. Never resend on viewer reconnect or recover an ambiguous prompt automatically. Hold all new ACP work until external review, including duplicate connection profiles. Never use Agent Zero session/close for cleanup because it removes its chat.
 - Scope initial support to text sessions, tool/plan updates, client read requests and permissions. Agent-specific auth, model/mode controls, attachments, MCP forwarding and HTTP transport remain explicit later capabilities. Live task evidence and second-agent conformance remain separate from fixture coverage.
+
+## Perplexity SPACE research — 2026-10-26
+
+- Classify SPACE as self-hosted execution infrastructure, separate from ACP and model connections. Research baseline: 0.8.0, source `dc9e22d80521cf2a0d2822629f8bd4a43dbcafe1`.
+- Prefer its native HTTP/SSE API and a dedicated operation-aware receipt journal. Do not assume the E2B JavaScript SDK conforms to SPACE's Python-tested compatibility wrapper, and do not reuse a generic 404-as-deletion cleanup contract.
+- Keep server provisioning separate from SLIM installation. The documented Linux/KVM setup cannot run directly on this Mac. Capture an owner-selected deployment, supported API schema/template and private authentication before live acceptance. No infrastructure or sandbox was created by the research.
+- Record the implementation sequence and capability limits in `docs/research/SPACE.md`. Adding the selectable provider and its official logo is subsequent adapter implementation, not a claimed result of this assessment.
