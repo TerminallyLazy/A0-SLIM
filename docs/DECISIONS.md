@@ -2,6 +2,12 @@
 
 Approved by the user in chat on 2026-10-26. The canvas review is closed.
 
+## First public npm release — 2026-10-26
+
+- The user requested npm publication and selected MIT. Release `a0-slim@0.1.0-alpha.1` publicly; use the `latest` tag for the first installable release while clearly retaining the alpha label and existing capability limits.
+- This supersedes the earlier packaging-only `private: true` hold. Keep optional embedding/Microsandbox runtimes out of the core graph and preserve third-party license notices.
+- Publish a tested tarball from a clean committed source tree, excluding unrelated local UI edits. Verify the public registry integrity and a fresh global installation with narrowly pinned native-script approvals before reporting availability.
+
 ## Lean npm packaging — 2026-10-26
 
 - Ship a compiled CLI and prebuilt UI with an explicit file allowlist and published shrinkwrap. Keep `private: true` until public npm release details are settled; no registry publication is part of this change.

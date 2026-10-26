@@ -1,7 +1,6 @@
 {
   "name": "a0-slim",
   "version": "0.1.0-alpha.1",
-  "private": true,
   "type": "module",
   "description": "A local-first agent workspace built around libfx",
   "engines": {
@@ -74,14 +73,35 @@
     "addons/microsandbox/package.json",
     "addons/microsandbox/npm-shrinkwrap.json",
     "addons/microsandbox/worker.mjs",
-    "addons/microsandbox/runtime.json"
+    "addons/microsandbox/runtime.json",
+    "LICENSE",
+    "docs/MICROSANDBOX.md"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/TerminallyLazy/A0-SLIM.git"
+    "url": "git+https://github.com/TerminallyLazy/A0-SLIM.git"
   },
   "allowScripts": {
     "better-sqlite3@13.0.3": true,
     "cbor-extract@2.2.2": true
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/TerminallyLazy/A0-SLIM#readme",
+  "bugs": {
+    "url": "https://github.com/TerminallyLazy/A0-SLIM/issues"
+  },
+  "keywords": [
+    "agent-zero",
+    "ai",
+    "agent",
+    "local-first",
+    "mcp",
+    "acp",
+    "sandbox"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "tag": "latest"
   }
 }

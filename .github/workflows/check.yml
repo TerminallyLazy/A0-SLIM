@@ -22,7 +22,7 @@ jobs:
           cache-dependency-path: npm-shrinkwrap.json
       - run: npm ci
       - run: npm run check
-      - run: npm run test:package
+      - run: npm run test:package -- --global-install
       - run: npm audit --audit-level=high
       - run: npm audit --audit-level=high --prefix addons/local-embeddings
       - run: npm audit --audit-level=high --prefix addons/microsandbox

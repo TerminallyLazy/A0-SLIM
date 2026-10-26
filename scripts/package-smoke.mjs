@@ -8,6 +8,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createServer } from 'node:net';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const packageIndex = process.argv.indexOf('--package');
+const packageSource = packageIndex === -1 ? undefined : process.argv[packageIndex + 1];
+assert.ok(
+  packageIndex === -1 || (packageSource && !packageSource.startsWith('--')),
+  '--package requires a tarball path or registry spec',
+);
+const globalInstall = process.argv.includes('--global-install');
 const npm =
   process.env.npm_execpath ??
   resolve(dirname(process.execPath), '../lib/node_modules/npm/bin/npm-cli.js');
@@ -54,11 +61,23 @@ async function usage(path) {
 let child, model;
 try {
   const packed = JSON.parse(
-    await run([npm, 'pack', '--ignore-scripts', '--json', '--pack-destination', temp], root),
+    await run(
+      [
+        npm,
+        'pack',
+        ...(packageSource ? [packageSource] : []),
+        '--ignore-scripts',
+        '--json',
+        '--pack-destination',
+        temp,
+      ],
+      root,
+    ),
   )[0];
   const files = packed.files.map((f) => f.path);
   for (const file of [
     'bin/a0-slim.mjs',
+    'LICENSE',
     'dist/server/cli.js',
     'dist/ui/index.html',
     'dist/ui/THIRD_PARTY_LICENSES.txt',
@@ -66,6 +85,7 @@ try {
     'addons/local-embeddings/npm-shrinkwrap.json',
     'addons/local-embeddings/worker.mjs',
     'docs/licenses/Agent-Zero-MIT.txt',
+    'docs/MICROSANDBOX.md',
   ])
     assert.ok(files.includes(file), `Missing ${file}`);
   assert.ok(
@@ -89,13 +109,20 @@ try {
     'install',
     join(temp, packed.filename),
     '--omit=dev',
-    '--ignore-scripts',
+    ...(globalInstall
+      ? ['--global', '--prefix', temp, '--allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2']
+      : ['--ignore-scripts']),
     '--no-audit',
     '--no-fund',
   ]);
   // Native SQLite has its own build/download step. Only these two known dependency scripts are approved.
-  await run([npm, 'rebuild', 'better-sqlite3', 'cbor-extract', '--ignore-scripts=false']);
-  const installed = join(temp, 'node_modules/a0-slim');
+  if (!globalInstall)
+    await run([npm, 'rebuild', 'better-sqlite3', 'cbor-extract', '--ignore-scripts=false']);
+  const modules = join(temp, ...(globalInstall ? ['lib'] : []), 'node_modules');
+  const installed = join(modules, 'a0-slim');
+  const manifest = JSON.parse(await readFile(join(installed, 'package.json'), 'utf8'));
+  assert.equal(manifest.license, 'MIT');
+  assert.notEqual(manifest.private, true);
   const req = createRequire(join(installed, 'package.json'));
   for (const name of [
     '@huggingface/transformers',
@@ -116,7 +143,7 @@ try {
       { code: 'MODULE_NOT_FOUND' },
       `${name} leaked into runtime`,
     );
-  const bin = join(temp, 'node_modules/.bin/a0-slim');
+  const bin = globalInstall ? join(temp, 'bin/a0-slim') : join(modules, '.bin/a0-slim');
   assert.match(await run([bin, '--help']), /Optional local embeddings/);
   // Start twice: first applies the patch with install scripts blocked, second proves patch idempotence.
   async function launch() {
@@ -186,7 +213,7 @@ try {
   } finally {
     await agent.close();
   }
-  const core = await usage(join(temp, 'node_modules'));
+  const core = await usage(modules);
   const { LocalModel } = await import(
     pathToFileURL(join(installed, 'dist/server/memory/local-model.js')).href
   );
@@ -233,6 +260,9 @@ try {
         arch: process.arch,
         node: process.version,
         package: {
+          source: packageSource ?? 'checkout',
+          installation: globalInstall ? 'global' : 'local',
+          integrity: packed.integrity,
           compressed: packed.size,
           unpacked: packed.unpackedSize,
           files: packed.entryCount,
