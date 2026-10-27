@@ -26,6 +26,7 @@ export type Project = {
   name: string;
   root: string;
   execution?: 'none' | 'docker' | 'vercel' | 'microsandbox';
+  hostBashGrant?: { revision: string; approvedAt: string };
   vercelGrant?: { revision: string; approvedAt: string };
 };
 export type Chat = {
@@ -36,6 +37,8 @@ export type Chat = {
   connectionId: string;
   model: string;
   sessionId: string | null;
+  bashVersion?: 1;
+  hostBashRevision?: string;
   capabilitiesVersion?: 2;
   delegationVersion?: 1;
   parentChatId?: string;

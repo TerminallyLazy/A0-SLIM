@@ -5,7 +5,7 @@ SLIM supports **Microsandbox 0.7.11** as an optional local Node.js execution ada
 ## Setup and status
 
 1. Open **Environments → Microsandbox**. Acknowledge the runtime/image download and choose **Install Microsandbox**.
-2. Setup installs the pinned npm graph with integrity verification and dependency scripts disabled. It checks the packaged executable version and host virtualization prerequisites, then pulls a digest-pinned Node 22 Alpine image. Setup has a ten-minute deadline and can be canceled. A failed or interrupted installation needs an explicit retry.
+2. Setup installs the pinned npm graph with integrity verification and dependency scripts disabled. It checks the packaged executable version and host virtualization prerequisites, then pulls a digest-pinned Node 22 Bookworm Slim image with Bash. Setup has a ten-minute deadline and can be canceled. A failed or interrupted installation needs an explicit retry.
 3. **Check runtime** verifies the installed executable and cached image without creating a VM. It is required again after restarting SLIM. This is distinct from execution acceptance.
 4. **Run local sandbox check** creates one VM, writes and reads a synthetic note, then verifies removal. It makes no model request.
 5. Select **Local Microsandbox · Node.js** under **Execution for new chats**. Existing chats keep their original execution setting. The chat header shows readiness, active work or a recovery requirement; idle readiness explicitly means no active VM.

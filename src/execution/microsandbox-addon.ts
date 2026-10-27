@@ -22,6 +22,7 @@ export type MicroRequest = {
   sandboxId?: string;
   receiptId?: string;
   hostId?: string;
+  bash?: boolean;
   code?: string;
   input?: string;
   runtimeId?: string;

@@ -1,3 +1,4 @@
+import { BashOutput } from './bash-output.js';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   BookOpen,
@@ -122,6 +123,8 @@ export function App() {
   const agent = state.acp.profiles.find(
     (p) => p.id === (chat?.connectionId ?? connectionId.slice(4)),
   );
+  const hostBashEnabled =
+    !!project?.hostBashGrant && (!chat || chat.hostBashRevision === project.hostBashGrant.revision);
   const running = chat?.status === 'running';
   const execution = chat ? (chat.execution ?? 'none') : (project?.execution ?? 'none');
   const microActivity =
@@ -530,6 +533,11 @@ export function App() {
                 }[view]}
           </strong>
           <div className="workbar-right">
+            {!external && hostBashEnabled && (
+              <button className="sandbox-status" onClick={() => navigate('environments')}>
+                Host Bash enabled
+              </button>
+            )}
             <button
               className="sandbox-status"
               onClick={() => navigate(external ? 'agents' : 'environments')}
@@ -654,7 +662,13 @@ export function App() {
                   )}
                 </div>
               ) : (
-                <Transcript lines={lines} agentName={external ? agent?.name : undefined} />
+                <Transcript
+                  lines={lines}
+                  agentName={external ? agent?.name : undefined}
+                  receipts={state.receipts.filter(
+                    (r) => r.kind === 'bash' && r.chatId === chat?.id,
+                  )}
+                />
               )}
               {chat && !external && (
                 <DelegatedTasks
@@ -782,7 +796,11 @@ export function App() {
                     </select>
                     <span className="boundary">
                       <ShieldCheck size={13} />{' '}
-                      {external ? 'Agent permissions apply' : 'Review before applying'}
+                      {external
+                        ? 'Agent permissions apply'
+                        : hostBashEnabled
+                          ? 'Direct host access enabled'
+                          : 'Review before applying'}
                     </span>
                     {running && !external && prompt.trim() && (
                       <button
@@ -1007,7 +1025,9 @@ export function App() {
                 </div>
                 <div className="detail">
                   <span>Files</span>
-                  <span>Approval required</span>
+                  <span>
+                    {hostBashEnabled ? 'Host Bash can write directly' : 'Approval required'}
+                  </span>
                 </div>
                 <div className="detail">
                   <span>Chat</span>
@@ -1032,8 +1052,10 @@ export function App() {
                     ))}
                 </div>
                 <p className="fine">
-                  File changes appear as reviewable artifacts. Shell commands and background
-                  scheduling are not enabled.
+                  {hostBashEnabled
+                    ? 'Host Bash can change files directly with your OS account permissions.'
+                    : 'File changes appear as reviewable artifacts. Sandbox files are disposable.'}{' '}
+                  Background scheduling is not enabled.
                 </p>
               </>
             )}
@@ -1101,7 +1123,15 @@ export function App() {
   );
 }
 
-function Transcript({ lines, agentName }: { lines: Line[]; agentName?: string }) {
+function Transcript({
+  lines,
+  agentName,
+  receipts,
+}: {
+  lines: Line[];
+  agentName?: string;
+  receipts: Record<string, any>[];
+}) {
   const entries: Array<{ type: string; text: string; key: number }> = [];
   for (const { cursor, event } of lines) {
     if (event.type === 'turn_start')
@@ -1118,7 +1148,15 @@ function Transcript({ lines, agentName }: { lines: Line[]; agentName?: string })
     if (event.type === 'tool_start')
       entries.push({
         type: 'tool',
-        text: `${event.name === 'write_file' ? 'Drafting artifact' : event.name === 'list_dir' ? 'Inspecting folder' : event.name === 'read_file' ? 'Reading file' : event.name === 'run_javascript' ? 'Running Node.js' : event.name === 'call_subordinate' ? 'Delegating task' : event.name}${typeof event.input?.path === 'string' ? ` · ${event.input.path}` : event.name === 'call_subordinate' && event.input?.name ? ` · ${event.input.name}` : ''}`,
+        text: `${event.name === 'write_file' ? 'Drafting artifact' : event.name === 'list_dir' ? 'Inspecting folder' : event.name === 'read_file' ? 'Reading file' : event.name === 'bash' ? `Bash · ${event.input?.target === 'host' ? 'host' : 'selected environment'}\n${event.input?.command ?? ''}` : event.name === 'run_javascript' ? 'Running Node.js' : event.name === 'call_subordinate' ? 'Delegating task' : event.name}${typeof event.input?.path === 'string' ? ` · ${event.input.path}` : event.name === 'call_subordinate' && event.input?.name ? ` · ${event.input.name}` : ''}`,
+        key: cursor,
+      });
+    if (event.type === 'tool_end' && event.name === 'bash')
+      entries.push({
+        type: 'bash',
+        text:
+          event.content ??
+          (event.isError ? 'Bash failed. Inspect its receipt in Environments.' : ''),
         key: cursor,
       });
     if (event.type === 'acp_plan')
@@ -1149,7 +1187,13 @@ function Transcript({ lines, agentName }: { lines: Line[]; agentName?: string })
           )}
           {entry.type === 'tool' && <FileText size={14} />}
           <div className="message-text">
-            {entry.type === 'assistant' ? <Markdown text={entry.text} /> : entry.text}
+            {entry.type === 'assistant' ? (
+              <Markdown text={entry.text} />
+            ) : entry.type === 'bash' ? (
+              <BashOutput text={entry.text} receipts={receipts} />
+            ) : (
+              entry.text
+            )}
           </div>
         </div>
       ))}

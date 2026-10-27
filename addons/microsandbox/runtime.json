@@ -1,6 +1,6 @@
 {
   "version": "0.7.11",
-  "image": "docker.io/library/node@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914",
+  "image": "docker.io/library/node@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d",
   "cpus": 1,
   "memoryMiB": 512,
   "lifetimeSeconds": 60,

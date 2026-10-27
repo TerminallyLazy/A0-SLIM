@@ -96,7 +96,14 @@ async function main(request) {
   const ack = await acknowledged;
   if (ack?.action !== 'execute') throw Error('Command authorization was interrupted.');
   const output = await sandbox.execWith('node', (b) =>
-    b.args(['-e', supervisor, request.code, request.input ?? '']).timeout(8000),
+    b
+      .args([
+        '-e',
+        request.bash ? supervisor.replace('timeout:5000', 'timeout:32000') : supervisor,
+        request.code,
+        request.input ?? '',
+      ])
+      .timeout(request.bash ? 35000 : 8000),
   );
   const stdout = output.stdout(),
     stderr = output.stderr();

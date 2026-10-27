@@ -1,3 +1,4 @@
+import { BashSettings } from './bash.js';
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, Check } from 'lucide-react';
 import type { Project } from '../src/domain.js';
@@ -57,7 +58,10 @@ export function Environments({
     void act(fn).finally(() => setBusy(false));
   };
   const otherReceipts = receipts.filter(
-    (r) => r.kind !== 'space-sandbox-proof' && !String(r.kind).startsWith('microsandbox-'),
+    (r) =>
+      r.kind !== 'bash' &&
+      r.kind !== 'space-sandbox-proof' &&
+      !String(r.kind).startsWith('microsandbox-'),
   );
   return (
     <>
@@ -76,6 +80,15 @@ export function Environments({
           act={act}
         />
       )}
+      {project && (
+        <BashSettings
+          key={`bash-${project.id}`}
+          project={project}
+          receipts={receipts}
+          refresh={refresh}
+          act={act}
+        />
+      )}
       <MicrosandboxEnvironment state={microsandbox} refresh={refresh} act={act} />
       <section className="environment-card">
         <div className="environment-heading">
@@ -87,10 +100,14 @@ export function Environments({
           <span className="pill">{local?.available ? 'Ready' : 'Setup required'}</span>
         </div>
         <p>
-          Disposable Node.js containers with no network, host-folder mounts or credentials. Five
-          seconds per call, 128 MiB memory, bounded output. Local engine licensing and electricity
-          are separate.
+          Disposable containers with no network, host-folder mounts or credentials. Node calls allow
+          five seconds; Bash allows up to thirty seconds. 128 MiB memory, bounded output. Local
+          engine licensing and electricity are separate.
         </p>
+        <p className="fine">Install Bash support explicitly with this pinned Node Debian image:</p>
+        <pre className="setup-command">
+          docker pull node@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d
+        </pre>
         {local?.message && <p className="setup-command">{local.message}</p>}
         <div className="environment-actions">
           <a

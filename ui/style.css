@@ -2255,3 +2255,23 @@ progress {
 .space-synthetic {
   margin-block: 18px;
 }
+
+.message.bash pre,
+.bash-settings pre {
+  overflow: auto;
+  max-height: 22rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 12px;
+}
+.message.bash summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+.bash-settings textarea {
+  width: 100%;
+  min-height: 5rem;
+}

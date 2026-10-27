@@ -218,6 +218,38 @@ export async function createApp(options: {
     store.saveProject({ ...store.project(project.id), execution });
     return { ok: true };
   });
+  app.get('/api/v1/bash', async () => ({
+    ...(await runtime.bash.availability()),
+    docker: await runtime.docker.bashAvailability(),
+  }));
+  app.post('/api/v1/projects/:id/bash', async (request) => {
+    const { enabled, acknowledgeHostAccess } = z
+      .object({ enabled: z.boolean(), acknowledgeHostAccess: z.boolean().optional() })
+      .strict()
+      .parse(request.body);
+    const id = idParams.parse(request.params).id;
+    if (enabled) {
+      if (!acknowledgeHostAccess)
+        throw new AppError(
+          400,
+          'host_approval',
+          'Confirm direct OS account file and network access before enabling host Bash.',
+        );
+      await runtime.bash.authorize(id);
+    } else await runtime.bash.revoke(id);
+    return { ok: true };
+  });
+  app.post('/api/v1/bash/:id/review', async (request) => {
+    const { resolution, acknowledgeEffects } = z
+      .object({
+        resolution: z.string().trim().min(12).max(1000),
+        acknowledgeEffects: z.literal(true),
+      })
+      .strict()
+      .parse(request.body);
+    runtime.bash.review(idParams.parse(request.params).id, resolution);
+    return { ok: acknowledgeEffects };
+  });
   app.post('/api/v1/projects/:id/vercel/revoke', async (request) => {
     runtime.vercel.revoke(idParams.parse(request.params).id);
     return { ok: true };
@@ -320,6 +352,8 @@ export async function createApp(options: {
           ? { executionRevision: await runtime.microsandbox.assertReady() }
           : {}),
       sessionId: null,
+      bashVersion: 1 as const,
+      hostBashRevision: project.hostBashGrant?.revision,
       capabilitiesVersion: 2 as const,
       delegationVersion: 1 as const,
       status: 'idle' as const,

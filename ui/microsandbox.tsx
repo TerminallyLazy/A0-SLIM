@@ -60,9 +60,10 @@ export function MicrosandboxEnvironment({
         </span>
       </div>
       <p>
-        Run Node.js in a temporary virtual machine on your computer. Guest networking is disabled;
-        project folders and model credentials are not mounted. Each call has a five-second code
-        limit, 512 MiB of VM memory and a 60-second VM lifetime.
+        Run Node.js or Bash in a temporary virtual machine on your computer. Guest networking is
+        disabled; project folders and model credentials are not mounted. Node calls allow five
+        seconds; Bash allows up to thirty seconds. Each VM has 512 MiB of memory and a 60-second
+        lifetime.
       </p>
       {!installed && (
         <>

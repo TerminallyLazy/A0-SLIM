@@ -257,6 +257,7 @@ export class Microsandbox {
       messageId: string;
       callId: string;
       signal?: AbortSignal;
+      bash?: boolean;
     },
   ) {
     const { code, input } = schema.parse(value);
@@ -274,7 +275,9 @@ export class Microsandbox {
       !context.callId
     )
       throw fail('Microsandbox execution requires its owning native chat turn.');
-    const digest = createHash('sha256').update(JSON.stringify({ code, input })).digest('hex');
+    const digest = createHash('sha256')
+      .update(JSON.stringify({ code, input, ...(context.bash ? { bash: true } : {}) }))
+      .digest('hex');
     const cached = this.cached(chat.id, context.messageId, context.callId, digest);
     if (cached) return cached;
     return this.lease(async () => {
@@ -300,6 +303,7 @@ export class Microsandbox {
           digest,
         },
         context.signal,
+        context.bash,
       );
     });
   }
@@ -308,6 +312,7 @@ export class Microsandbox {
     input: string,
     fields: Pick<MicroReceipt, 'kind' | 'chatId' | 'messageId' | 'callId' | 'digest'>,
     signal?: AbortSignal,
+    bash = false,
   ) {
     const id = randomUUID(),
       receipt: MicroReceipt = {
@@ -337,6 +342,7 @@ export class Microsandbox {
             runtimeId: receipt.runtimeId,
             code,
             input,
+            bash,
           },
           abort,
           (sandboxId) => {

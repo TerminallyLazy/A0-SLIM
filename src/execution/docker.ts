@@ -8,6 +8,8 @@ import { AppError } from '../domain.js';
 const execute = promisify(execFile);
 export const dockerImage =
   'node@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1';
+export const dockerBashImage =
+  'node@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d';
 type Command = (
   args: string[],
   options?: { timeout?: number; signal?: AbortSignal },
@@ -74,6 +76,27 @@ export class DockerSandbox {
       return {
         available: false,
         message: `Start a local Docker-compatible engine and install the pinned Node image: docker pull ${dockerImage}`,
+      };
+    }
+  }
+  async bashAvailability() {
+    try {
+      const host = await this.endpoint();
+      await this.runCommand([
+        '--host',
+        host,
+        'image',
+        'inspect',
+        dockerBashImage,
+        '--format',
+        '{{.Id}}',
+      ]);
+      return { available: true, image: dockerBashImage };
+    } catch {
+      return {
+        available: false,
+        image: dockerBashImage,
+        message: `Install Bash support: docker pull ${dockerBashImage}`,
       };
     }
   }
@@ -150,7 +173,7 @@ export class DockerSandbox {
   async run(
     code: string,
     input: string = '',
-    options: { callKey?: string; projectId?: string; signal?: AbortSignal } = {},
+    options: { callKey?: string; projectId?: string; signal?: AbortSignal; bash?: boolean } = {},
   ) {
     if (Buffer.byteLength(code) > 32 * 1024 || Buffer.byteLength(input) > 64 * 1024)
       throw new AppError(413, 'sandbox_input', 'Use at most 32 KiB of code and 64 KiB of input.');
@@ -162,7 +185,8 @@ export class DockerSandbox {
         'sandbox_unreconciled',
         'Reconcile the interrupted local container before starting another.',
       );
-    const digest = hash(JSON.stringify({ code, input }));
+    const image = options.bash ? dockerBashImage : dockerImage;
+    const digest = hash(JSON.stringify({ code, input, ...(options.bash ? { image } : {}) }));
     const key = options.callKey ? `docker-call:${hash(options.callKey)}` : undefined;
     const previousId = key ? this.store.meta(key) : undefined;
     if (previousId) {
@@ -180,7 +204,7 @@ export class DockerSandbox {
       cleanup: 'not_created',
       digest,
       projectId: options.projectId,
-      image: dockerImage,
+      image,
     };
     let created = false;
     try {
@@ -188,7 +212,7 @@ export class DockerSandbox {
       receipt.host = await this.endpoint();
       receipt.environmentId = `a0-slim-${receipt.id}`;
       const base = ['--host', String(receipt.host)];
-      await this.runCommand([...base, 'image', 'inspect', dockerImage, '--format', '{{.Id}}']);
+      await this.runCommand([...base, 'image', 'inspect', image, '--format', '{{.Id}}']);
       receipt.cleanup = 'unknown';
       this.store.receipt(receipt);
       if (key) this.store.setMeta(key, receipt.id);
@@ -225,9 +249,9 @@ export class DockerSandbox {
           '/work',
           '--entrypoint',
           'node',
-          dockerImage,
+          image,
           '-e',
-          supervisor,
+          options.bash ? supervisor.replace('timeout:5000', 'timeout:32000') : supervisor,
           code,
           input,
         ],
@@ -236,7 +260,7 @@ export class DockerSandbox {
       created = true;
       const result = await this.runCommand(
         [...base, 'start', '--attach', String(receipt.environmentId)],
-        { timeout: 12_000, signal: options.signal },
+        { timeout: options.bash ? 35_000 : 12_000, signal: options.signal },
       );
       const state = JSON.parse(
         (

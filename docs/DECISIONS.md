@@ -146,3 +146,10 @@ Adopt Microsandbox 0.7.11 as the first optional local microVM adapter. Ship only
 Use one disposable network-disabled VM per bounded Node call, durable creation intent, an identity acknowledgment before execution, exact-resource destruction and unknown-outcome holds. Run SDK calls in a child process so native faults do not crash the service. Keep runtime records and images in a short private directory under `~/.a0-msb` because macOS socket path limits rejected the longer application-data location in live testing. Source upgrades cannot prevent recovery with the intact previously installed worker; unknown sandboxes still block replacement.
 
 Actual Apple Silicon acceptance passed setup, chat integration through a local model fixture, isolation probes, execution/output limits, cancellation and interrupted-worker reconciliation with all six VM receipts deleted. This does not establish Linux, other SDK capabilities or hostile-kernel acceptance. See `docs/MICROSANDBOX.md`.
+
+## Bash and BrowserPilot assessment — 2026-10-26
+
+- Deliver sandbox Bash plus explicitly opted-in host Bash, as selected by the owner. Retain per-call sandbox isolation and billing bounds; do not silently promise persistent VM files or a PTY. Host cwd selections persist per chat.
+- Reuse existing sandbox adapters, grants and cleanup ledgers. Add a Bash intent ledger for replay protection and unknown-outcome reviews. Keep old chat tool identities and exclude read-only subordinates.
+- Use real Bash, a separate Docker Debian image and an updated optional Microsandbox image. No new npm dependency; images stay outside the core package.
+- BrowserPilot has no open-source license. Adopt only independently implemented design concepts; do not vendor its code. See [assessment](research/BROWSERPILOT.md) and [Bash contract](BASH.md).

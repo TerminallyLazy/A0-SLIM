@@ -57,15 +57,15 @@ export function ExecutionChoice({
             }
           }}
         >
-          <option value="none">No code execution</option>
+          <option value="none">No sandbox execution</option>
           <option value="microsandbox" disabled={!microsandbox?.available}>
-            Local Microsandbox · Node.js
+            Local Microsandbox · Node.js / Bash
           </option>
           <option value="vercel" disabled={!vercel.available}>
-            Vercel Sandbox · Node.js
+            Vercel Sandbox · Node.js / Bash
           </option>
           <option value="docker" disabled={!dockerAvailable}>
-            Local Docker · Node.js
+            Local Docker · Node.js / Bash
           </option>
         </select>
       </label>
@@ -77,9 +77,9 @@ export function ExecutionChoice({
         <div className="provider-setup">
           <p>
             Vercel runs the code remotely. Each call uses one temporary sandbox: 1 vCPU, a 60-second
-            lifetime, a 10-second Node.js process and 64 KiB of output. Outbound network access is
-            denied. SLIM limits use to three calls per turn and ten sandboxes in ten minutes across
-            projects.
+            lifetime, a 10-second Node.js process or up to 30 seconds for Bash. Node output is
+            capped at 64 KiB and Bash output at 32 KiB. Outbound network access is denied. SLIM
+            limits use to three calls per turn and ten sandboxes in ten minutes across projects.
           </p>
           <label className="checkbox">
             <input

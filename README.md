@@ -164,3 +164,9 @@ Use Node 24. The repository's script approvals are pinned separately from a cons
 ## License
 
 [MIT](https://github.com/TerminallyLazy/A0-SLIM/blob/main/LICENSE). Third-party libraries, models and brand artwork retain their own licenses and notices.
+
+### Bash (source builds; next npm release)
+
+New native chats support real Bash scripts in the selected Docker, Vercel or Microsandbox environment. Pipes, heredocs, stdin, separate stdout/stderr, exit status, timeout, cancellation and recovery receipts are included. Sandbox files last for one call; combine related steps into a script. Host Bash is disabled by default and can be enabled per project in Environments, with explicit OS account access. Start a new chat after enabling it. See [setup, limits and recovery](docs/BASH.md).
+
+Docker Bash requires its separate pinned image. Microsandbox requires updating the optional add-on and rerunning its check. Neither adds images or a shell runtime to the core npm package. [BrowserPilot assessment](docs/research/BROWSERPILOT.md) records possible browser-workflow adaptations; no BrowserPilot code or browser automation runtime is bundled.

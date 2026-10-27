@@ -196,6 +196,7 @@ export class VercelExecution {
       messageId: string;
       callId: string;
       signal?: AbortSignal;
+      bash?: boolean;
     },
   ) {
     const { code, input } = inputSchema.parse(value);
@@ -219,7 +220,7 @@ export class VercelExecution {
         'scope_missing',
         'Vercel execution requires its owning native chat turn.',
       );
-    const digest = hash(JSON.stringify({ code, input }));
+    const digest = hash(JSON.stringify({ code, input, ...(context.bash ? { bash: true } : {}) }));
     const cached = this.cached(chat.id, context.messageId, context.callId, digest);
     if (cached) return cached;
     return this.proof.withLease(async () => {
@@ -261,6 +262,7 @@ export class VercelExecution {
         environmentId: `a0-slim-${id}`,
         limits: vercelLimits,
         runtime: 'node22',
+        tool: context.bash ? 'bash' : 'run_javascript',
         codeBytes: Buffer.byteLength(code),
         inputBytes: Buffer.byteLength(input),
       };
@@ -314,13 +316,20 @@ export class VercelExecution {
         this.store.receipt(receipt);
         const command = await sandbox.runCommand({
           cmd: 'node',
-          args: ['-e', vercelSupervisor, code, input],
+          args: [
+            '-e',
+            context.bash
+              ? vercelSupervisor.replace('timeout:10000', 'timeout:32000')
+              : vercelSupervisor,
+            code,
+            input,
+          ],
           cwd: '/vercel/sandbox',
           sudo: false,
-          timeoutMs: 12_000,
+          timeoutMs: context.bash ? 35_000 : 12_000,
           stdout: stdoutSink,
           stderr: stderrSink,
-          signal: AbortSignal.any([signal, AbortSignal.timeout(18_000)]),
+          signal: AbortSignal.any([signal, AbortSignal.timeout(context.bash ? 40_000 : 18_000)]),
         });
         signal.throwIfAborted();
         receipt.exitCode = command.exitCode;

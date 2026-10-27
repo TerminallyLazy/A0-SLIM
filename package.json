@@ -76,7 +76,8 @@
     "addons/microsandbox/worker.mjs",
     "addons/microsandbox/runtime.json",
     "LICENSE",
-    "docs/MICROSANDBOX.md"
+    "docs/MICROSANDBOX.md",
+    "docs/BASH.md"
   ],
   "repository": {
     "type": "git",

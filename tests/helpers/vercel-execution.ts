@@ -54,7 +54,14 @@ export function vercelFixture(store: () => Store) {
           );
           assert.equal(options.cmd, 'node');
           assert.equal(options.sudo, false);
-          assert.equal(options.timeoutMs, 12_000);
+          assert.equal(
+            options.timeoutMs,
+            store()
+              .receipts()
+              .find((r) => r.environmentId === f.name)?.tool === 'bash'
+              ? 35_000
+              : 12_000,
+          );
           if (f.loseCommand) throw new Error('SECRET-FIXTURE-COMMAND-ERROR');
           if (f.hold)
             await new Promise<void>((resolve, reject) => {
