@@ -29,7 +29,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const base = join(process.argv[2], 'node_modules/a0-slim');
 const require = createRequire(join(base, 'package.json'));
-if (require('./package.json').version !== '0.1.0-alpha.1') throw new Error('Unexpected app version');
+if (require('./package.json').version !== '0.1.0-alpha.2') throw new Error('Unexpected app version');
 require('./scripts/patch-libfx.cjs');
 require('cbor-extract'); // Load the pinned platform prebuild without running its install script.
 const Database = require('better-sqlite3');
@@ -115,13 +115,13 @@ main() {
   fi
   slim_node_dir=$(dirname "$slim_node")
   env -i HOME="$slim_root/npm-home" PATH="$slim_node_dir:$PATH" "$slim_node" -e 'process.exit(process.versions.node.split(".")[0] === "24" ? 0 : 1)' || slim_fail 'Node 24 could not start. Linux requires a compatible glibc distribution.'
-  slim_hash=34da076b90f62389870862c7b77359e95dfa117b3c3fe129bb555cd0dc1a9a71
+  slim_hash=c75f4df84092188fc17084c5f3c6a3a560c857d5020a74d46ec9645c23b98490
   if [ -f "$slim_root/current/.verified-tarball" ] && [ "$(cat "$slim_root/current/.verified-tarball")" = "$slim_hash" ]; then
     printf 'Checking the existing A0 SLIM installation…\n'
     slim_probe "$slim_root/current" || slim_fail 'The existing installation needs repair. Your app data has not been changed.'
   else
-    printf 'Downloading and installing A0 SLIM 0.1.0-alpha.1…\n'
-    slim_download 'https://registry.npmjs.org/a0-slim/-/a0-slim-0.1.0-alpha.1.tgz' "$slim_stage/a0-slim.tgz" "$slim_hash"
+    printf 'Downloading and installing A0 SLIM 0.1.0-alpha.2…\n'
+    slim_download 'https://registry.npmjs.org/a0-slim/-/a0-slim-0.1.0-alpha.2.tgz' "$slim_stage/a0-slim.tgz" "$slim_hash"
     mkdir "$slim_stage/app"
     cat > "$slim_stage/app/package.json" <<'JSON'
 {"private":true}
@@ -129,7 +129,7 @@ JSON
     (cd "$slim_stage/app" && slim_npm install "$slim_stage/a0-slim.tgz" --omit=dev --ignore-scripts --no-audit --no-fund) || slim_fail 'Installation failed. Re-run this command to retry; the previous installation and app data are preserved.'
     slim_probe "$slim_stage/app" || slim_fail 'The installed native runtime failed verification; it was not activated.'
     printf '%s\n' "$slim_hash" > "$slim_stage/app/.verified-tarball"
-    slim_release=$slim_root/releases/0.1.0-alpha.1-$(basename "$slim_stage")
+    slim_release=$slim_root/releases/0.1.0-alpha.2-$(basename "$slim_stage")
     mv "$slim_stage/app" "$slim_release"
     "$slim_node" --input-type=module - "$slim_root" "$slim_release" <<'JS'
 import { symlinkSync, renameSync, lstatSync } from 'node:fs';
@@ -163,7 +163,11 @@ if (!process.env.A0_SLIM_DATA_DIR && !args.includes('--help')) {
   try {
     const response = await fetch(`${url}/api/v1/status`, { signal: AbortSignal.timeout(700) });
     const status = await response.json();
-    if (response.ok && status.version === '0.1.0-alpha.1' && status.stage === 'P2 preview · account checks pending' && typeof status.paired === 'boolean') {
+    if (response.ok && typeof status.version === 'string' && status.stage === 'P2 preview · account checks pending' && typeof status.paired === 'boolean') {
+      if (status.version !== '0.1.0-alpha.2') {
+        console.error(`A0 SLIM ${status.version} is running at ${url}. Stop it in its original terminal, then run this launcher again to use 0.1.0-alpha.2.`);
+        process.exit(1);
+      }
       console.log(`A0 SLIM is already running at ${url}. Its original terminal holds the pairing code.`);
       openBrowser();
       process.exit(0);

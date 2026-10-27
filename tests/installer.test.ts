@@ -85,3 +85,51 @@ test('a mismatched Node download is never extracted and preserves the active rel
     await f.close();
   }
 });
+
+test('installed launcher refuses an older running service instead of silently opening it', async () => {
+  const { createServer } = await import('node:http');
+  const { spawn } = await import('node:child_process');
+  const f = await fixture();
+  const server = createServer((_request, response) => {
+    response.setHeader('content-type', 'application/json');
+    response.end(
+      JSON.stringify({
+        version: '0.0.0-old',
+        stage: 'P2 preview · account checks pending',
+        paired: false,
+      }),
+    );
+  });
+  try {
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = (server.address() as import('node:net').AddressInfo).port;
+    const source = installer
+      .split('cat > "$slim_stage/launch.mjs" <<\'JS\'\n')[1]!
+      .split('\nJS\n')[0]!;
+    const launcher = join(f.temp, 'launch.mjs');
+    await writeFile(launcher, source);
+    const child = spawn(process.execPath, [launcher], {
+      env: {
+        PATH: process.env.PATH,
+        HOME: f.temp,
+        A0_SLIM_PORT: String(port),
+        A0_SLIM_NO_BROWSER: '1',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let error = '';
+    child.stderr.on('data', (b) => {
+      error += b;
+    });
+    const code = await new Promise<number | null>((resolve, reject) => {
+      child.once('error', reject);
+      child.once('exit', resolve);
+    });
+    assert.equal(code, 1);
+    assert.match(error, /Stop it in its original terminal/);
+    assert.doesNotMatch(error, /MODULE_NOT_FOUND/);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await f.close();
+  }
+});
