@@ -1,3 +1,5 @@
+import { FirstRun } from './first-run.js';
+import type { FirstRunState } from '../src/server/first-run.js';
 import { BashOutput } from './bash-output.js';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
@@ -36,6 +38,7 @@ import type { MicrosandboxState } from '../src/execution/microsandbox.js';
 import { DelegatedTasks, type DelegationSummary } from './delegations.js';
 
 type State = {
+  firstRun: FirstRunState;
   acp: ACPState;
   projects: Project[];
   chats: Chat[];
@@ -61,6 +64,7 @@ type View =
   | 'hub'
   | 'memory';
 const empty: State = {
+  firstRun: { required: false, workspacePath: '' },
   microsandbox: null,
   vercelExecution: {
     available: false,
@@ -98,6 +102,7 @@ export function Heading({ title, children }: { title: string; children: ReactNod
 export function App() {
   const [paired, setPaired] = useState<boolean | null>(null),
     [state, setState] = useState<State>(empty);
+  const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState<View>('chat'),
     [projectId, setProjectId] = useState(''),
     [connectionId, setConnectionId] = useState(''),
@@ -151,11 +156,14 @@ export function App() {
             : 'ready';
   const refresh = async () => {
     const next = await api<State>('/state');
+    next.firstRun ??= empty.firstRun; // An older running service may still serve the freshly built UI.
     setState(next);
-    setProjectId((id) => id || next.projects[0]?.id || '');
+    setLoaded(true);
+    setProjectId((id) => id || next.firstRun.projectId || next.projects[0]?.id || '');
     setConnectionId(
       (id) =>
         id ||
+        next.firstRun.connectionId ||
         next.connections[0]?.id ||
         (next.acp.profiles.find((p) => !p.disabled)
           ? `acp:${next.acp.profiles.find((p) => !p.disabled)!.id}`
@@ -199,8 +207,7 @@ export function App() {
     if (result) {
       history.replaceState({}, '', '/');
       setView('connections');
-      if (result === 'failed')
-        setError('ChatGPT sign-in did not finish. Start a new attempt from Connections.');
+      if (result === 'failed') setError('ChatGPT sign-in did not finish. Sign in again to retry.');
     }
   }, []);
   useEffect(() => {
@@ -408,6 +415,33 @@ export function App() {
           </small>
         </div>
       </main>
+    );
+  if (!loaded)
+    return (
+      <main className="pair">
+        <Logo />
+        <p>{error || 'Loading your workspace…'}</p>
+      </main>
+    );
+  if (state.firstRun.required)
+    return (
+      <FirstRun
+        notice={error}
+        clearNotice={() => setError('')}
+        theme={theme}
+        setTheme={setTheme}
+        setup={state.firstRun}
+        projects={state.projects}
+        connections={state.connections}
+        microsandbox={state.microsandbox}
+        refresh={refresh}
+        finish={(project, connection) => {
+          setProjectId(project);
+          setConnectionId(connection);
+          setChatId('');
+          setView('chat');
+        }}
+      />
     );
   return (
     <div className={`app ${inspector ? 'inspecting' : ''} ${mobileNav ? 'nav-open' : ''}`}>
@@ -620,7 +654,11 @@ export function App() {
                     <br />
                     working on?
                   </h1>
-                  <p>Select a project and a model or agent, then describe the task.</p>
+                  <p>
+                    {project && connection
+                      ? `Working in ${project.name} with ${connection.name}. Describe the task.`
+                      : 'Select a project and model, then describe the task. External agents are optional.'}
+                  </p>
                   <div className="suggestions">
                     <button
                       onClick={() =>

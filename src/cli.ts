@@ -1,3 +1,5 @@
+import { spawn } from 'node:child_process';
+import { appVersion } from './version.js';
 import { randomBytes } from 'node:crypto';
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -29,8 +31,16 @@ try {
   const { app } = await createApp({ dataDir, origin, pairingCode: code, staticDir });
   await app.listen({ host: '127.0.0.1', port });
   console.log(
-    `\nA0 SLIM · Local alpha\n${origin}\nPair this browser within 10 minutes: ${code}\n\nPress Ctrl+C to stop the local service.\n`,
+    `\nA0 SLIM ${appVersion}\n${origin}\nPair this browser within 10 minutes: ${code}\n\nPress Ctrl+C to stop the local service.\n`,
   );
+  if (process.env.A0_SLIM_NO_BROWSER !== '1' && !process.argv.includes('--no-open')) {
+    const browser = spawn(platform() === 'darwin' ? '/usr/bin/open' : 'xdg-open', [origin], {
+      stdio: 'ignore',
+      detached: true,
+    });
+    browser.on('error', () => {}); // Headless systems retain the printed local URL.
+    browser.unref();
+  }
   let stopping = false;
   const stop = async () => {
     if (stopping) return;

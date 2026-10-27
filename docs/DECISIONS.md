@@ -153,3 +153,9 @@ Actual Apple Silicon acceptance passed setup, chat integration through a local m
 - Reuse existing sandbox adapters, grants and cleanup ledgers. Add a Bash intent ledger for replay protection and unknown-outcome reviews. Keep old chat tool identities and exclude read-only subordinates.
 - Use real Bash, a separate Docker Debian image and an updated optional Microsandbox image. No new npm dependency; images stay outside the core package.
 - BrowserPilot has no open-source license. Adopt only independently implemented design concepts; do not vendor its code. See [assessment](research/BROWSERPILOT.md) and [Bash contract](BASH.md).
+
+## 2026-10-26 — Include native first-run setup in alpha.2
+
+Guide fresh npm users through model connection and explicit folder selection into the existing native runtime. Keep Agent Zero/ACP optional. ChatGPT uses the existing PKCE/account/model-catalog path; setup performs no inference. Default workspace creation reserves a durable ID and verifies ownership before recovery. Existing configured users keep their workspace and grants.
+
+Optional local Bash setup reuses Microsandbox’s explicit installation, synthetic proof and cleanup gates. It adds no core runtime dependencies. Host Bash stays separately opt-in. The CLI opens the browser while keeping the pairing code in the terminal; `--no-open` supports headless use. Refine the existing Agent Zero visual identity, with light/dark choice, keyboard focus, readable steps and one restrained completion check; no new font, animation dependency or decorative labels.

@@ -1,6 +1,6 @@
 # npm packaging
 
-The public package is named `a0-slim`, licensed MIT, and versioned `0.1.0-alpha.1`. It remains an alpha; the `latest` npm tag identifies the current release, not a stability guarantee. Manual npm installation requires Node 24 and npm 11.19 or newer; the one-command installer sets up a private runtime when needed. macOS arm64 and Linux x64 are the tested targets.
+The public package is named `a0-slim`, licensed MIT, and versioned `0.1.0-alpha.2`. It remains an alpha; the `latest` npm tag identifies the current release, not a stability guarantee. Manual npm installation requires Node 24 and npm 11.19 or newer; the one-command installer sets up a private runtime when needed. macOS arm64 and Linux x64 are the tested targets.
 
 ## One-command installer
 
@@ -14,7 +14,7 @@ Installation uses `~/.local/share/a0-slim-cli` or `$XDG_DATA_HOME/a0-slim-cli`. 
 
 A failed download, checksum mismatch or failed native probe leaves the existing active release and app data intact. A directory lock excludes simultaneous installers. Normal interruption removes the staging directory and lock; after a hard kill, inspect the installer processes before removing its empty `.install-lock` directory. Only then retry. Completed releases are retained under `releases`; re-running a healthy installation reuses it without downloads. The script executes its main function only after the full function definitions have been read.
 
-The installer prints the persistent launch path, normally `~/.local/share/a0-slim-cli/bin/a0-slim`. It does not edit shell startup files. The service runs in the foreground; Ctrl+C reaches the child service and releases its data lock. When startup succeeds, the launcher opens the loopback URL in the system browser; the pairing code stays in the terminal. `A0_SLIM_NO_BROWSER=1` disables browser opening. An already-running SLIM instance on the selected port can be reused when no explicit data directory was requested. A custom `A0_SLIM_DATA_DIR` always starts that requested workspace and retains normal port/data ownership checks.
+The installer prints the persistent launch path, normally `~/.local/share/a0-slim-cli/bin/a0-slim`. It does not edit shell startup files. The service runs in the foreground; Ctrl+C reaches the child service and releases its data lock. When startup succeeds, the launcher opens the loopback URL in the system browser; the pairing code stays in the terminal. `A0_SLIM_NO_BROWSER=1` or `--no-open` disables browser opening. The npm CLI also opens the browser directly. An already-running SLIM instance on the selected port can be reused when no explicit data directory was requested. A custom `A0_SLIM_DATA_DIR` always starts that requested workspace and retains normal port/data ownership checks.
 
 Use `curl -fsSL https://raw.githubusercontent.com/TerminallyLazy/A0-SLIM/main/install.sh | sh -s -- --no-launch` to install without launching. `A0_SLIM_PORT` and `A0_SLIM_DATA_DIR` can also be set on the `sh` side of the pipe. The script never installs embeddings, weights or Microsandbox automatically.
 
@@ -23,30 +23,30 @@ Use `curl -fsSL https://raw.githubusercontent.com/TerminallyLazy/A0-SLIM/main/in
 ## Install from npm
 
 ```sh
-npm install -g a0-slim@0.1.0-alpha.1 --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+npm install -g a0-slim@0.1.0-alpha.2 --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
 a0-slim
 ```
 
 The allowance is limited to the pinned SQLite/CBOR native builds. Do not use `--allow-scripts=*`. Use a user-writable Node installation instead of `sudo`. The CLI applies its hash-checked libfx patch when first started, even when its own postinstall hook was blocked. Starting the app never downloads model weights or optional runtimes.
 
-For a dedicated local installation, use the directory steps below and replace the tarball path with `a0-slim@0.1.0-alpha.1`.
+For a dedicated local installation, use the directory steps below and replace the tarball path with `a0-slim@0.1.0-alpha.2`.
 
 ## Download with curl
 
 Download the exact release tarball:
 
 ```sh
-curl -fL -o a0-slim-0.1.0-alpha.1.tgz https://github.com/TerminallyLazy/A0-SLIM/releases/download/v0.1.0-alpha.1/a0-slim-0.1.0-alpha.1.tgz
+curl -fL -o a0-slim-0.1.0-alpha.2.tgz https://github.com/TerminallyLazy/A0-SLIM/releases/download/v0.1.0-alpha.2/a0-slim-0.1.0-alpha.2.tgz
 ```
 
 Then install it with Node 24 and npm 11.19 or newer:
 
 ```sh
-npm install -g ./a0-slim-0.1.0-alpha.1.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+npm install -g ./a0-slim-0.1.0-alpha.2.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
 a0-slim
 ```
 
-The download is about 440 KB; npm installs production dependencies separately. The GitHub asset and npm release use the same tested tarball. SHA-256: `34da076b90f62389870862c7b77359e95dfa117b3c3fe129bb555cd0dc1a9a71`.
+The download is about 470 KB; npm installs production dependencies separately. The GitHub asset and npm release use the same tested tarball. The exact SHA-256 is published in the release’s `SHA256SUMS` asset.
 
 ## Build and install a tarball
 
@@ -65,7 +65,7 @@ Install the resulting file into a dedicated directory:
 mkdir slim-install
 cd slim-install
 npm init -y
-npm install /absolute/path/a0-slim-0.1.0-alpha.1.tgz --omit=dev
+npm install /absolute/path/a0-slim-0.1.0-alpha.2.tgz --omit=dev
 ```
 
 Recent npm versions block unapproved dependency scripts. If npm reports blocked SQLite/CBOR scripts, approve their pinned installed versions and rebuild them in this directory:
@@ -77,6 +77,8 @@ npx --no-install a0-slim
 ```
 
 With npm versions that already ran those scripts, only the launch command is needed. The repository records approvals for the pinned native dependencies used by `npm ci`; a consuming project owns its own approvals. See [npm's script approval documentation](https://docs.npmjs.com/cli/v11/commands/npm-install-scripts/). The launcher checks/applies the exact libfx cancellation patch even if its install hook was skipped. It does not bypass npm's native-build policy.
+
+First launch guides account/model selection and a project folder; the native agent is included. Microsandbox, external ACP agents and local embeddings remain optional. See [first-run setup](FIRST-RUN.md).
 
 The service defaults to `http://127.0.0.1:4310`. `A0_SLIM_PORT` and `A0_SLIM_DATA_DIR` override the port and private storage location. Pairing, vault custody, recovery receipts and sandbox permissions are unchanged.
 
@@ -94,15 +96,15 @@ Measured October 26, 2026 on macOS arm64, Node 24.22.1/npm 11.19.1, with a real 
 
 | Component | File bytes | Allocated disk |
 | --- | ---: | ---: |
-| App `.tgz` before extraction | ~0.44 MB | ~0.44 MB |
-| App extracted, excluding dependencies | ~1.85 MB | filesystem dependent |
+| App `.tgz` before extraction | ~0.47 MB | ~0.47 MB |
+| App extracted, excluding dependencies | ~1.97 MB | filesystem dependent |
 | Core with production dependencies | ~202 MB | ~262 MB |
 | Optional Microsandbox SDK/runtime, additional | ~97 MB | ~97 MB |
 | Microsandbox Node image/cache after one check, additional | ~174 MB | ~174 MB |
 | Optional embedding runtime, additional | ~484 MB | ~494 MB |
 | Optional MiniLM model, additional | ~24 MB | ~24 MB |
 
-The previous production dependency set occupied about 725 MB of file bytes / 808 MB allocated. The lean core reduces file bytes by about **72%**. npm fetches dependencies separately; this is not a 0.44 MB total installation. Totals exclude Node/npm, npm caches, developer tooling, personal projects, saved chats, Docker images and separately installed agents. Platforms and filesystem allocation differ. Both ONNX Node and Web assets remain within Transformers.js's supported graph; library-internal assets are not selectively pruned.
+The previous production dependency set occupied about 725 MB of file bytes / 808 MB allocated. The lean core reduces file bytes by about **72%**. npm fetches dependencies separately; this is not a 0.47 MB total installation. Totals exclude Node/npm, npm caches, developer tooling, personal projects, saved chats, Docker images and separately installed agents. Platforms and filesystem allocation differ. Both ONNX Node and Web assets remain within Transformers.js's supported graph; library-internal assets are not selectively pruned.
 
 ## Verification
 
@@ -122,8 +124,8 @@ The packaging smoke test checks the installed CLI's Microsandbox endpoint and ve
 
 1. Run `npm ci`, `npm run check`, `npm run test:package` and the root/add-on high-severity audits. Review only the intended changes and commit them.
 2. Build from the committed source in a clean checkout. Run `npm pack`; inspect its file list, license, version and integrity. Never pack the working app's private data or unrelated local edits.
-3. Test that exact artifact with `npm run test:package -- --package /absolute/path/a0-slim-0.1.0-alpha.1.tgz --global-install`. This uses an isolated home/prefix and the documented native-script approvals, starts the real CLI twice, and removes its temporary installation afterward.
-4. With the owner's npm session, publish that tested tarball using `npm publish /absolute/path/a0-slim-0.1.0-alpha.1.tgz --access public --tag latest`. A new version requires a deliberate version change; never overwrite or unpublish an existing release as a retry.
-5. Verify public registry metadata and tarball integrity, then repeat the install check with `--package a0-slim@0.1.0-alpha.1 --global-install`. Record the release's source commit, checks, package sizes and integrity. Tag the verified source commit and publish its release notes.
+3. Test that exact artifact with `npm run test:package -- --package /absolute/path/a0-slim-0.1.0-alpha.2.tgz --global-install`. This uses an isolated home/prefix and the documented native-script approvals, starts the real CLI twice, and removes its temporary installation afterward.
+4. With the owner's npm session, publish that tested tarball using `npm publish /absolute/path/a0-slim-0.1.0-alpha.2.tgz --access public --tag latest`. A new version requires a deliberate version change; never overwrite or unpublish an existing release as a retry.
+5. Verify public registry metadata and tarball integrity, then repeat the install check with `--package a0-slim@0.1.0-alpha.2 --global-install`. Record the release's source commit, checks, package sizes and integrity. Tag the verified source commit and publish its release notes.
 
 Publication is an explicit maintainer action. CI builds/tests on Linux and macOS; a green CI job does not publish. Authentication and any required npm 2FA stay in the owner's npm flow, never in repository files or logs.

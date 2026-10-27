@@ -1,6 +1,6 @@
 {
   "name": "a0-slim",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "type": "module",
   "description": "A local-first agent workspace built around libfx",
   "engines": {
@@ -77,7 +77,8 @@
     "addons/microsandbox/runtime.json",
     "LICENSE",
     "docs/MICROSANDBOX.md",
-    "docs/BASH.md"
+    "docs/BASH.md",
+    "docs/FIRST-RUN.md"
   ],
   "repository": {
     "type": "git",

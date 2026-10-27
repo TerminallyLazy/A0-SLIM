@@ -1,6 +1,6 @@
 # Bash
 
-Available in source builds; not yet included in the published `0.1.0-alpha.1` package.
+Included in `a0-slim@0.1.0-alpha.2` and later.
 
 New native chats expose `bash` when a sandbox is selected or host Bash has been explicitly enabled for the project. Existing chats retain their tool identities; start a new chat after changing permissions. ACP agents retain their own execution policies. Read-only subordinates do not receive Bash.
 

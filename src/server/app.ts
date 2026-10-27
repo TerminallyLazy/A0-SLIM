@@ -1,10 +1,13 @@
+import { homedir } from 'node:os';
+import { FirstRun } from './first-run.js';
+import { appVersion } from '../version.js';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import serveStatic from '@fastify/static';
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { realpath, stat } from 'node:fs/promises';
-import { resolve, relative, isAbsolute, sep } from 'node:path';
+import { resolve, relative, isAbsolute, sep, join } from 'node:path';
 import { Readable } from 'node:stream';
 import { z } from 'zod';
 import { AppError, connectionInput, safeEndpoint } from '../domain.js';
@@ -32,16 +35,19 @@ export async function createApp(options: {
   origin: string;
   pairingCode: string;
   staticDir?: string;
+  workspaceRoot?: string;
   vercel?: VercelDependencies;
   keySource?: () => Promise<Buffer>;
+  accountsFactory?: (store: Store, vault: Vault) => ChatGPTAccounts;
 }) {
   const origin = new URL(options.origin);
   if (origin.hostname !== '127.0.0.1' || origin.protocol !== 'http:')
     throw new Error('A0 SLIM must listen on IPv4 loopback.');
   const app = Fastify({ logger: false, bodyLimit: 300_000, requestTimeout: 30_000 });
   const store = new Store(options.dataDir);
+  const firstRun = new FirstRun(store, options.workspaceRoot ?? join(homedir(), 'SLIM Workspace'));
   const vault = new Vault(store, options.keySource ?? systemKeySource(store.dir));
-  const accounts = new ChatGPTAccounts(store, vault);
+  const accounts = options.accountsFactory?.(store, vault) ?? new ChatGPTAccounts(store, vault);
   const runtime = new Coordinator(store, vault, accounts, options.vercel);
   const acp = new ACPClient(store);
   const chatRuntime = (id: string) => (store.chat(id).backend === 'acp' ? acp : runtime);
@@ -106,7 +112,7 @@ export async function createApp(options: {
   app.get('/api/v1/status', async (request) => ({
     paired: Date.now() <= sessionExpiry && equal(request.cookies.slim_session ?? '', session),
     stage: 'P2 preview · account checks pending',
-    version: '0.1.0-alpha.1',
+    version: appVersion,
   }));
   app.post('/api/v1/pair', async (request, reply) => {
     const { code } = z.object({ code: z.string().max(100) }).parse(request.body);
@@ -126,6 +132,7 @@ export async function createApp(options: {
     return { ok: true };
   });
   app.get('/api/v1/state', async () => ({
+    firstRun: firstRun.state(),
     projects: store.projects(),
     chats: store.chats(),
     delegations: runtime.delegations.list().map(({ assignment, inputHash, ...record }) => record),
@@ -154,6 +161,25 @@ export async function createApp(options: {
       ]),
     ),
   }));
+  app.post('/api/v1/setup/preferences', async (request) =>
+    firstRun.save(
+      z
+        .object({
+          projectId: z.string().uuid().optional(),
+          connectionId: z.string().uuid().optional(),
+        })
+        .strict()
+        .parse(request.body),
+    ),
+  );
+  app.post('/api/v1/setup/workspace', async (request) => {
+    z.object({}).strict().parse(request.body);
+    return firstRun.workspace();
+  });
+  app.post('/api/v1/setup/complete', async (request) => {
+    z.object({}).strict().parse(request.body);
+    return firstRun.complete();
+  });
   app.post('/api/v1/projects', async (request) => {
     const input = z
       .object({ name: z.string().trim().min(1).max(80), root: z.string().min(1).max(2048) })

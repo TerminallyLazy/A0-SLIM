@@ -138,16 +138,6 @@ a {
   padding: 4px 9px;
   color: var(--muted);
 }
-.eyebrow {
-  font:
-    10px/1.5 ui-monospace,
-    SFMono-Regular,
-    monospace;
-  text-transform: uppercase;
-  letter-spacing: 1.8px;
-  color: var(--accent);
-  margin-bottom: 16px;
-}
 .symbol {
   display: inline-flex;
   width: 35px;
@@ -283,9 +273,7 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 10px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  font-size: 12px;
   color: var(--muted);
   padding: 18px 10px 5px;
 }
@@ -414,10 +402,6 @@ kbd {
 .welcome-symbol .symbol {
   width: 35px;
   height: 35px;
-}
-.welcome .eyebrow {
-  font-size: 10px;
-  margin-bottom: 15px;
 }
 .welcome h1 {
   font-size: clamp(36px, 3.5vw, 49px);
@@ -664,9 +648,7 @@ kbd {
 .list-label {
   display: flex;
   justify-content: space-between;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
   border-bottom: 1px solid var(--line);
   padding: 30px 0 12px;
@@ -2274,4 +2256,291 @@ progress {
 .bash-settings textarea {
   width: 100%;
   min-height: 5rem;
+}
+
+.first-run {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 36px 28px 60px;
+}
+.first-run-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+.first-run nav ol {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  gap: 12px;
+  margin: 0 0 36px;
+}
+.first-run nav li {
+  flex: 1;
+}
+.first-run nav button {
+  border: 0;
+  padding: 8px 0;
+  justify-content: flex-start;
+  text-align: left;
+  color: var(--muted);
+}
+.first-run nav li[aria-current='step'] button {
+  color: var(--text);
+  font-weight: 650;
+}
+.first-run-panel {
+  max-width: 660px;
+}
+.first-run-panel h1 {
+  margin: 0 0 12px;
+  font-size: clamp(28px, 4vw, 38px);
+  letter-spacing: -0.035em;
+}
+.first-run-panel > p {
+  max-width: 60ch;
+  color: var(--muted);
+}
+.setup-signin {
+  margin-top: 12px;
+  padding: 12px 20px;
+}
+.setup-saved,
+.setup-form {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0;
+}
+.setup-saved {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.setup-saved button,
+.setup-form button {
+  justify-self: start;
+}
+.setup-workspace {
+  margin: 24px 0;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.setup-workspace h2 {
+  margin: 12px 0 4px;
+  font-size: 18px;
+}
+.setup-path {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+.setup-execution {
+  margin: 28px 0;
+  border-block: 1px solid var(--line);
+  padding: 20px 0;
+}
+.setup-execution summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.setup-chevron {
+  margin-left: auto;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.setup-execution[open] .setup-chevron {
+  transform: rotate(180deg);
+}
+.setup-execution summary::-webkit-details-marker {
+  display: none;
+}
+.setup-execution .checkbox {
+  margin: 16px 0;
+}
+.setup-back {
+  margin-top: 28px;
+}
+@media (max-width: 600px) {
+  .first-run {
+    padding: 24px 18px 40px;
+  }
+  .first-run nav ol {
+    gap: 10px;
+  }
+  .first-run nav button {
+    font-size: 12px;
+    align-items: flex-start;
+  }
+  .setup-workspace,
+  .setup-saved {
+    padding: 18px;
+  }
+}
+
+/* First use shares the workspace's palette and type; completion is the focal moment. */
+.first-run {
+  padding-top: clamp(28px, 6vh, 64px);
+}
+.first-run-brand {
+  margin-bottom: 40px;
+}
+.first-run-brand strong {
+  font-size: 16px;
+  letter-spacing: 0.02em;
+}
+.setup-theme {
+  margin-left: auto;
+  border-color: transparent;
+}
+.first-run button,
+.setup-execution summary {
+  min-height: 44px;
+}
+.first-run nav button {
+  gap: 10px;
+  background: none;
+  width: 100%;
+}
+.first-run nav li[aria-current='step'] .setup-step-mark {
+  border-color: var(--text);
+  color: var(--text);
+}
+.setup-step-mark {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.setup-step-mark.complete {
+  color: var(--accent);
+  border-color: transparent;
+  background: var(--soft);
+}
+.first-run-panel {
+  margin-top: 48px;
+}
+.first-run-panel h1 {
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+  outline: none;
+}
+.first-run-panel > p {
+  font-size: 15px;
+  line-height: 1.7;
+}
+.first-run-panel > .fine {
+  font-size: 12px;
+  line-height: 1.65;
+  margin-top: 16px;
+}
+.first-run label {
+  font-size: 13px;
+}
+.first-run small {
+  line-height: 1.5;
+}
+.first-run .text-link {
+  text-underline-offset: 4px;
+}
+.first-run input {
+  caret-color: var(--accent);
+}
+.first-run ::selection {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+.first-run {
+  scrollbar-color: var(--line) var(--bg);
+}
+.setup-folder-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.setup-folder-heading h2 {
+  margin: 0;
+}
+.setup-path {
+  margin: 12px 0 24px;
+}
+.setup-ready {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 24px 0;
+}
+.setup-ready strong {
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+.setup-ready p {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+.setup-ready-mark {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--accent);
+}
+.setup-ready-mark svg {
+  stroke-dasharray: 36;
+  animation: setup-confirm 350ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes setup-confirm {
+  from {
+    stroke-dashoffset: 36;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.setup-execution summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .setup-ready-mark svg {
+    animation: none;
+  }
+  .setup-chevron {
+    transition: none;
+  }
+}
+@media (max-width: 600px) {
+  .first-run-brand {
+    margin-bottom: 24px;
+  }
+  .first-run nav button {
+    gap: 8px;
+    flex-direction: column;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .first-run-panel {
+    margin-top: 32px;
+  }
+  .first-run-panel h1 {
+    font-size: 30px;
+  }
+}
+.first-run nav button:disabled {
+  opacity: 1;
 }

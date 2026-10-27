@@ -157,7 +157,12 @@ try {
     const origin = `http://127.0.0.1:${port}`;
     child = spawn(process.execPath, [bin], {
       cwd: temp,
-      env: { ...cleanEnv, A0_SLIM_PORT: String(port), A0_SLIM_DATA_DIR: join(temp, 'data') },
+      env: {
+        ...cleanEnv,
+        A0_SLIM_NO_BROWSER: '1',
+        A0_SLIM_PORT: String(port),
+        A0_SLIM_DATA_DIR: join(temp, 'data'),
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let output = '',
@@ -180,6 +185,11 @@ try {
       });
       assert.equal(pair.status, 200);
       const cookie = pair.headers.get('set-cookie').split(';')[0];
+      const initial = await fetch(`${origin}/api/v1/state`, { headers: { cookie } });
+      const state = await initial.json();
+      assert.equal(state.firstRun.required, true);
+      assert.equal(state.projects.length, 0);
+      assert.equal(state.chats.length, 0);
       const embeddings = await fetch(`${origin}/api/v1/embeddings`, { headers: { cookie } });
       assert.equal((await embeddings.json()).local.runtime.status, 'not-installed');
       const microsandbox = await fetch(`${origin}/api/v1/sandbox/microsandbox`, {

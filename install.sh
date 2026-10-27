@@ -152,7 +152,7 @@ process.env.PATH = `${dirname(process.execPath)}:${process.env.PATH ?? '/usr/bin
 const args = process.argv.slice(2);
 const url = `http://127.0.0.1:${process.env.A0_SLIM_PORT ?? '4310'}`;
 function openBrowser() {
-  if (process.env.A0_SLIM_NO_BROWSER === '1') return;
+  if (process.env.A0_SLIM_NO_BROWSER === '1' || args.includes('--no-open')) return;
   const command = process.platform === 'darwin' ? '/usr/bin/open' : 'xdg-open';
   const browser = spawn(command, [url], { stdio: 'ignore', detached: true });
   browser.on('error', () => {}); // A headless system can use the printed URL.
@@ -170,7 +170,7 @@ if (!process.env.A0_SLIM_DATA_DIR && !args.includes('--help')) {
     }
   } catch { /* Start normally when no recognizable server is listening. */ }
 }
-const child = spawn(process.execPath, [join(root, 'current/node_modules/a0-slim/bin/a0-slim.mjs'), ...args], { stdio: ['inherit', 'pipe', 'inherit'] });
+const child = spawn(process.execPath, [join(root, 'current/node_modules/a0-slim/bin/a0-slim.mjs'), ...args], { stdio: ['inherit', 'pipe', 'inherit'], env: { ...process.env, A0_SLIM_NO_BROWSER: '1' } });
 let ready = '', opened = false;
 child.stdout.on('data', (chunk) => {
   process.stdout.write(chunk);

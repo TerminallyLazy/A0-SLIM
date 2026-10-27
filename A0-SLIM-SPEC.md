@@ -346,3 +346,13 @@ Use real `/bin/bash` with startup files disabled, pipefail, explicit environment
 Intent and digest precede dispatch. Never replay an uncertain command; retain unknown results across restart, require exact sandbox cleanup and a separately attributed recovery review, and preserve the original outcome. Process groups and a parent-disconnect watchdog improve host cancellation but do not claim isolation from deliberate daemonization.
 
 [BrowserPilot research](docs/research/BROWSERPILOT.md) informs independent operation-journal and browser-contract design. No upstream code is adopted because its repository grants no open-source license. A browser adapter remains future optional work with observed-control evidence, connection-scoped profiles/memory and explicit externally visible action permissions. No browser automation delivery is claimed by Bash support.
+
+## First-run native setup (2026-10-26)
+
+The npm CLI opens the loopback UI and retains terminal pairing. Fresh installations guide model connection, explicit workspace selection, then native chat. ChatGPT account models are discovered without inference; compatible API and local model connections remain available. No separate Agent Zero install is required. External ACP agents remain optional; this does not imply native execution of Agent Zero Python plugins.
+
+Persist setup choices and completion separately from existing chat/runtime identities. Create `~/SLIM Workspace` only on explicit selection; use a durable reservation and ownership marker for idempotent recovery. Never adopt an existing unrelated folder, private app storage, or a changed/symlinked workspace. Preserve existing configured users’ projects and grants.
+
+Offer optional local Bash setup through an explicitly acknowledged Microsandbox runtime/image download and one synthetic check. Enable the project only after the check passes with deletion verified. Chat works without execution. Host Bash is never automatically granted. Keep ML, microVM binaries and images outside the core npm package.
+
+First-run UI follows the existing Graphite/Paper palette, original Agent Zero symbols and platform UI type. Three real sequential steps, keyboard focus on the new heading, meaningful completion feedback, reduced-motion support and a visible appearance control provide polish without eyebrow labels or marketing copy.

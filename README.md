@@ -2,7 +2,7 @@
 
 A local-first agent workspace inspired by Agent Zero. A Node service runs the agent loop, project tools, memory, and extensions; a browser UI exposes their state and permissions.
 
-**Status: alpha 0.1.0-alpha.1 with P2 extensions, memory and bounded subordinates.** ChatGPT text/functions, reviewed artifacts, optional local Docker execution and bounded Vercel Node.js execution are implemented. Cloud account acceptance and broader release gates remain open. See [P1 evidence and limitations](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P1.md) and [P2 verification](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P2.md).
+**Status: alpha 0.1.0-alpha.2 with guided first-run setup, native Bash, P2 extensions, memory and bounded subordinates.** ChatGPT text/functions, reviewed artifacts, optional local Docker execution and bounded Vercel Node.js execution are implemented. Cloud account acceptance and broader release gates remain open. See [P1 evidence and limitations](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P1.md) and [P2 verification](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P2.md).
 
 ## Install and launch with one command
 
@@ -27,7 +27,7 @@ Optional embeddings, model weights and Microsandbox still require separate setup
 Use **Node 24** and npm 11.19 or newer. macOS arm64 and Linux x64 are the tested targets. This is an alpha release.
 
 ```sh
-npm install -g a0-slim@0.1.0-alpha.1 --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+npm install -g a0-slim@0.1.0-alpha.2 --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
 a0-slim
 ```
 
@@ -35,7 +35,9 @@ The script allowance builds the two pinned native dependencies. Other dependency
 
 Open `http://127.0.0.1:4310` and enter the one-time pairing code printed in the terminal. The code expires after 10 minutes; the paired browser session lasts up to eight hours. Restarting the service issues a new code. The service binds only to IPv4 loopback; remote hosting is not supported.
 
-Add a focused project folder, then add a compatible model endpoint or AI Gateway connection. For Ollama/LM Studio, use the server's compatible `/v1` base URL and a tool-capable model. Model names and credentials belong to your provider. Saving a connection does not verify inference or incur an inference request. The first **Send** creates the durable runtime session.
+The browser opens automatically. Pair it with the code in your terminal, then follow **Connect a model → Choose a workspace → Start working**. Sign in with ChatGPT, or use an API key/local model. Choose an account model and create a new `~/SLIM Workspace` folder or select an existing project. SLIM includes its own native agent: a separate Agent Zero installation is optional. Setup saves your choices without sending project contents or running inference; your first message starts the model request. ChatGPT support is experimental and depends on the models available to your account.
+
+Optional **Add local Bash** installs Microsandbox and checks one temporary local VM before enabling it for the project. You can start chatting without any sandbox and configure execution later. Host Bash always requires an explicit project permission. See [first-run setup](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/FIRST-RUN.md).
 
 Closing the tab detaches the viewer; **Stop** cancels the current model turn. Stopping the local service stops its work. A second service cannot own the same data directory.
 
@@ -44,17 +46,17 @@ Closing the tab detaches the viewer; **Stop** cancels the current model turn. St
 Download the exact release tarball:
 
 ```sh
-curl -fL -o a0-slim-0.1.0-alpha.1.tgz https://github.com/TerminallyLazy/A0-SLIM/releases/download/v0.1.0-alpha.1/a0-slim-0.1.0-alpha.1.tgz
+curl -fL -o a0-slim-0.1.0-alpha.2.tgz https://github.com/TerminallyLazy/A0-SLIM/releases/download/v0.1.0-alpha.2/a0-slim-0.1.0-alpha.2.tgz
 ```
 
 Then install it with Node 24 and npm 11.19 or newer:
 
 ```sh
-npm install -g ./a0-slim-0.1.0-alpha.1.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+npm install -g ./a0-slim-0.1.0-alpha.2.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
 a0-slim
 ```
 
-The download is about 440 KB; npm installs production dependencies separately. The GitHub asset and npm release use the same tested tarball. SHA-256: `34da076b90f62389870862c7b77359e95dfa117b3c3fe129bb555cd0dc1a9a71`.
+The download is about 470 KB; npm installs production dependencies separately. The GitHub asset and npm release use the same tested tarball. The exact SHA-256 is in the release’s `SHA256SUMS` asset.
 
 ## What works
 
@@ -165,7 +167,7 @@ Use Node 24. The repository's script approvals are pinned separately from a cons
 
 [MIT](https://github.com/TerminallyLazy/A0-SLIM/blob/main/LICENSE). Third-party libraries, models and brand artwork retain their own licenses and notices.
 
-### Bash (source builds; next npm release)
+### Bash
 
 New native chats support real Bash scripts in the selected Docker, Vercel or Microsandbox environment. Pipes, heredocs, stdin, separate stdout/stderr, exit status, timeout, cancellation and recovery receipts are included. Sandbox files last for one call; combine related steps into a script. Host Bash is disabled by default and can be enabled per project in Environments, with explicit OS account access. Start a new chat after enabling it. See [setup, limits and recovery](docs/BASH.md).
 
