@@ -213,66 +213,75 @@ export class Operations {
             'file_changed',
             'The destination changed after this preview. Reject this artifact and generate a fresh proposal.',
           );
-        const parentIdentity = await lstat(destination.parent);
-        const temp = join(destination.parent, `.a0-slim-${operation.id}.tmp`);
-        const running: Operation = {
-          ...operation,
-          status: 'running',
-          approvedAt: new Date().toISOString(),
-        };
-        authorize?.();
-        this.store.saveOperation(running);
+        // Retain the opened directory through publication and fsync. Reopening a path after
+        // checking it could sync a different directory if another process replaced that path.
+        const parent = await open(
+          destination.parent,
+          constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+        );
         try {
-          const handle = await open(
-            temp,
-            constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW,
-            0o600,
-          );
-          try {
-            if (operation.before !== null)
-              await handle.chmod((await lstat(destination.target)).mode & 0o777);
-            await handle.writeFile(operation.content);
-            await handle.sync();
-          } finally {
-            await handle.close();
-          }
-          const checked = await this.target(root, operation.path, operation.policy === 'access-v1');
-          const currentParent = await lstat(checked.parent);
-          if (
-            checked.path !== destination.path ||
-            currentParent.ino !== parentIdentity.ino ||
-            currentParent.dev !== parentIdentity.dev ||
-            (await this.current(root, operation.path, operation.policy === 'access-v1')) !==
-              operation.before
-          )
-            throw new AppError(
-              409,
-              'file_changed',
-              'The destination changed while applying the artifact. Reconcile before retrying.',
-            );
-          authorize?.();
-          if (operation.before === null)
-            await link(temp, destination.target); // Exclusive creation: never clobber a new file.
-          else await rename(temp, destination.target);
-          const parent = await open(destination.parent, constants.O_RDONLY);
-          try {
-            await parent.sync();
-          } finally {
-            await parent.close();
-          }
-          await this.afterWrite?.();
-          const applied: Operation = {
-            ...running,
-            status: 'applied',
-            resolvedAt: new Date().toISOString(),
+          const parentIdentity = await parent.stat();
+          const temp = join(destination.parent, `.a0-slim-${operation.id}.tmp`);
+          const running: Operation = {
+            ...operation,
+            status: 'running',
+            approvedAt: new Date().toISOString(),
           };
-          this.store.saveOperation(applied);
-          return applied;
-        } catch (error) {
-          this.store.saveOperation({ ...running, status: 'unknown' });
-          throw error;
+          authorize?.();
+          this.store.saveOperation(running);
+          try {
+            const handle = await open(
+              temp,
+              constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW,
+              0o600,
+            );
+            try {
+              if (operation.before !== null)
+                await handle.chmod((await lstat(destination.target)).mode & 0o777);
+              await handle.writeFile(operation.content);
+              await handle.sync();
+            } finally {
+              await handle.close();
+            }
+            const checked = await this.target(
+              root,
+              operation.path,
+              operation.policy === 'access-v1',
+            );
+            const currentParent = await lstat(checked.parent);
+            if (
+              checked.path !== destination.path ||
+              currentParent.ino !== parentIdentity.ino ||
+              currentParent.dev !== parentIdentity.dev ||
+              (await this.current(root, operation.path, operation.policy === 'access-v1')) !==
+                operation.before
+            )
+              throw new AppError(
+                409,
+                'file_changed',
+                'The destination changed while applying the artifact. Reconcile before retrying.',
+              );
+            authorize?.();
+            if (operation.before === null)
+              await link(temp, destination.target); // Exclusive creation: never clobber a new file.
+            else await rename(temp, destination.target);
+            await parent.sync();
+            await this.afterWrite?.();
+            const applied: Operation = {
+              ...running,
+              status: 'applied',
+              resolvedAt: new Date().toISOString(),
+            };
+            this.store.saveOperation(applied);
+            return applied;
+          } catch (error) {
+            this.store.saveOperation({ ...running, status: 'unknown' });
+            throw error;
+          } finally {
+            await rm(temp, { force: true });
+          }
         } finally {
-          await rm(temp, { force: true });
+          await parent.close();
         }
       } finally {
         this.fileLocks.delete(destination.target);
