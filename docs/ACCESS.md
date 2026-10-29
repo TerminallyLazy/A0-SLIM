@@ -1,6 +1,6 @@
 # Access and MCP
 
-Choose **Access** beside the chat composer or in the project inspector. The selection is saved for that project. New projects default to **Approve for me**. Existing projects keep their previous permissions until a mode is selected; existing chats retain their original tool identities. Start a new chat once to use the updated tool set. Changing an access mode stops the current turn and cancels pending decisions.
+Choose an access mode from the dropdown beside the chat composer or in the project inspector. The selection is saved for that project. New projects default to **Approve for me**. Existing projects keep their previous permissions until a mode is selected; existing chats retain their original tool identities. Start a new chat once to use the updated tool set. Changing an access mode stops the current turn and cancels pending decisions.
 
 | Mode | Behavior |
 | --- | --- |

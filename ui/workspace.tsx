@@ -872,16 +872,16 @@ export function App() {
                         onBusyChange={setAccessBusy}
                       />
                     )}
-                    <span className="boundary">
-                      <ShieldCheck size={13} />{' '}
-                      {external
-                        ? 'External agent permissions also apply'
-                        : project?.access && (!chat || chat.accessVersion)
-                          ? 'Access mode applies'
+                    {(external || !(project?.access && (!chat || chat.accessVersion))) && (
+                      <span className="boundary">
+                        <ShieldCheck size={13} />{' '}
+                        {external
+                          ? 'External agent permissions also apply'
                           : hostBashEnabled
                             ? 'Direct host access enabled'
                             : 'Review before applying'}
-                    </span>
+                      </span>
+                    )}
                     {running && !external && prompt.trim() && (
                       <button
                         type="submit"

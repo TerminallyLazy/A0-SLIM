@@ -37,7 +37,6 @@ export function AccessPicker({
   return (
     <div className={`access-picker ${compact ? 'compact' : ''}`}>
       <label>
-        Access{' '}
         <select
           aria-label="Access mode"
           value={project.access?.mode ?? ''}
