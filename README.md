@@ -24,6 +24,20 @@ The current terminal cannot inherit environment changes from the piped installer
 
 Optional embeddings, model weights and Microsandbox still require separate setup in the app. See [installer options and recovery](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/PACKAGING.md#one-command-installer).
 
+### Updates
+
+Curl installations **update automatically before startup**, at most once a day. Just run `a0-slim` as usual. Downloads are verified and the native runtime is checked before switching versions. An offline or failed update starts the installed version; running sessions are never interrupted.
+
+To update immediately:
+
+```sh
+a0-slim update
+```
+
+Use `a0-slim update --check` to check without installing, `a0-slim update --auto=off` to disable automatic updates, or `--auto=on` to restore them. `A0_SLIM_NO_UPDATE=1 a0-slim` skips the startup check once. An update installed while the app is running takes effect on its next start.
+
+Existing curl users need to rerun the installer once to get these commands. npm installations remain managed by npm: `npm install -g a0-slim@latest --ignore-scripts`. Source checkouts remain managed by Git. See [update behavior and recovery](docs/UPDATES.md).
+
 ## Install with your own Node and npm
 
 Use **Node 24** and npm 11.19 or newer. macOS arm64 and Linux x64 are the tested targets. This is an alpha release.

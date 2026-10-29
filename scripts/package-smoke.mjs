@@ -77,6 +77,7 @@ try {
   const files = packed.files.map((f) => f.path);
   for (const file of [
     'bin/a0-slim.mjs',
+    'scripts/update.mjs',
     'LICENSE',
     'dist/server/cli.js',
     'dist/server/tools/bash.js',

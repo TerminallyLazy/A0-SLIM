@@ -24,6 +24,7 @@ jobs:
       - run: npm run check
       - run: npm run test:package -- --global-install
       - run: npm run test:installer
+      - run: npm run test:update
       - run: npm audit --audit-level=high
       - run: npm audit --audit-level=high --prefix addons/local-embeddings
       - run: npm audit --audit-level=high --prefix addons/microsandbox
