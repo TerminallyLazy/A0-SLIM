@@ -16,6 +16,7 @@ import type { McpServer, McpCall } from '../src/extensions/mcp.js';
 import type { HubCatalog, HubEntry } from '../src/extensions/hub.js';
 import { api } from './api.js';
 import { Heading } from './workspace.js';
+import { NativePluginSetup } from './native-plugins.js';
 export type Act = (fn: () => Promise<unknown>) => Promise<void>;
 export const downloadText = (name: string, text: string, type = 'text/plain') => {
   const url = URL.createObjectURL(new Blob([text], { type }));
@@ -745,9 +746,9 @@ export function PluginHubView({
       <div className="permission-note">
         <ShieldCheck size={18} />
         <span>
-          Use ACP for an Agent Zero conversation. Its built-in MCP server delegates chat tasks;
-          individual plugin tools need a supported companion adapter. Plugin screens and lifecycle
-          hooks stay in Agent Zero. Review skill instructions and their dependencies separately.
+          Supported tools can run in SLIM's optional plugin worker without installing Agent Zero.
+          Review each plugin's supported capabilities and source revision. ACP remains available for
+          an optional Agent Zero conversation; other screens and lifecycle hooks need a port.
         </span>
       </div>
       {selected && (
@@ -767,6 +768,12 @@ export function PluginHubView({
           <small className="wrap">
             Source assessment · {selected.commit} · {selected.assessment?.checkedAt}
           </small>
+          {project &&
+            selected.id === 'db_hub' &&
+            selected.github.replace(/\/$/, '') === 'https://github.com/TerminallyLazy/a0-db-hub' &&
+            selected.commit === '9f3b9926cdd815034b0f9f635c60909107d1f2da' && (
+              <NativePluginSetup key={project.id} projectId={project.id} act={act} />
+            )}
           <ul>
             {selected.assessment?.capabilities.map((capability) => (
               <li key={capability.kind}>

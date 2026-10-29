@@ -1,5 +1,5 @@
 // SLIM-owned evidence. Upstream catalog fields never grant execution authority.
-export const assessmentVersion = 2;
+export const assessmentVersion = 3;
 export type Capability = {
   kind: 'tools' | 'skills' | 'lifecycle' | 'ui' | 'services';
   route: 'mcp-adapter' | 'skill-import' | 'agent-zero' | 'native-port';
@@ -33,7 +33,7 @@ const curated: Record<string, { repository: string; commit: string; detail: stri
     repository: 'TerminallyLazy/a0-db-hub',
     commit: '9f3b9926cdd815034b0f9f635c60909107d1f2da',
     detail:
-      'Companion 0.1.0 verifies status and schema for existing local SQLite files through SQLAlchemy on Agent Zero 2.14. Other drivers, writes, memory replacement and the workspace UI are separate capabilities.',
+      'SLIM plugin worker 0.1.0 runs the original status and schema tools for existing project SQLite files without Agent Zero. Optional runtime download required. The separate Agent Zero 2.14 companion remains available. Other drivers, writes, memory replacement and the workspace UI are separate capabilities.',
   },
   youcom_search: {
     repository: 'brainsparker/a0-youcom-search',

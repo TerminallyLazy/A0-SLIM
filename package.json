@@ -86,7 +86,9 @@
     "docs/FIRST-RUN.md",
     "addons/openshell/package.json",
     "addons/openshell/worker.mjs",
-    "docs/OPENSHELL.md"
+    "docs/OPENSHELL.md",
+    "addons/plugin-worker",
+    "docs/NATIVE-PLUGINS.md"
   ],
   "repository": {
     "type": "git",

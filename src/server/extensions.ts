@@ -105,6 +105,25 @@ export function extensionRoutes(app: FastifyInstance, store: Store, ext: Extensi
     return { ok: true };
   });
   app.get('/api/v1/hub', async () => ext.hub.catalog());
+  app.get('/api/v1/projects/:projectId/native-plugins', async (req) =>
+    ext.plugins.projectState(projectParams.parse(req.params).projectId),
+  );
+  app.post('/api/v1/native-plugins/install', async (req, reply) => {
+    z.object({ acknowledgeDownload: z.literal(true) })
+      .strict()
+      .parse(req.body);
+    return reply.code(202).send(await ext.plugins.start());
+  });
+  app.post('/api/v1/projects/:projectId/native-plugins/db_hub', async (req) =>
+    ext.plugins.configure(projectParams.parse(req.params).projectId, req.body),
+  );
+  app.post('/api/v1/projects/:projectId/native-plugins/db_hub/disable', async (req) => {
+    z.object({}).strict().parse(req.body);
+    return ext.plugins.disable(projectParams.parse(req.params).projectId);
+  });
+  app.post('/api/v1/projects/:projectId/native-plugins/db_hub/reconcile', async (req) =>
+    ext.plugins.reconcile(projectParams.parse(req.params).projectId, req.body),
+  );
   app.post('/api/v1/hub/refresh', async (req) => {
     z.object({}).strict().parse(req.body);
     return ext.hub.refresh();

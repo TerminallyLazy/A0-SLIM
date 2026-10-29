@@ -94,6 +94,14 @@ try {
     'addons/openshell/package.json',
     'addons/openshell/worker.mjs',
     'dist/server/execution/openshell.js',
+    'dist/server/extensions/native-plugins.js',
+    'addons/plugin-worker/worker.py',
+    'addons/plugin-worker/compat.py',
+    'addons/plugin-worker/journal.py',
+    'addons/plugin-worker/db-hub.json',
+    'addons/plugin-worker/python-runtime.json',
+    'addons/plugin-worker/requirements.txt',
+    'docs/NATIVE-PLUGINS.md',
   ])
     assert.ok(files.includes(file), `Missing ${file}`);
   assert.ok(
@@ -216,6 +224,21 @@ try {
   }
   await launch();
   await launch();
+  if (process.argv.includes('--plugins')) {
+    console.log(
+      await run(
+        [
+          '--import',
+          'tsx',
+          'tests/helpers/native-plugin-live-check.ts',
+          '--download',
+          '--package-dir',
+          installed,
+        ],
+        root,
+      ),
+    );
+  }
   // Resolve from the installed package for both hoisted local and nested global dependencies.
   const runtimeCheck = join(installed, 'runtime-check.mjs');
   await writeFile(

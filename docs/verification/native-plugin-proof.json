@@ -1,0 +1,49 @@
+{
+  "evidence": "Actual pinned DB Hub Python tools, downloaded independent Python runtime, synthetic model and SQLite fixture. No Agent Zero installation.",
+  "pluginCommit": "9f3b9926cdd815034b0f9f635c60909107d1f2da",
+  "runtime": "Python 3.12.16 · plugin API 0.1.0",
+  "operations": [
+    "a67bd019-de63-472a-abb5-e80ae1c970db",
+    "71a68c4b-68d4-4b71-bbdc-ab866d2f979e",
+    "69605747-7558-45a2-8f8b-19e254f69b98"
+  ],
+  "schema": {
+    "tables": [
+      "synthetic_inventory"
+    ],
+    "hint": "Pass target '<table>' for columns."
+  },
+  "unchangedDatabase": true,
+  "restartReceiptReuse": true,
+  "aliasConfigurationHold": true,
+  "recordedAt": "2026-10-29",
+  "platform": "macOS arm64",
+  "workerFingerprint": "06b5766ab6f94127092515acecdd0e4faa12ac017ddda5abe748a3c79fd578ac",
+  "packedCandidate": {
+    "evidence": "Actual pinned DB Hub Python tools, downloaded independent Python runtime, synthetic model and SQLite fixture. No Agent Zero installation.",
+    "distribution": "installed npm tarball",
+    "pluginCommit": "9f3b9926cdd815034b0f9f635c60909107d1f2da",
+    "runtime": "Python 3.12.16 · plugin API 0.1.0",
+    "operations": [
+      "afae82bc-00fd-4221-8aa5-a370fbb94b68",
+      "84e89eaa-1dcb-49b0-8396-9fb6b152f1a1",
+      "e8c6f110-4761-4155-b444-473ad692d6f6",
+      "6452cbdf-cf74-4883-bb24-ae12af7af31e"
+    ],
+    "schema": {
+      "tables": [
+        "synthetic_inventory"
+      ],
+      "hint": "Pass target '<table>' for columns."
+    },
+    "unchangedDatabase": true,
+    "restartReceiptReuse": true,
+    "aliasConfigurationHold": true,
+    "inlineApprovalContinuation": true,
+    "platform": "macOS arm64",
+    "node": "24.22.1",
+    "baselineVersion": "0.1.0-alpha.4",
+    "published": false,
+    "integrity": "sha512-7VBiZG6drFVaQt2Gbd01L/P1RWFSM8Kfdj3TU+k/DUHaykDmzpiQUOllROLYFjwNjkU9LkOvN9cMLUhHRmPm8w=="
+  }
+}
