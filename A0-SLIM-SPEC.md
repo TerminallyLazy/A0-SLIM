@@ -162,6 +162,14 @@ Start with conservative, editable limits: 10-minute job timeout, 1 MiB retained 
 
 ## 6. Tools, policy and prompt construction
 
+### Access modes — approved and implemented 2026-10-29
+
+New projects default to **Approve for me**; expose **Full Access** and **Ask for Approval** beside the composer and in project settings. Full Access permits OS-user file/network/host execution authority without discretionary prompts. Approve for me automatically handles ordinary project edits and bounded public web reads; sensitive/outside paths, private/data-bearing URLs, arbitrary scripts and opaque external tools ask. Ask for Approval asks for external file edits and agent internet requests. Ordinary reads and private SLIM bookkeeping do not prompt. No model or server annotation can grant authority.
+
+Native access-v1 chats add absolute-path file access and bounded `fetch_url`; use a central revision-bound decision ledger and inline approval with automatic same-turn continuation. Retain atomic writes, operation IDs, unknown-effect holds and cancellation. Existing projects/chats preserve their legacy identities and grants until explicit selection/new chat; never silently replay or migrate them. Full Access handles offered ACP `allow_once` requests, while external agents retain independent policies.
+
+MCP **Connect and enable** automatically discovers and enables tools. Preserve explicit tool opt-outs and disabled connections during refresh, invalidate changed pending definitions, save failures as Needs attention, and page tool schemas through `mcp_tools` for compact context. Local process authority is explained at connection time. The dated legacy approval descriptions below remain the contract for existing runtime identities; the new access-v1 contract and evidence are in [ACCESS.md](docs/ACCESS.md).
+
 Expose only enabled tools that the current project, model and execution environment can actually use. Generate the tool catalog from the same registry that dispatches calls. Validate names and JSON schemas at startup. Tool outputs, web pages, repository text, memory and plugin metadata are untrusted content, not permission to change policy.
 
 | Tool | Replay classification | Design |

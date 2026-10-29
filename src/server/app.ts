@@ -1,4 +1,5 @@
 import { homedir } from 'node:os';
+import { defaultAccess } from '../policy/access.js';
 import { FirstRun } from './first-run.js';
 import { appVersion } from '../version.js';
 import Fastify from 'fastify';
@@ -146,6 +147,7 @@ export async function createApp(options: {
   app.get('/api/v1/state', async () => ({
     firstRun: firstRun.state(),
     projects: store.projects(),
+    accessDecisions: runtime.access.list().filter((d) => d.status === 'pending'),
     chats: store.chats(),
     delegations: runtime.delegations.list().map(({ assignment, inputHash, ...record }) => record),
     connections: store.connections(),
@@ -213,9 +215,32 @@ export async function createApp(options: {
         'private_data',
         'Choose a project folder separate from A0 SLIM’s private data.',
       );
-    const project = { id: randomUUID(), name: input.name, root };
+    const project = { id: randomUUID(), name: input.name, root, access: defaultAccess() };
     store.saveProject(project);
     return project;
+  });
+  app.post('/api/v1/projects/:id/access', async (request) => {
+    const { id } = idParams.parse(request.params);
+    const { mode } = z
+      .object({ mode: z.enum(['full', 'auto', 'ask']) })
+      .strict()
+      .parse(request.body);
+    runtime.access.change(id, mode);
+    await Promise.all(
+      store
+        .chats()
+        .filter((c) => c.projectId === id && c.status === 'running')
+        .map((c) => chatRuntime(c.id).cancel(c.id)),
+    );
+    await runtime.bash.revoke(id);
+    return store.project(id);
+  });
+  app.post('/api/v1/access-decisions/:id', async (request) => {
+    const { digest, allow } = z
+      .object({ digest: z.string().length(64), allow: z.boolean() })
+      .strict()
+      .parse(request.body);
+    return runtime.access.decide(idParams.parse(request.params).id, digest, allow);
   });
   app.get('/api/v1/projects/:id/files', async (request) => {
     const { id } = idParams.parse(request.params),
@@ -393,6 +418,7 @@ export async function createApp(options: {
       bashVersion: 1 as const,
       hostBashRevision: project.hostBashGrant?.revision,
       capabilitiesVersion: 2 as const,
+      ...(project.access ? { accessVersion: 1 as const } : {}),
       delegationVersion: 1 as const,
       status: 'idle' as const,
       createdAt: new Date().toISOString(),
@@ -420,6 +446,9 @@ export async function createApp(options: {
   app.get('/api/v1/artifacts/:id', async (request) =>
     store.operation(idParams.parse(request.params).id),
   );
+  app.get('/api/v1/artifacts/:id/current', async (request) => ({
+    text: await runtime.operations.readCurrent(idParams.parse(request.params).id),
+  }));
   app.get('/api/v1/artifacts/:id/download', async (request, reply) => {
     const operation = store.operation(idParams.parse(request.params).id);
     return reply
@@ -435,6 +464,20 @@ export async function createApp(options: {
       .object({ digest: z.string().regex(/^[a-f0-9]{64}$/) })
       .strict()
       .parse(request.body);
+    const operation = store.operation(idParams.parse(request.params).id);
+    if (operation.digest !== digest)
+      throw new AppError(
+        409,
+        'approval_changed',
+        'This approval does not match the selected artifact.',
+      );
+    const pending = runtime.access
+      .list()
+      .find((d) => d.action.fingerprint === digest && d.status === 'pending');
+    if (pending) {
+      runtime.access.decide(pending.id, pending.digest, true);
+      return store.operation(idParams.parse(request.params).id);
+    }
     return runtime.operations.apply(idParams.parse(request.params).id, digest);
   });
   app.post('/api/v1/artifacts/:id/reconcile', async (request) => {
@@ -449,6 +492,20 @@ export async function createApp(options: {
       })
       .strict()
       .parse(request.body);
+    const operation = store.operation(idParams.parse(request.params).id);
+    if (operation.digest !== digest)
+      throw new AppError(
+        409,
+        'approval_changed',
+        'This approval does not match the selected artifact.',
+      );
+    const pending = runtime.access
+      .list()
+      .find((d) => d.action.fingerprint === digest && d.status === 'pending');
+    if (pending) {
+      runtime.access.decide(pending.id, pending.digest, false);
+      return store.operation(idParams.parse(request.params).id);
+    }
     return runtime.operations.reject(
       idParams.parse(request.params).id,
       digest,

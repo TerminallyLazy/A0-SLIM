@@ -303,6 +303,19 @@ export class ACPClient {
             .filter((o) => ['allow_once', 'reject_once'].includes(o.kind))
             .slice(0, 8),
         };
+        const full = this.store.project(this.store.chat(id).projectId).access?.mode === 'full';
+        const once = value.options.find((o) => o.kind === 'allow_once');
+        if (full && once) {
+          const outcome = { outcome: 'selected' as const, optionId: once.optionId };
+          this.store.record('acp-permission', {
+            ...value,
+            status: 'selected',
+            authority: 'full-access',
+            outcome,
+            turnId: work.turnId,
+          });
+          return { outcome };
+        }
         return new Promise<protocol.RequestPermissionResponse>((resolve) => {
           const record = {
             ...value,

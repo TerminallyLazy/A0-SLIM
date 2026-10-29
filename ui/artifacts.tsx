@@ -126,10 +126,8 @@ export function Artifacts({
                 disabled={busy}
                 onClick={() =>
                   void act(async () => {
-                    const result = await api(
-                      `/projects/${detail.projectId}/files?read=true&path=${encodeURIComponent(detail.path)}`,
-                    );
-                    setCurrent(result.text);
+                    const result = await api(`/artifacts/${detail.id}/current`);
+                    setCurrent(result.text ?? 'File does not exist.');
                   })
                 }
               >
@@ -158,7 +156,7 @@ export function Artifacts({
           )}
           {detail.status === 'applied' && (
             <p className="notice">
-              <Check size={16} /> Saved in your project.
+              <Check size={16} /> Saved to the displayed destination.
             </p>
           )}
         </section>

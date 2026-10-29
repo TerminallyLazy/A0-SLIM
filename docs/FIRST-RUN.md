@@ -12,7 +12,7 @@ Install SLIM, pair the browser, and connect a model. The npm package includes th
 
 On supported Apple Silicon macOS or Linux/KVM systems, expand **Add local Bash**. Explicitly acknowledge the runtime/image download and one synthetic local sandbox check, then choose **Install, check and start**. Activation requires a passing check and verified deletion. No cloud account or model allowance is used. The runtime and image stay outside the core npm installation. Sandbox files are disposable per call.
 
-You can start without code execution and use Environments later. Docker and Vercel have their own setup and checks. Host Bash has OS-account access and always requires a separate per-project permission; first-run setup never grants it.
+You can start without a sandbox and use Environments later. Docker and Vercel have their own setup and checks. New projects default to **Approve for me**: host commands ask in the conversation, with no separate Host Bash setup toggle. **Full Access** permits host execution without those prompts. Existing projects retain their previous explicit host grants until an access mode is selected. See [access modes](ACCESS.md).
 
 ## Resume and recover
 

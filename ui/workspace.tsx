@@ -1,3 +1,5 @@
+import { AccessPicker, AccessApprovals } from './access.js';
+import type { AccessDecision } from '../src/policy/access.js';
 import { FirstRun } from './first-run.js';
 import type { FirstRunState } from '../src/server/first-run.js';
 import { BashOutput } from './bash-output.js';
@@ -38,6 +40,7 @@ import type { MicrosandboxState } from '../src/execution/microsandbox.js';
 import { DelegatedTasks, type DelegationSummary } from './delegations.js';
 
 type State = {
+  accessDecisions: AccessDecision[];
   firstRun: FirstRunState;
   acp: ACPState;
   projects: Project[];
@@ -64,6 +67,7 @@ type View =
   | 'hub'
   | 'memory';
 const empty: State = {
+  accessDecisions: [],
   firstRun: { required: false, workspacePath: '' },
   microsandbox: null,
   vercelExecution: {
@@ -155,8 +159,10 @@ export function App() {
           : !state.vercelExecution.available
             ? 'check needed'
             : 'ready';
+  const [accessBusy, setAccessBusy] = useState(false);
   const refresh = async () => {
     const next = await api<State>('/state');
+    next.accessDecisions ??= [];
     next.firstRun ??= empty.firstRun; // An older running service may still serve the freshly built UI.
     setState(next);
     setLoaded(true);
@@ -339,7 +345,7 @@ export function App() {
     });
   async function send(event: FormEvent) {
     event.preventDefault();
-    if (!prompt.trim() || sendLock.current || chat?.parentChatId) return;
+    if (!prompt.trim() || sendLock.current || accessBusy || chat?.parentChatId) return;
     sendLock.current = true;
     setBusy(true);
     await act(async () => {
@@ -721,6 +727,29 @@ export function App() {
               )}
             </div>
             <div className="composer-wrap">
+              <AccessApprovals
+                decisions={state.accessDecisions}
+                chatId={chatId}
+                act={act}
+                refresh={refresh}
+              />
+              {project?.access &&
+                chat &&
+                !chat.accessVersion &&
+                !external &&
+                !chat.parentChatId && (
+                  <p className="notice">
+                    This chat keeps its original tools.{' '}
+                    <button
+                      onClick={() => {
+                        setChatId('');
+                        setPrompt('');
+                      }}
+                    >
+                      Start a chat with updated tools
+                    </button>
+                  </p>
+                )}
               {external && (
                 <>
                   <AgentPermissions state={state.acp} chatId={chatId} act={act} refresh={refresh} />
@@ -834,13 +863,24 @@ export function App() {
                           </option>
                         ))}
                     </select>
+                    {project && (
+                      <AccessPicker
+                        project={project}
+                        act={act}
+                        refresh={refresh}
+                        compact
+                        onBusyChange={setAccessBusy}
+                      />
+                    )}
                     <span className="boundary">
                       <ShieldCheck size={13} />{' '}
                       {external
-                        ? 'Agent permissions apply'
-                        : hostBashEnabled
-                          ? 'Direct host access enabled'
-                          : 'Review before applying'}
+                        ? 'External agent permissions also apply'
+                        : project?.access && (!chat || chat.accessVersion)
+                          ? 'Access mode applies'
+                          : hostBashEnabled
+                            ? 'Direct host access enabled'
+                            : 'Review before applying'}
                     </span>
                     {running && !external && prompt.trim() && (
                       <button
@@ -871,6 +911,7 @@ export function App() {
                         aria-label="Send message"
                         disabled={
                           busy ||
+                          accessBusy ||
                           !project ||
                           (external
                             ? !agent || agent.disabled || state.acp.holds.length > 0
@@ -1052,6 +1093,14 @@ export function App() {
               <>
                 <h3>{chat?.title ?? 'New chat'}</h3>
                 <p>Current model, execution environment, and chat status.</p>
+                {project && (
+                  <AccessPicker
+                    project={project}
+                    act={act}
+                    refresh={refresh}
+                    onBusyChange={setAccessBusy}
+                  />
+                )}
                 <div className="detail">
                   <span>Model</span>
                   <span>{chat?.model || connection?.model || 'Not selected'}</span>
@@ -1071,7 +1120,11 @@ export function App() {
                 <div className="detail">
                   <span>Files</span>
                   <span>
-                    {hostBashEnabled ? 'Host Bash can write directly' : 'Approval required'}
+                    {project?.access && (!chat || chat.accessVersion)
+                      ? 'Selected access mode'
+                      : hostBashEnabled
+                        ? 'Host Bash can write directly'
+                        : 'Approval required'}
                   </span>
                 </div>
                 <div className="detail">
@@ -1097,9 +1150,11 @@ export function App() {
                     ))}
                 </div>
                 <p className="fine">
-                  {hostBashEnabled
-                    ? 'Host Bash can change files directly with your OS account permissions.'
-                    : 'File changes appear as reviewable artifacts. Sandbox files are disposable.'}{' '}
+                  {project?.access && (!chat || chat.accessVersion)
+                    ? 'Files and host commands use the selected access mode. Sandbox files are disposable.'
+                    : hostBashEnabled
+                      ? 'Host Bash can change files directly with your OS account permissions.'
+                      : 'File changes appear as reviewable artifacts. Sandbox files are disposable.'}{' '}
                   Background scheduling is not enabled.
                 </p>
               </>

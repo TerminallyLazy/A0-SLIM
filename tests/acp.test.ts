@@ -339,3 +339,19 @@ test('ACP snapshot compatibility is scoped to Agent Zero 2.14 and preserves raw 
     }
   }
 });
+
+test('Full Access automatically selects only the offered one-time ACP permission', async () => {
+  const f = await setup();
+  try {
+    const project = f.store.project(f.store.chat(f.chatId).projectId);
+    f.store.saveProject({ ...project, access: { mode: 'full', revision: randomUUID() } });
+    await f.prompt('permission');
+    assert.equal(f.acp.pending().length, 0);
+    assert.ok(f.events().some((e) => e.delta?.includes('Decision: yes')));
+    const record = f.store.records<any>('acp-permission')[0];
+    assert.equal(record.authority, 'full-access');
+    assert.equal(record.outcome.optionId, 'yes');
+  } finally {
+    await f.cleanup();
+  }
+});

@@ -41,12 +41,15 @@ export function extensionRoutes(app: FastifyInstance, store: Store, ext: Extensi
     return ext.skills.change(projectId, id, action) ?? { ok: true };
   });
   app.post('/api/v1/projects/:projectId/mcp', async (req) =>
-    ext.mcp.add(projectParams.parse(req.params).projectId, req.body),
+    ext.mcp.setup(projectParams.parse(req.params).projectId, req.body),
   );
   app.post('/api/v1/projects/:projectId/mcp/:id/discover', async (req) => {
-    z.object({}).strict().parse(req.body);
+    const { enable } = z
+      .object({ enable: z.boolean().default(false) })
+      .strict()
+      .parse(req.body);
     const { projectId, id } = itemParams.parse(req.params);
-    return ext.mcp.discover(projectId, id);
+    return ext.mcp.discover(projectId, id, enable);
   });
   app.post('/api/v1/projects/:projectId/mcp/:id/configure', async (req) => {
     const { projectId, id } = itemParams.parse(req.params),
@@ -73,13 +76,11 @@ export function extensionRoutes(app: FastifyInstance, store: Store, ext: Extensi
       })
       .strict()
       .parse(req.body);
-    return ext.mcp.stage(
-      projectParams.parse(req.params).projectId,
-      serverId,
-      tool,
-      args,
-      `user:${operationId}`,
-    );
+    const projectId = projectParams.parse(req.params).projectId;
+    const call = ext.mcp.stage(projectId, serverId, tool, args, `user:${operationId}`);
+    return store.project(projectId).access
+      ? ext.mcp.approve(projectId, call.id, call.digest)
+      : call;
   });
   app.post('/api/v1/projects/:projectId/mcp-calls/:id', async (req) => {
     const { projectId, id } = itemParams.parse(req.params),
@@ -95,7 +96,11 @@ export function extensionRoutes(app: FastifyInstance, store: Store, ext: Extensi
             .strict(),
         ])
         .parse(req.body);
-    if (body.action === 'approve') return ext.mcp.approve(projectId, id, body.digest);
+    if (body.action === 'approve') return ext.decideCall(projectId, id, body.digest, true);
+    if (body.action === 'reject') {
+      const call = ext.mcp.calls(projectId).find((c) => c.id === id);
+      if (call) return ext.decideCall(projectId, id, call.digest, false);
+    }
     ext.mcp.resolve(projectId, id, body.action, body.action === 'resolve' ? body.resolution : '');
     return { ok: true };
   });

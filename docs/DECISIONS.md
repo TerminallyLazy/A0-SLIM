@@ -187,3 +187,9 @@ Live Agent Zero CLI 2.14 sends complete assistant snapshots as ACP message chunk
 ## Discoverable curl-installed command — 2026-10-29
 
 Register the verified private launcher at `~/.local/bin/a0-slim`. If that directory is not in PATH, append one marked, backed-up block to the user shell configuration; preserve existing commands and configuration. Repeated installation does not duplicate entries. Do not replace global Node or write system profiles. Print a direct-launch fallback and explain the new-terminal requirement when a parent shell cannot inherit the installer’s environment. The default command reuses an existing default instance; separate instances require distinct port/data settings.
+
+## Access modes and automatic MCP setup — 2026-10-29
+
+The user approved Full Access, Approve for me and Ask for Approval in the plan canvas, with Approve for me as the new-project default. Implement one project policy revision and host-owned decision ledger. New native chats gain direct file and bounded web tools; opaque commands/tool effects ask in the two approval modes. Full Access is explicit OS-user authority. Inline approval returns the result to the same turn. Keep legacy identities, side-effect receipts and unknown-outcome holds unchanged.
+
+Connecting MCP discovers/enables its tools automatically; optional tool switches retain opt-outs on refresh. Catalog fingerprints still bind each turn and pending operation. Compact snapshots plus on-demand schemas prevent auto-enable from overflowing prompt context. ACP auto-approval is restricted to an offered one-time grant. General code/MCP risk classification and external-agent confinement are not claimed. See [behavior and verification](ACCESS.md).

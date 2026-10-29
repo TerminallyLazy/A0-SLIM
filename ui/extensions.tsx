@@ -46,7 +46,6 @@ export function ExtensionWorkspace({
     [source, setSource] = useState('User import'),
     [editing, setEditing] = useState<string>(),
     [transport, setTransport] = useState('http'),
-    [hostAck, setHostAck] = useState(false),
     [busy, setBusy] = useState(false);
   const base = `/projects/${project?.id}`;
   const refresh = async () => {
@@ -294,10 +293,9 @@ export function ExtensionWorkspace({
       {section === 'mcp' && (
         <>
           <div className="feature-intro">
-            <span className="pill">Explicit tool permissions</span>
             <p>
-              Discover a server’s tools, select what this project may use, and enable the
-              connection. Every call still needs approval of its exact arguments.
+              Tools are discovered and enabled when you connect. Calls follow your project’s access
+              mode. You can turn individual tools off below.
             </p>
           </div>
           <div className="extension-grid">
@@ -317,7 +315,13 @@ export function ExtensionWorkspace({
                 <article className="feature-item" key={server.id}>
                   <div className="panel-title">
                     <h3>{server.name}</h3>
-                    <span className="pill">{server.enabled ? 'Enabled' : 'Disabled'}</span>
+                    <span className="pill">
+                      {server.connectionError
+                        ? 'Needs attention'
+                        : server.enabled
+                          ? `Connected · ${server.allowed.length} ${server.allowed.length === 1 ? 'tool' : 'tools'} enabled`
+                          : 'Disabled'}
+                    </span>
                   </div>
                   <p className="wrap">
                     {server.transport !== 'stdio'
@@ -331,13 +335,20 @@ export function ExtensionWorkspace({
                       ? ` · Discovered ${new Date(server.verifiedAt).toLocaleString()}`
                       : ''}
                   </small>
+                  {server.connectionError && <p className="notice">{server.connectionError}</p>}
                   <div className="button-row">
                     <button
                       disabled={busy}
-                      onClick={() => run(() => api(`${base}/mcp/${server.id}/discover`, {}))}
+                      onClick={() =>
+                        run(() =>
+                          api(`${base}/mcp/${server.id}/discover`, {
+                            enable: !!server.connectionError,
+                          }),
+                        )
+                      }
                     >
                       <RefreshCw size={14} />
-                      {server.transport === 'stdio' ? 'Start & discover' : 'Discover tools'}
+                      {server.connectionError ? 'Retry connection' : 'Refresh tools'}
                     </button>
                     <button
                       disabled={busy || !server.verifiedAt}
@@ -361,61 +372,64 @@ export function ExtensionWorkspace({
                       <Trash2 size={15} />
                     </button>
                   </div>
-                  {server.tools.map((tool) => (
-                    <details className="tool-review" key={tool.name}>
-                      <summary>
-                        {tool.name}{' '}
-                        <span className="pill">
-                          {server.allowed.includes(tool.name)
-                            ? 'Allowed · approval per call'
-                            : 'Off'}
-                        </span>
-                      </summary>
-                      <p>{tool.description}</p>
-                      <pre>{JSON.stringify(tool.inputSchema, null, 2)}</pre>
-                      <label className="check-row">
-                        <input
-                          type="checkbox"
-                          checked={server.allowed.includes(tool.name)}
-                          disabled={busy}
-                          onChange={(e) =>
-                            run(() =>
-                              api(`${base}/mcp/${server.id}/configure`, {
-                                enabled: server.enabled,
-                                allowed: e.target.checked
-                                  ? [...server.allowed, tool.name]
-                                  : server.allowed.filter((n) => n !== tool.name),
-                              }),
-                            )
-                          }
-                        />
-                        Allow this tool for the project
-                      </label>
-                      {server.enabled && server.allowed.includes(tool.name) && (
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            const value = String(new FormData(e.currentTarget).get('arguments'));
-                            run(async () => {
-                              await api(`${base}/mcp-calls`, {
-                                serverId: server.id,
-                                tool: tool.name,
-                                args: JSON.parse(value),
-                                operationId: crypto.randomUUID(),
+                  <details>
+                    <summary>Tools · {server.tools.length}</summary>
+                    {server.tools.map((tool) => (
+                      <details className="tool-review" key={tool.name}>
+                        <summary>
+                          {tool.name}{' '}
+                          <span className="pill">
+                            {server.allowed.includes(tool.name) ? 'Enabled' : 'Off'}
+                          </span>
+                        </summary>
+                        <p>{tool.description}</p>
+                        <pre>{JSON.stringify(tool.inputSchema, null, 2)}</pre>
+                        <label className="check-row">
+                          <input
+                            type="checkbox"
+                            checked={server.allowed.includes(tool.name)}
+                            disabled={busy}
+                            onChange={(e) =>
+                              run(() =>
+                                api(`${base}/mcp/${server.id}/configure`, {
+                                  enabled: server.enabled,
+                                  allowed: e.target.checked
+                                    ? [...server.allowed, tool.name]
+                                    : server.allowed.filter((n) => n !== tool.name),
+                                }),
+                              )
+                            }
+                          />
+                          Enable this tool
+                        </label>
+                        {server.enabled && server.allowed.includes(tool.name) && (
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              const value = String(new FormData(e.currentTarget).get('arguments'));
+                              run(async () => {
+                                await api(`${base}/mcp-calls`, {
+                                  serverId: server.id,
+                                  tool: tool.name,
+                                  args: JSON.parse(value),
+                                  operationId: crypto.randomUUID(),
+                                });
+                                setSection('calls');
                               });
-                              setSection('calls');
-                            });
-                          }}
-                        >
-                          <label>
-                            Test arguments (JSON)
-                            <textarea name="arguments" defaultValue="{}" rows={3} />
-                          </label>
-                          <button disabled={busy}>Stage test for review</button>
-                        </form>
-                      )}
-                    </details>
-                  ))}
+                            }}
+                          >
+                            <label>
+                              Test arguments (JSON)
+                              <textarea name="arguments" defaultValue="{}" rows={3} />
+                            </label>
+                            <button disabled={busy}>
+                              {project.access ? 'Run test' : 'Stage test for review'}
+                            </button>
+                          </form>
+                        )}
+                      </details>
+                    ))}
+                  </details>
                 </article>
               ))}
             </section>
@@ -441,11 +455,10 @@ export function ExtensionWorkspace({
                         : {
                             command: data.get('command'),
                             args: JSON.parse(String(data.get('args') || '[]')),
-                            acknowledgeHostExecution: hostAck,
+                            acknowledgeHostExecution: true,
                           }),
                     });
                     form.reset();
-                    setHostAck(false);
                   });
                 }}
               >
@@ -525,23 +538,15 @@ export function ExtensionWorkspace({
                         rows={3}
                       />
                     </label>
-                    <label className="check-row">
-                      <input
-                        type="checkbox"
-                        checked={hostAck}
-                        onChange={(e) => setHostAck(e.target.checked)}
-                      />
-                      I trust this executable and its arguments to run with my OS account, outside a
-                      sandbox. It can read or change my files.
-                    </label>
                     <p>
-                      Discovery starts the process. The app supplies a minimal environment and no
-                      saved model credentials. This is not an installer.
+                      Connecting starts this local program with your OS account’s file and network
+                      access. Project access modes govern SLIM’s tool calls; they do not sandbox the
+                      server process.
                     </p>
                   </>
                 )}
-                <button className="primary" disabled={busy || (transport === 'stdio' && !hostAck)}>
-                  Save disabled connection
+                <button className="primary" disabled={busy}>
+                  {busy ? 'Connecting…' : 'Connect and enable'}
                 </button>
               </form>
             </section>
@@ -552,8 +557,8 @@ export function ExtensionWorkspace({
         <section className="feature-panel">
           <h2>Review tool calls</h2>
           <p>
-            Check the server, tool, and arguments before approving. A completed result becomes
-            available to the agent through mcp_result on your next message.
+            New chats show approvals in the conversation and continue after your decision. This
+            history also contains legacy calls and outcomes that need recovery review.
           </p>
           <button onClick={() => run(refresh)} disabled={busy}>
             <RefreshCw size={14} />
