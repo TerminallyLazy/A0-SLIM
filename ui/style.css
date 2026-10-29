@@ -160,12 +160,7 @@ a {
   padding-top: 28px;
   border-top: 1px solid var(--line);
 }
-.brand-credit img {
-  width: 240px;
-  max-width: 100%;
-  height: auto;
-  flex-shrink: 0;
-}
+
 .brand-credit h3 {
   font-size: 15px;
   margin: 0 0 8px;
@@ -387,30 +382,21 @@ kbd {
   min-height: 0;
 }
 .welcome {
-  max-width: 660px;
+  width: 100%;
+  max-width: 840px;
   margin: clamp(16px, 6vh, 80px) auto 25px;
 }
-.welcome-symbol {
-  margin-bottom: 31px;
-  display: inline-flex;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 11px;
-  transform: rotate(-4deg);
-  background: var(--bg);
-}
-.welcome-symbol .symbol {
-  width: 35px;
-  height: 35px;
-}
 .welcome h1 {
-  font-size: clamp(36px, 3.5vw, 49px);
-  letter-spacing: -1.8px;
+  font-size: 44px;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
   font-weight: 520;
   margin-bottom: 18px;
   line-height: 1.12;
 }
 .welcome p {
+  max-width: 68ch;
+  overflow-wrap: anywhere;
   font-size: 14px;
   line-height: 1.8;
   margin-bottom: 25px;
@@ -432,18 +418,13 @@ kbd {
   color: var(--accent);
   flex-shrink: 0;
 }
-.suggestions button > svg:last-child {
-  margin-left: auto;
-  align-self: flex-start;
-  flex-shrink: 0;
-  color: var(--muted);
-}
 .suggestions span {
-  font-size: 12px;
+  min-width: 0;
+  font-size: 13px;
 }
 .suggestions small {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 3px;
 }
 .setup-line {
@@ -1276,11 +1257,8 @@ kbd {
   .welcome {
     margin: 20px auto;
   }
-  .welcome-symbol {
-    margin-bottom: 25px;
-  }
   .welcome h1 {
-    font-size: 40px;
+    font-size: 36px;
   }
   .suggestions {
     grid-template-columns: 1fr;
@@ -1290,9 +1268,7 @@ kbd {
   .suggestions button {
     padding: 12px;
   }
-  .suggestions small {
-    font-size: 10px;
-  }
+
   .composer-wrap {
     padding: 12px 14px 15px;
   }
@@ -2366,10 +2342,6 @@ progress {
 .first-run-brand {
   margin-bottom: 40px;
 }
-.first-run-brand strong {
-  font-size: 16px;
-  letter-spacing: 0.02em;
-}
 .setup-theme {
   margin-left: auto;
   border-color: transparent;
@@ -2717,11 +2689,8 @@ progress {
   align-items: center;
   margin-bottom: 10px;
 }
-.preview-brand span {
-  border-radius: 50%;
-  width: 12px;
-  height: 12px;
-  background: var(--accent);
+.preview-brand .slim-wordmark {
+  width: 72px;
 }
 .preview-new {
   background: var(--accent);
@@ -2961,4 +2930,64 @@ progress {
 }
 .suggestions button:nth-child(3) > svg:first-child {
   color: var(--tertiary, var(--accent));
+}
+
+/* The supplied wordmark carries the brand; chat stays focused on the task. */
+.slim-wordmark {
+  display: block;
+  position: relative;
+  width: 164px;
+  max-width: 100%;
+  aspect-ratio: 1668 / 289;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.slim-wordmark img {
+  position: absolute;
+  width: 122.78%;
+  max-width: none;
+  height: auto;
+  left: -10.55%;
+  top: -65.74%;
+  filter: var(--brand-filter, grayscale(1) contrast(2) invert(1));
+  mix-blend-mode: var(--brand-blend, screen);
+}
+.sidebar .brand {
+  min-height: 35px;
+}
+.sidebar .slim-wordmark {
+  width: 156px;
+}
+.sidebar .brand > .icon {
+  margin-left: auto;
+}
+.slim-banner {
+  width: 240px;
+  max-width: 100%;
+  aspect-ratio: 3 / 1;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 12px;
+}
+.slim-banner img {
+  width: 100%;
+  height: auto;
+}
+.suggestions button:hover {
+  background: var(--raised);
+  border-color: var(--muted);
+}
+.suggestions button:active {
+  background: var(--soft);
+}
+@media (min-width: 681px) and (max-width: 1100px) {
+  .sidebar .slim-wordmark {
+    width: 140px;
+  }
+}
+@media (max-width: 680px) {
+  .slim-banner {
+    width: 100%;
+    max-width: 360px;
+  }
 }

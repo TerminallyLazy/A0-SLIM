@@ -1,0 +1,21 @@
+{
+  "provenance": "Artwork supplied by the project owner for A0 SLIM branding on 2026-10-29.",
+  "assets": [
+    {
+      "file": "a0-slim-wordmark.webp",
+      "source": "A0 SLIM logo with a slashed zero-3.png",
+      "sourceSha256": "decdbff154285e2680090cff558db551d4d6c782080b8df66cb1712b1074fe61",
+      "sourceDimensions": [2172, 724],
+      "conversion": "WebP quality 90, original dimensions and composition",
+      "bytes": 20302
+    },
+    {
+      "file": "a0-slim-banner-dark.webp",
+      "source": "A0 SLIM logo with slashed zero-2.png",
+      "sourceSha256": "25a01f8c11ecbf966eb1c487630d9556d5532e0d4c946ea74ce6f86b88fcb2f9",
+      "sourceDimensions": [2172, 724],
+      "conversion": "WebP quality 90, original dimensions and composition",
+      "bytes": 27656
+    }
+  ]
+}

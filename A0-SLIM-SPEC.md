@@ -277,7 +277,7 @@ Stream errors distinguish rejected input, interrupted viewer, failed model, pend
 
 ## 10. Workspace experience and visual direction
 
-**Direction: a functional Agent Zero workspace.** Graphite surfaces, warm neutral text, restrained green/teal accents, thin dividers and purposeful typography. Use original Agent Zero symbols from `docs/res/a0-vector-graphics/`, copied unchanged with attribution; pair them with the A0 SLIM name. Do not invent a replacement logo or imply upstream endorsement.
+**Direction: a functional Agent Zero workspace.** Graphite surfaces, warm neutral text, restrained green/teal accents, thin dividers and purposeful typography. Use the owner-supplied slashed-zero A0 SLIM wordmark in navigation, pairing and setup, with the supplied banners in Appearance. Keep New Chat focused on its heading, task starters and composer, without a decorative logo tile. Retain unchanged original Agent Zero symbols for compact transcript/favicon use and preserve their attribution. Do not invent replacement artwork or imply upstream endorsement.
 
 The primary screen is the workspace, not a marketing landing page: collapsible project/chat navigation on the left, conversation and composer in the center, optional inspector for Activity / Files / Memory on the right. Use generous reading space without wasting operational space. Use plain page titles and descriptive controls; do not use eyebrow labels or slogan-style copy. Activity appears as compact meaningful steps; expand raw logs on demand. Outputs have previews, provenance and download/apply actions.
 
@@ -376,7 +376,7 @@ Persist setup choices and completion separately from existing chat/runtime ident
 
 Offer optional local Bash setup through an explicitly acknowledged Microsandbox runtime/image download and one synthetic check. Enable the project only after the check passes with deletion verified. Chat works without execution. Host Bash is never automatically granted. Keep ML, microVM binaries and images outside the core npm package.
 
-First-run UI follows the existing Graphite/Paper palette, original Agent Zero symbols and platform UI type. Three real sequential steps, keyboard focus on the new heading, meaningful completion feedback, reduced-motion support and a visible appearance control provide polish without eyebrow labels or marketing copy.
+First-run UI follows the selected theme, owner-supplied A0 SLIM wordmark and platform UI type. Three real sequential steps, keyboard focus on the new heading, meaningful completion feedback, reduced-motion support and a visible appearance control provide polish without eyebrow labels or marketing copy.
 
 **Installer command setup (2026-10-29):** the one-command installer registers `a0-slim` under the user’s `~/.local/bin`, configures a missing shell PATH with one marked block and a backup, preserves unrelated commands/configuration, and retains the exact private launch path as fallback. New terminal sessions receive PATH changes automatically; independent instances use distinct port/data settings.
 

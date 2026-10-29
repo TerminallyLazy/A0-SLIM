@@ -1,3 +1,4 @@
+import { Brand } from './brand.js';
 import { useState, type CSSProperties } from 'react';
 import { ArrowUp, Check, Moon, Sun } from 'lucide-react';
 import {
@@ -117,7 +118,7 @@ export function AppearanceSettings({
           >
             <div className="preview-sidebar">
               <div className="preview-brand">
-                <span /> A0 SLIM
+                <Brand />
               </div>
               <div className="preview-new">+ New chat</div>
               <div className="preview-line" />

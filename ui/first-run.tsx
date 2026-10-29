@@ -13,7 +13,7 @@ import type { FirstRunState } from '../src/server/first-run.js';
 import type { Connection, Project } from '../src/domain.js';
 import type { MicrosandboxState } from '../src/execution/microsandbox.js';
 import { api } from './api.js';
-import { Logo } from './workspace.js';
+import { Brand } from './brand.js';
 
 export function FirstRun({
   setup,
@@ -190,8 +190,7 @@ export function FirstRun({
   return (
     <main className="first-run">
       <header className="first-run-brand">
-        <Logo />
-        <strong>A0 SLIM</strong>
+        <Brand />
         <button
           className="icon setup-theme"
           aria-label={theme === 'paper' ? 'Use dark appearance' : 'Use light appearance'}
