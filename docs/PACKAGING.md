@@ -1,6 +1,6 @@
 # npm packaging
 
-The public package is named `a0-slim`, licensed MIT, and versioned `0.1.0-alpha.3`. It remains an alpha; the `latest` npm tag identifies the current release, not a stability guarantee. Manual npm installation requires Node 24 and npm 11.19 or newer; the one-command installer sets up a private runtime when needed. macOS arm64 and Linux x64 are the tested targets.
+The public package is named `a0-slim`, licensed MIT, and versioned `0.1.0-alpha.4`. It remains an alpha; the `latest` npm tag identifies the current release, not a stability guarantee. Manual npm installation requires Node 24 and npm 11.19 or newer; the one-command installer sets up a private runtime when needed. macOS arm64 and Linux x64 are the tested targets.
 
 ## One-command installer
 
@@ -29,26 +29,26 @@ Node 24 validation passed: 157 repository tests, typecheck and production build;
 ## Install from npm
 
 ```sh
-npm install -g a0-slim@0.1.0-alpha.3 --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+npm install -g a0-slim@0.1.0-alpha.4 --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
 a0-slim
 ```
 
 The allowance is limited to the pinned SQLite/CBOR native builds. Do not use `--allow-scripts=*`. Use a user-writable Node installation instead of `sudo`. The CLI applies its hash-checked libfx patch when first started, even when its own postinstall hook was blocked. Starting the app never downloads model weights or optional runtimes.
 
-For a dedicated local installation, use the directory steps below and replace the tarball path with `a0-slim@0.1.0-alpha.3`.
+For a dedicated local installation, use the directory steps below and replace the tarball path with `a0-slim@0.1.0-alpha.4`.
 
 ## Download with curl
 
 Download the exact release tarball:
 
 ```sh
-curl -fL -o a0-slim-0.1.0-alpha.3.tgz https://registry.npmjs.org/a0-slim/-/a0-slim-0.1.0-alpha.3.tgz
+curl -fL -o a0-slim-0.1.0-alpha.4.tgz https://registry.npmjs.org/a0-slim/-/a0-slim-0.1.0-alpha.4.tgz
 ```
 
 Then install it with Node 24 and npm 11.19 or newer:
 
 ```sh
-npm install -g ./a0-slim-0.1.0-alpha.3.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+npm install -g ./a0-slim-0.1.0-alpha.4.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
 a0-slim
 ```
 
@@ -71,7 +71,7 @@ Install the resulting file into a dedicated directory:
 mkdir slim-install
 cd slim-install
 npm init -y
-npm install /absolute/path/a0-slim-0.1.0-alpha.3.tgz --omit=dev
+npm install /absolute/path/a0-slim-0.1.0-alpha.4.tgz --omit=dev
 ```
 
 Recent npm versions block unapproved dependency scripts. If npm reports blocked SQLite/CBOR scripts, approve their pinned installed versions and rebuild them in this directory:
@@ -136,9 +136,9 @@ The packaging smoke test checks the installed CLI's Microsandbox endpoint and ve
 
 1. Run `npm ci`, `npm run check`, `npm run test:package` and the root/add-on high-severity audits. Review only the intended changes and commit them.
 2. Build from the committed source in a clean checkout. Run `npm pack`; inspect its file list, license, version and integrity. Never pack the working app's private data or unrelated local edits.
-3. Test that exact artifact with `npm run test:package -- --package /absolute/path/a0-slim-0.1.0-alpha.3.tgz --global-install`. This uses an isolated home/prefix and the documented native-script approvals, starts the real CLI twice, and removes its temporary installation afterward.
-4. With the owner's npm session, publish that tested tarball using `npm publish /absolute/path/a0-slim-0.1.0-alpha.3.tgz --access public --tag latest`. A new version requires a deliberate version change; never overwrite or unpublish an existing release as a retry.
-5. Verify public registry metadata and tarball integrity, then repeat the install check with `--package a0-slim@0.1.0-alpha.3 --global-install`. Record the release's source commit, checks, package sizes and integrity. Tag the verified source commit and publish its release notes.
+3. Test that exact artifact with `npm run test:package -- --package /absolute/path/a0-slim-0.1.0-alpha.4.tgz --global-install`. This uses an isolated home/prefix and the documented native-script approvals, starts the real CLI twice, and removes its temporary installation afterward.
+4. With the owner's npm session, publish that tested tarball using `npm publish /absolute/path/a0-slim-0.1.0-alpha.4.tgz --access public --tag latest`. A new version requires a deliberate version change; never overwrite or unpublish an existing release as a retry.
+5. Verify public registry metadata and tarball integrity, then repeat the install check with `--package a0-slim@0.1.0-alpha.4 --global-install`. Record the release's source commit, checks, package sizes and integrity. Tag the verified source commit and publish its release notes.
 
 Publication is an explicit maintainer action. CI builds/tests on Linux and macOS; a green CI job does not publish. Authentication and any required npm 2FA stay in the owner's npm flow, never in repository files or logs.
 
