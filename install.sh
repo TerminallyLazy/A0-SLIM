@@ -22,7 +22,7 @@ slim_npm() {
 }
 slim_probe() {
   # Resolve native dependencies from the installed package, including when npm hoists them.
-  env -i HOME="$slim_root/npm-home" PATH="$slim_node_dir:$PATH" "$slim_node" --input-type=module - "$1" "${2:-0.1.0-alpha.4}" <<'JS'
+  env -i HOME="$slim_root/npm-home" PATH="$slim_node_dir:$PATH" "$slim_node" --input-type=module - "$1" "${2:-0.1.0-alpha.5}" <<'JS'
 import { createRequire } from 'node:module';
 import { writeFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
@@ -488,17 +488,17 @@ const root = process.argv[2];
 const { compareVersions } = await import(pathToFileURL(join(root, 'update.mjs')).href);
 try {
   const pkg = JSON.parse(readFileSync(join(root, 'current/node_modules/a0-slim/package.json'), 'utf8'));
-  if (pkg.name === 'a0-slim' && compareVersions(pkg.version, '0.1.0-alpha.4') >= 0) console.log(pkg.version);
+  if (pkg.name === 'a0-slim' && compareVersions(pkg.version, '0.1.0-alpha.5') >= 0) console.log(pkg.version);
 } catch { /* No healthy installed release yet. */ }
 CURRENT
 )
-  slim_hash=f5d99b13968b1471ea43abf5cc628933906a1d766fa43a973e65c0ed0e1b7ee7
+  slim_hash=a51d93860827ae6a582798633e91cca532b1cf4a28ca8de2d8bf81fbeb4dfe62
   if [ -n "$slim_current_version" ] && [ -s "$slim_root/current/.verified-tarball" ]; then
     printf 'Checking the existing A0 SLIM installation…\n'
     slim_probe "$slim_root/current" "$slim_current_version" || slim_fail 'The existing installation needs repair. Your app data has not been changed.'
   else
-    printf 'Downloading and installing A0 SLIM 0.1.0-alpha.4…\n'
-    slim_download 'https://registry.npmjs.org/a0-slim/-/a0-slim-0.1.0-alpha.4.tgz' "$slim_stage/a0-slim.tgz" "$slim_hash"
+    printf 'Downloading and installing A0 SLIM 0.1.0-alpha.5…\n'
+    slim_download 'https://registry.npmjs.org/a0-slim/-/a0-slim-0.1.0-alpha.5.tgz' "$slim_stage/a0-slim.tgz" "$slim_hash"
     mkdir "$slim_stage/app"
     cat > "$slim_stage/app/package.json" <<'JSON'
 {"private":true}
@@ -506,7 +506,7 @@ JSON
     (cd "$slim_stage/app" && slim_npm install "$slim_stage/a0-slim.tgz" --omit=dev --ignore-scripts --no-audit --no-fund) || slim_fail 'Installation failed. Re-run this command to retry; the previous installation and app data are preserved.'
     slim_probe "$slim_stage/app" || slim_fail 'The installed native runtime failed verification; it was not activated.'
     printf '%s\n' "$slim_hash" > "$slim_stage/app/.verified-tarball"
-    slim_release=$slim_root/releases/0.1.0-alpha.4-$(basename "$slim_stage")
+    slim_release=$slim_root/releases/0.1.0-alpha.5-$(basename "$slim_stage")
     mv "$slim_stage/app" "$slim_release"
     "$slim_node" --input-type=module - "$slim_root" "$slim_release" <<'JS'
 import { symlinkSync, renameSync, lstatSync } from 'node:fs';
