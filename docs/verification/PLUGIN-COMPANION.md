@@ -52,6 +52,9 @@ container was changed. The Agent Zero reference checkout stayed read-only.
   compatibility/extension tests and a fresh build. `npm audit --audit-level=high`
   reported zero vulnerabilities. `npm run test:package` passed packed CLI startup,
   native libfx, cancellation, SQLite, UI asset and optional-runtime checks.
+  The [security evidence](plugin-companion-security-evidence.json) retains the
+  focused regression output, audited dependency counts and source hashes for
+  the changed MCP boundary. These regressions are part of the existing CI gate.
 - **Packaging:** the deterministic companion ZIP contains eight explicitly
   listed source/manifest/license files. ZIP integrity and exact contents passed;
   the archive was extracted into the disposable host before acceptance. Its
