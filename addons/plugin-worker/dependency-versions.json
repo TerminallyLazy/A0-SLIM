@@ -1,0 +1,6 @@
+{
+  "SQLAlchemy": "2.0.52",
+  "packaging": "26.3",
+  "typing_extensions": "4.16.0",
+  "greenlet": "3.5.6"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "db_hub",
+  "repository": "TerminallyLazy/a0-db-hub",
+  "commit": "9f3b9926cdd815034b0f9f635c60909107d1f2da",
+  "version": "1.0.0",
+  "adapterVersion": "0.1.0",
+  "files": {
+    "LICENSE": "d142f9327f9964711a50773dd684378b7ecc57c3c1fdfcc8da22582534a71246",
+    "plugin.yaml": "2911988d7966ba2e655d049de76399b08a757db6ab84ebc905e27c977fae68ff",
+    "tools/db_status.py": "163bb66a6ef78c06a9d34edd6aa32b469faeeed4d7a6a6fcdcdc1b5235ae3c2f",
+    "tools/db_schema.py": "f3978297367318728f95f2d79df67fdd452e75603d1c35e0631e2659050c5944",
+    "helpers/base.py": "f6102f4f5adcf8570642b75339af8b14b64d7d934c53bd43ec39949a01ade092",
+    "helpers/config.py": "6bfa52de4fdca2d7db2dafa57b27dec2c6e84e3d2583f1177f46082c637ac24b",
+    "helpers/secrets_bridge.py": "afa1e3ed061655d045965ece1372a4f3dbfb59d7e98bc68d3e85bfbd86badc8b",
+    "helpers/registry.py": "1310731983d5e09008d68f28f5e7f63778d930692905820971c088836f54da10",
+    "helpers/bootstrap.py": "0dc0c11cd5b53345f3db4f9357f0acc3c26224be3d579a555d8a9d1ac9969b80",
+    "helpers/drivers/__init__.py": "44d5e5966c2f899184ab17abec9ec231a37245e6ac0ef89d0523b9a860cd180e",
+    "helpers/drivers/sqlalchemy.py": "256ce302258a86b9cf3cee6e30d18affc8eb29d8ff20a3137a99adc3faa21a4d"
+  }
+}
