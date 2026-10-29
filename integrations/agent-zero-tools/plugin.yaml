@@ -1,0 +1,5 @@
+name: slim_tools_bridge
+title: SLIM tool companion
+description: Explicit MCP exports for pinned DB Hub status and schema operations.
+version: 0.1.0
+always_enabled: false

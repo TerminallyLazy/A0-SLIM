@@ -1,4 +1,5 @@
 import { homedir } from 'node:os';
+import { defaultAccess } from '../policy/access.js';
 import { FirstRun } from './first-run.js';
 import { appVersion } from '../version.js';
 import Fastify from 'fastify';
@@ -20,6 +21,7 @@ import { vercelCredentials } from '../execution/vercel-auth.js';
 import { environmentStatus } from '../execution/status.js';
 import { ModalProof, modalCredentials } from '../execution/modal.js';
 import { CloudCheck, cloudKeyCredentials } from '../execution/cloud-check.js';
+import { sandboxSizing, saveSandboxSizing, sizingProvider } from '../execution/settings.js';
 import { createE2BDriver } from '../execution/e2b.js';
 import { createDaytonaDriver } from '../execution/daytona.js';
 import { listWorkspace, readWorkspaceFile } from '../tools/files.js';
@@ -76,6 +78,8 @@ export async function createApp(options: {
     store.setMeta(`sandbox:${provider}`, 'configured');
   };
   const session = randomBytes(32).toString('hex');
+  // Cookies are host-scoped, not port-scoped: concurrent local instances must not overwrite pairing.
+  const sessionCookie = `slim_session_${origin.port || '80'}`;
   let pairing: string | null = options.pairingCode,
     attempts = 0;
   const expires = Date.now() + 10 * 60_000;
@@ -98,7 +102,7 @@ export async function createApp(options: {
       throw new AppError(403, 'origin_required', 'A same-origin browser request is required.');
     const path = request.url.split('?')[0];
     if (path?.startsWith('/api/') && path !== '/api/v1/pair' && path !== '/api/v1/status') {
-      if (Date.now() > sessionExpiry || !equal(request.cookies.slim_session ?? '', session))
+      if (Date.now() > sessionExpiry || !equal(request.cookies[sessionCookie] ?? '', session))
         throw new AppError(
           401,
           'pair_required',
@@ -119,7 +123,7 @@ export async function createApp(options: {
     });
   });
   app.get('/api/v1/status', async (request) => ({
-    paired: Date.now() <= sessionExpiry && equal(request.cookies.slim_session ?? '', session),
+    paired: Date.now() <= sessionExpiry && equal(request.cookies[sessionCookie] ?? '', session),
     stage: 'P2 preview · account checks pending',
     version: appVersion,
   }));
@@ -132,7 +136,7 @@ export async function createApp(options: {
         'Pairing code invalid, used, or expired. Restart the local service for a new code.',
       );
     pairing = null;
-    reply.setCookie('slim_session', session, {
+    reply.setCookie(sessionCookie, session, {
       path: '/',
       httpOnly: true,
       sameSite: 'strict',
@@ -143,6 +147,7 @@ export async function createApp(options: {
   app.get('/api/v1/state', async () => ({
     firstRun: firstRun.state(),
     projects: store.projects(),
+    accessDecisions: runtime.access.list().filter((d) => d.status === 'pending'),
     chats: store.chats(),
     delegations: runtime.delegations.list().map(({ assignment, inputHash, ...record }) => record),
     connections: store.connections(),
@@ -210,9 +215,32 @@ export async function createApp(options: {
         'private_data',
         'Choose a project folder separate from A0 SLIM’s private data.',
       );
-    const project = { id: randomUUID(), name: input.name, root };
+    const project = { id: randomUUID(), name: input.name, root, access: defaultAccess() };
     store.saveProject(project);
     return project;
+  });
+  app.post('/api/v1/projects/:id/access', async (request) => {
+    const { id } = idParams.parse(request.params);
+    const { mode } = z
+      .object({ mode: z.enum(['full', 'auto', 'ask']) })
+      .strict()
+      .parse(request.body);
+    runtime.access.change(id, mode);
+    await Promise.all(
+      store
+        .chats()
+        .filter((c) => c.projectId === id && c.status === 'running')
+        .map((c) => chatRuntime(c.id).cancel(c.id)),
+    );
+    await runtime.bash.revoke(id);
+    return store.project(id);
+  });
+  app.post('/api/v1/access-decisions/:id', async (request) => {
+    const { digest, allow } = z
+      .object({ digest: z.string().length(64), allow: z.boolean() })
+      .strict()
+      .parse(request.body);
+    return runtime.access.decide(idParams.parse(request.params).id, digest, allow);
   });
   app.get('/api/v1/projects/:id/files', async (request) => {
     const { id } = idParams.parse(request.params),
@@ -390,6 +418,7 @@ export async function createApp(options: {
       bashVersion: 1 as const,
       hostBashRevision: project.hostBashGrant?.revision,
       capabilitiesVersion: 2 as const,
+      ...(project.access ? { accessVersion: 1 as const } : {}),
       delegationVersion: 1 as const,
       status: 'idle' as const,
       createdAt: new Date().toISOString(),
@@ -417,6 +446,9 @@ export async function createApp(options: {
   app.get('/api/v1/artifacts/:id', async (request) =>
     store.operation(idParams.parse(request.params).id),
   );
+  app.get('/api/v1/artifacts/:id/current', async (request) => ({
+    text: await runtime.operations.readCurrent(idParams.parse(request.params).id),
+  }));
   app.get('/api/v1/artifacts/:id/download', async (request, reply) => {
     const operation = store.operation(idParams.parse(request.params).id);
     return reply
@@ -432,6 +464,20 @@ export async function createApp(options: {
       .object({ digest: z.string().regex(/^[a-f0-9]{64}$/) })
       .strict()
       .parse(request.body);
+    const operation = store.operation(idParams.parse(request.params).id);
+    if (operation.digest !== digest)
+      throw new AppError(
+        409,
+        'approval_changed',
+        'This approval does not match the selected artifact.',
+      );
+    const pending = runtime.access
+      .list()
+      .find((d) => d.action.fingerprint === digest && d.status === 'pending');
+    if (pending) {
+      runtime.access.decide(pending.id, pending.digest, true);
+      return store.operation(idParams.parse(request.params).id);
+    }
     return runtime.operations.apply(idParams.parse(request.params).id, digest);
   });
   app.post('/api/v1/artifacts/:id/reconcile', async (request) => {
@@ -446,6 +492,20 @@ export async function createApp(options: {
       })
       .strict()
       .parse(request.body);
+    const operation = store.operation(idParams.parse(request.params).id);
+    if (operation.digest !== digest)
+      throw new AppError(
+        409,
+        'approval_changed',
+        'This approval does not match the selected artifact.',
+      );
+    const pending = runtime.access
+      .list()
+      .find((d) => d.action.fingerprint === digest && d.status === 'pending');
+    if (pending) {
+      runtime.access.decide(pending.id, pending.digest, false);
+      return store.operation(idParams.parse(request.params).id);
+    }
     return runtime.operations.reject(
       idParams.parse(request.params).id,
       digest,
@@ -504,6 +564,29 @@ export async function createApp(options: {
       .type('application/x-ndjson')
       .header('x-accel-buffering', 'no')
       .send(Readable.from(events()));
+  });
+  app.get('/api/v1/sandbox/:provider/sizing', async (request) => {
+    const { provider } = z.object({ provider: sizingProvider }).parse(request.params);
+    return sandboxSizing(store, provider);
+  });
+  app.post('/api/v1/sandbox/:provider/sizing', async (request) => {
+    const { provider } = z.object({ provider: sizingProvider }).parse(request.params);
+    if (provider === 'microsandbox') return runtime.microsandbox.saveSizing(request.body);
+    if (provider === 'vercel')
+      return sandbox.withLease(async () => saveSandboxSizing(store, provider, request.body));
+    const busy =
+      provider === 'docker'
+        ? runtime.docker.busy
+        : provider === 'modal'
+          ? modal.busy
+          : additionalClouds[provider].busy;
+    if (busy)
+      throw new AppError(
+        409,
+        'sandbox_busy',
+        'Wait for the active sandbox operation before changing its settings.',
+      );
+    return saveSandboxSizing(store, provider, request.body);
   });
   app.post('/api/v1/sandbox/vercel', async (request) =>
     sandbox.withLease(async () => {

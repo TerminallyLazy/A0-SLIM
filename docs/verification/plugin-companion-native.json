@@ -1,0 +1,23 @@
+{
+  "evidence": "real DB Hub Python tools; synthetic model and SQLite data; offline container",
+  "operations": [
+    "7636707e-2325-4d67-87ef-e1bbc97ba89a",
+    "286499db-7500-42d7-97df-fe599d770640"
+  ],
+  "schema": {
+    "tables": [
+      "synthetic_inventory"
+    ],
+    "hint": "Pass target '<table>' for columns."
+  },
+  "status": [
+    {
+      "connection": "fixture",
+      "ok": true,
+      "latency_ms": 0.6,
+      "driver": "sqlalchemy",
+      "dialect": "sqlite"
+    }
+  ],
+  "serverVersion": "{\"name\":\"a0-slim-tools\",\"version\":\"0.1.0\"}"
+}

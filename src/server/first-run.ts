@@ -2,6 +2,7 @@ import { mkdir, lstat, realpath, writeFile, readFile, access } from 'node:fs/pro
 import { join, relative, isAbsolute, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Store } from '../storage/store.js';
+import { defaultAccess } from '../policy/access.js';
 import { AppError, type Connection } from '../domain.js';
 
 type Preferences = {
@@ -118,6 +119,7 @@ export class FirstRun {
       name: 'My workspace',
       root: canonical,
       execution: 'none' as const,
+      access: defaultAccess(),
     };
     const existing = this.store.projects().find((p) => p.id === project.id);
     if (!existing) this.store.saveProject(project);

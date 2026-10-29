@@ -65,20 +65,33 @@ async function main(request) {
     return { absent: true, observedId };
   }
   if (request.action !== 'run') throw Error('Unknown runtime action.');
+  const sizing = request.sizing ?? {
+    vcpus: config.cpus,
+    memoryMiB: config.memoryMiB,
+    sessionTimeoutMinutes: config.lifetimeSeconds / 60,
+  };
+  if (
+    ![1, 2, 4].includes(sizing.vcpus) ||
+    ![512, 1024, 2048, 4096].includes(sizing.memoryMiB) ||
+    !Number.isInteger(sizing.sessionTimeoutMinutes) ||
+    sizing.sessionTimeoutMinutes < 1 ||
+    sizing.sessionTimeoutMinutes > 60
+  )
+    throw Error('Invalid sandbox resource settings.');
   // No replace, connectOrCreate, resume, mounts, inherited credentials, published ports or guest network.
   const sandbox = await Sandbox.builder(request.name)
     .image(config.image)
     .pullPolicy('never')
-    .cpus(config.cpus)
-    .memory(config.memoryMiB)
+    .cpus(sizing.vcpus)
+    .memory(sizing.memoryMiB)
     .rootDisk(512)
     .disableNetwork()
     .user('65534:65534')
     .workdir('/tmp')
     .security('restricted')
     .quietLogs()
-    .maxDuration(config.lifetimeSeconds)
-    .idleTimeout(30)
+    .maxDuration(sizing.sessionTimeoutMinutes * 60)
+    .idleTimeout(sizing.sessionTimeoutMinutes * 60)
     .ephemeral(false)
     .detached(false)
     .labels({ 'a0-slim-receipt': request.receiptId, 'a0-slim-host': request.hostId })

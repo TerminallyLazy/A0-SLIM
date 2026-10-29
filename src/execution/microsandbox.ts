@@ -4,6 +4,8 @@ import type { FxAgentHostTool } from 'libfx';
 import { AppError } from '../domain.js';
 import type { Store } from '../storage/store.js';
 import { MicrosandboxAddon } from './microsandbox-addon.js';
+import { sandboxSizing, saveSandboxSizing } from './settings.js';
+import type { SandboxSizing } from './sizing.js';
 
 const now = () => new Date().toISOString();
 const fail = (message: string) => new AppError(409, 'microsandbox', message);
@@ -33,6 +35,8 @@ export type MicroReceipt = {
   messageId?: string;
   callId?: string;
   digest?: string;
+  sizing?: SandboxSizing;
+  lifetimeMs?: number;
 };
 export class Microsandbox {
   readonly addon: MicrosandboxAddon;
@@ -73,9 +77,26 @@ export class Microsandbox {
   private holds() {
     return this.receipts().filter((r) => r.cleanup === 'unknown');
   }
+  private async revision() {
+    return createHash('sha256')
+      .update(
+        JSON.stringify({
+          runtime: await this.addon.fingerprint(),
+          sizing: sandboxSizing(this.store, 'microsandbox'),
+        }),
+      )
+      .digest('hex');
+  }
+  async saveSizing(input: unknown) {
+    return this.lease(async () => {
+      const saved = saveSandboxSizing(this.store, 'microsandbox', input);
+      this.connection = undefined;
+      return saved;
+    });
+  }
   async state() {
     const runtime = await this.addon.state(),
-      revision = await this.addon.fingerprint();
+      revision = await this.revision();
     const check = this.receipts().find((r) => r.kind === 'microsandbox-proof');
     const reason =
       runtime.status !== 'installed'
@@ -135,7 +156,7 @@ export class Microsandbox {
     });
   }
   private async checkHeld() {
-    const revision = await this.addon.fingerprint();
+    const revision = await this.revision();
     try {
       const result = await this.addon.call({ action: 'probe' });
       if (result.version !== '0.7.11' || !result.imageReady || !result.runtimeId)
@@ -209,7 +230,7 @@ export class Microsandbox {
         receipt.hostId !== this.store.meta('host_id')
       )
         throw fail('This receipt is not eligible for an absence review.');
-      if (Date.now() - Date.parse(receipt.startedAt) < 120_000)
+      if (Date.now() - Date.parse(receipt.startedAt) < (receipt.lifetimeMs ?? 60_000) + 60_000)
         throw fail(
           'Wait until the creation and VM lifetime limits have expired before reviewing absence.',
         );
@@ -314,6 +335,7 @@ export class Microsandbox {
     signal?: AbortSignal,
     bash = false,
   ) {
+    const sizing = sandboxSizing(this.store, 'microsandbox');
     const id = randomUUID(),
       receipt: MicroReceipt = {
         ...fields,
@@ -323,7 +345,9 @@ export class Microsandbox {
         cleanup: 'unknown',
         hostId: this.store.meta('host_id')!,
         runtimeId: this.connection!.runtimeId!,
-        revision: await this.addon.fingerprint(),
+        revision: await this.revision(),
+        sizing,
+        lifetimeMs: sizing.sessionTimeoutMinutes * 60_000,
         startedAt: now(),
       };
     this.save(receipt); // Creation intent is durable before spawning any worker.
@@ -336,6 +360,7 @@ export class Microsandbox {
         const result = await this.addon.call(
           {
             action: 'run',
+            sizing,
             name: receipt.name,
             receiptId: id,
             hostId: receipt.hostId,

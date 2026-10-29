@@ -1,3 +1,4 @@
+import { AccessPicker } from './access.js';
 import { useEffect, useState } from 'react';
 import type { Project } from '../src/domain.js';
 import { api } from './api.js';
@@ -37,7 +38,11 @@ export function BashSettings({
     <section className="environment-card bash-settings">
       <div className="environment-heading">
         <h3>Bash</h3>
-        <span className="pill">Host {project.hostBashGrant ? 'enabled' : 'disabled'}</span>
+        <span className="pill">
+          {project.access
+            ? 'Access mode applies'
+            : `Host ${project.hostBashGrant ? 'enabled' : 'disabled'}`}
+        </span>
       </div>
       <p>
         New chats can run Bash in their selected sandbox. Scripts support pipes, redirects and
@@ -60,7 +65,9 @@ export function BashSettings({
         not a security boundary. Shell profiles and inherited credentials are excluded, but commands
         can still read credentials stored on disk.
       </p>
-      {project.hostBashGrant ? (
+      {project.access ? (
+        <AccessPicker project={project} refresh={refresh} act={act} />
+      ) : project.hostBashGrant ? (
         <button
           disabled={busy}
           onClick={() => perform(() => api(`/projects/${project.id}/bash`, { enabled: false }))}

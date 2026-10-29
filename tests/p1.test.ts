@@ -50,6 +50,8 @@ test(
       const paired = await call('/pair', { code: 'fixture' });
       cookie = String(paired.headers['set-cookie']).split(';')[0]!;
       const project = (await call('/projects', { name: 'Fixture', root })).json();
+      // Preserve coverage of existing projects and their original runtime contract.
+      store.saveProject({ ...store.project(project.id), access: undefined });
       const connection = (
         await call('/connections', {
           name: 'Fixture',

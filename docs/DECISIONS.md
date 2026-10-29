@@ -35,7 +35,7 @@ Approved by the user in chat on 2026-10-26. The canvas review is closed.
 | Host execution is explicit opt-in | Approved direction | Docker-free need not mean unrestricted execution by default. |
 | Local embeddings optional; lexical recall works first | Approved direction | Fast installation without downloading model weights automatically. |
 | Plugin Hub discovery + explicit compatibility overlay | Approved direction | Existing Python/Alpine plugins do not execute natively in Node. |
-| Graphite/Paper themes, restrained accent, three-pane workspace | Approved direction | Minimal daily workspace with customizable density and inspection. |
+| Twelve themes, custom colors, three-pane workspace | Delivered alpha.3 | Dark/light preview, Save/Reset, readable colors, customizable density and inspection. |
 
 ## Delivery sequence
 
@@ -68,8 +68,8 @@ The libfx stream initialization/cancel race receives a small checked installatio
 ## Additional sandbox connections — 2026-10-26
 
 - Add official `e2b@2.59.0` and `@daytonaio/sdk@0.226.1` adapters for synthetic create/execute/cleanup checks, with a shared durable receipt coordinator. Agent execution remains a separate acceptance gate.
-- E2B uses explicit API credentials, the official endpoint, zero API retries, denied outbound/public traffic, no mounts, a 60-second kill timeout and no auto-resume. Recover by exact receipt metadata, without connecting/resuming. An empty result after lost creation remains unknown.
-- Daytona uses explicit API credentials and endpoint, US region, private preview, denied outbound network, no volumes/secrets, one-minute lifetime and automatic deletion. SDK state polling avoids an unnecessary persistent WebSocket. Version 0.226.1 reads tracing flags from the environment even when disabled in options; synchronous construction forces these two flags off and restores their prior values immediately.
+- E2B uses explicit API credentials, the official endpoint, zero API retries, denied outbound/public traffic, no mounts, a bounded kill timeout (now configurable; see the 2026-10-29 decision) and no auto-resume. Recover by exact receipt metadata, without connecting/resuming. An empty result after lost creation remains unknown.
+- Daytona uses explicit API credentials and endpoint, US region, private preview, denied outbound network, no volumes/secrets, a bounded lifetime and automatic deletion (now configurable; see the 2026-10-29 decision). SDK state polling avoids an unnecessary persistent WebSocket. Version 0.226.1 reads tracing flags from the environment even when disabled in options; synchronous construction forces these two flags off and restores their prior values immediately.
 - Keep signup/sign-in on official provider websites. A0 SLIM stores API credentials locally; it does not claim delegated OAuth login or read provider CLI credential files for these new integrations. Label monthly allowances separately from introductory credits.
 - Vendor unchanged official brand artwork with source URLs and SHA-256 hashes; use local assets so rendering provider cards makes no third-party image request.
 
@@ -169,3 +169,35 @@ Public health is not authenticated readiness. Verify protected current-user iden
 Synthetic execution uses durable intent, ownership labels, stable resource IDs, exact bounded output/exit checks and expected-ID deletion waiting. The upstream name-addressed delete/exec API has no atomic ID condition, so require a dedicated workspace, disclose the residual race, and refuse observed replacements. Never resend an uncertain command or deletion. Lost creation with no known ID requires ownership-matched discovery or an explicitly recorded operator absence review. Connection changes cannot clear holds; recovery verifies original endpoint/workspace/CA and principal.
 
 The pinned public SDK source was built and exercised against a local TLS gRPC fixture; core fault tests and a separate live-gateway gate document the limits. Gateway installation, live compute and general OpenShell chat execution are not claimed by this preview. The user approved this implementation scope in the plan canvas workflow. See `docs/OPENSHELL.md` and `docs/plans/OPENSHELL.md`.
+
+## 2026-10-28 — Capability-specific Hub routes and DB Hub companion
+
+The owner approved the research plan in the canvas. Keep ACP for whole-agent sessions and correct the built-in Agent Zero MCP preset to describe chat delegation. Use a separately packaged, manually configured stdio MCP companion for explicit native SLIM tool access. The first adapter preserves Agent Zero policy, intervention, tool hooks, logging and secret masking for DB Hub status/schema. Limit it to existing local SQLite databases through SQLAlchemy on exact pinned framework/plugin source; do not generalize one driver's proof to every database driver or full plugin lifecycle.
+
+The companion uses client-owned operation metadata, compatibility fingerprints, installation/project/profile scope, a durable SQLite journal and OS process exclusion. Changed config/source, hook-mutated arguments and unknown effects block execution. The Hub records tools, skills, lifecycle and UI separately and keys curated evidence by repository and commit. No automatic installer, Python core dependency, memory replacement or UI injection was added. Real Python-plugin execution on synthetic data is distinct from mocked model output, owner-instance acceptance and ACP task acceptance. See `docs/PLUGIN-COMPANION.md` and `docs/verification/PLUGIN-COMPANION.md`.
+
+## Sandbox preferences and live ACP acceptance — 2026-10-29
+
+Session Timeout defaults to 15 minutes, independently of short command deadlines and cleanup at the end of each call. Expose CPU/memory choices within documented entry-plan bounds; Vercel couples memory to CPU, E2B keeps its default template because custom sizing requires Pro, and Modal limits requested CPU/memory to prevent automatic bursting. Credit-based providers are not represented as guaranteed zero-cost: account quotas and remaining credit are authoritative. Daytona uses an explicit Python image because its pinned SDK accepts resource sizing only for image creation. See [Sandbox settings](SANDBOX-SETTINGS.md).
+
+Persist selected sizing and original lifetime in receipts. Changes invalidate connection/grant revisions and existing Vercel/Microsandbox chats; unknown outcomes remain held until the original lifetime and identity checks allow reconciliation. Active operations retain their captured settings.
+
+Live Agent Zero CLI 2.14 sends complete assistant snapshots as ACP message chunks. Normalize only that exact reported implementation into snapshot display events, preserving the original text in the journal. All other ACP agents/versions retain standard delta semantics. Local instance cookies include the port so simultaneous SLIM services cannot overwrite one another's browser pairing.
+
+## Discoverable curl-installed command — 2026-10-29
+
+Register the verified private launcher at `~/.local/bin/a0-slim`. If that directory is not in PATH, append one marked, backed-up block to the user shell configuration; preserve existing commands and configuration. Repeated installation does not duplicate entries. Do not replace global Node or write system profiles. Print a direct-launch fallback and explain the new-terminal requirement when a parent shell cannot inherit the installer’s environment. The default command reuses an existing default instance; separate instances require distinct port/data settings.
+
+## Access modes and automatic MCP setup — 2026-10-29
+
+The user approved Full Access, Approve for me and Ask for Approval in the plan canvas, with Approve for me as the new-project default. Implement one project policy revision and host-owned decision ledger. New native chats gain direct file and bounded web tools; opaque commands/tool effects ask in the two approval modes. Full Access is explicit OS-user authority. Inline approval returns the result to the same turn. Keep legacy identities, side-effect receipts and unknown-outcome holds unchanged.
+
+Connecting MCP discovers/enables its tools automatically; optional tool switches retain opt-outs on refresh. Catalog fingerprints still bind each turn and pending operation. Compact snapshots plus on-demand schemas prevent auto-enable from overflowing prompt context. ACP auto-approval is restricted to an offered one-time grant. General code/MCP risk classification and external-agent confinement are not claimed. See [behavior and verification](ACCESS.md).
+
+## Automatic managed updates — 2026-10-29
+
+The user requested updates that are extremely easy or automatic. Enable daily startup updates for curl installations, with an explicit command for immediate installation and opt-out controls. Keep the already-running service intact; apply the new release on next startup. Use a fixed npm origin, exact tarball URL and SHA-512 integrity, the managed Node/npm runtime, an empty npm configuration, scripts-disabled installation and native/CLI probes before an atomic current-release switch. Retain the previous release and keep all private app data outside staging. Do not silently modify npm-managed packages or source checkouts. Embed the bootstrap updater and launcher from owned modules with a synchronization check, so an old public package can acquire update support without circular dependency. Record synthetic registry/local-artifact acceptance separately from public release availability.
+
+## Customizable appearance — 2026-10-29
+
+Implement the twelve named palettes and gallery/preview arrangement from the user’s references, with dark/light variants and three gradient presets. Keep editing scoped to the preview until Save, including density; Reset restores the saved preferences. Custom palettes use validated hex colors, readable text and accent contrast across surfaces and gradient interiors, and derived control colors. No executable CSS, remote assets or theme dependencies are introduced. Preserve legacy browser choices as custom palettes. Keep headings plain and omit eyebrow labels. The npm alpha.3 release also includes the previously verified Hub, access, MCP, sandbox, command-registration and automatic-update work.

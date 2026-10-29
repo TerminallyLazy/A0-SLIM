@@ -8,6 +8,9 @@ import type { ChatGPTAccounts } from '../providers/chatgpt.js';
 import { CHATGPT_BRIDGE_URL, responsesFetch } from '../providers/responses-bridge.js';
 import { AppError, type Chat } from '../domain.js';
 import { RequestBudget } from '../policy/budget.js';
+import { Access } from '../policy/access.js';
+import { accessFileTools } from '../tools/access-files.js';
+import { webTool } from '../tools/web.js';
 import { Operations } from '../policy/operations.js';
 import { ResponseReplay, replayKey } from '../providers/replay.js';
 import { Bash, bashEnabled, bashInstructions } from '../tools/bash.js';
@@ -32,6 +35,7 @@ export class Coordinator {
   private active = new Map<string, { cancel: () => Promise<void>; done: Promise<void> }>();
   private readonly durability;
   readonly operations: Operations;
+  readonly access: Access;
   readonly bash: Bash;
   readonly docker: DockerSandbox;
   readonly microsandbox: Microsandbox;
@@ -44,7 +48,8 @@ export class Coordinator {
     private chatgpt: ChatGPTAccounts,
     vercelDependencies?: VercelDependencies,
   ) {
-    this.extensions = new Extensions(store, vault);
+    this.access = new Access(store);
+    this.extensions = new Extensions(store, vault, this.access);
     this.delegations = new Delegations(store, this.extensions, (record, signal) =>
       this.runChild(record, signal),
     );
@@ -55,13 +60,33 @@ export class Coordinator {
     this.bash = new Bash(store, this);
     this.durability = local({ dir: join(store.dir, 'sessions') });
   }
+  private networkTool(
+    projectId: string,
+    tool: import('libfx').FxAgentHostTool,
+  ): import('libfx').FxAgentHostTool {
+    return {
+      ...tool,
+      execute: async (input, ctx) => {
+        const check = await this.access.authorize(this.access.context(projectId, ctx), {
+          kind: 'web',
+          network: true,
+          title: 'Run code in Vercel',
+          target: 'Configured Vercel sandbox',
+          details: JSON.stringify(input).slice(0, 32000),
+          fingerprint: createHash('sha256').update(JSON.stringify(input)).digest('hex'),
+        });
+        check();
+        return tool.execute(input, ctx);
+      },
+    };
+  }
   private async agent(chat: Chat) {
     const connection = { ...this.store.connection(chat.connectionId), model: chat.model };
     const project = this.store.project(chat.projectId);
     const budgetScope = `${project.id}:${connection.id}:${connection.model}`;
     const name = `slim-${createHash('sha256')
       .update(
-        `${budgetScope}:${chat.execution === 'docker' ? 'docker-v1' : chat.execution === 'vercel' ? `vercel-v1:${chat.executionRevision}` : chat.execution === 'microsandbox' ? `microsandbox-v1:${chat.executionRevision}` : 'readonly-v1'}${chat.bashVersion ? `:bash-v1:${chat.hostBashRevision ?? 'sandbox'}` : ''}${chat.capabilitiesVersion === 2 ? ':extensions-v1' : ''}${chat.delegationVersion ? (chat.parentChatId ? `:subordinate-v1:${chat.depth}:${chat.id}` : ':delegation-v1') : ''}`,
+        `${budgetScope}:${chat.execution === 'docker' ? 'docker-v1' : chat.execution === 'vercel' ? `vercel-v1:${chat.executionRevision}` : chat.execution === 'microsandbox' ? `microsandbox-v1:${chat.executionRevision}` : 'readonly-v1'}${chat.bashVersion ? `:bash-v1:${chat.hostBashRevision ?? 'sandbox'}` : ''}${chat.accessVersion ? ':access-v1' : ''}${chat.capabilitiesVersion === 2 ? ':extensions-v1' : ''}${chat.delegationVersion ? (chat.parentChatId ? `:subordinate-v1:${chat.depth}:${chat.id}` : ':delegation-v1') : ''}`,
       )
       .digest('hex')
       .slice(0, 24)}`;
@@ -78,27 +103,36 @@ export class Coordinator {
           (chat.execution === 'docker'
             ? ' Use run_javascript for bounded Node.js computation in a disposable local container without network, host files or credentials. Pass explicit text input; use write_file to propose returned results for review.'
             : chat.execution === 'vercel'
-              ? ' Use run_javascript for Node.js computation in Vercel. Docker is not used. Code and explicit text input are sent to Vercel under the project grant. No automatic workspace upload, model credentials or outbound network access. Every call has a 60-second sandbox lifetime; at most three calls per turn. Use write_file for local artifact review.'
+              ? ' Use run_javascript for Node.js computation in Vercel. Docker is not used. Code and explicit text input are sent to Vercel under the project grant. No automatic workspace upload, model credentials or outbound network access. Every call uses the configured sandbox session timeout; at most three calls per turn. Use write_file for local artifact review.'
               : chat.execution === 'microsandbox'
                 ? ' Use run_javascript for bounded Node computation in local Microsandbox microVMs. No Docker, guest network, host mounts or model credentials. Pass explicit text input and propose returned artifacts with write_file. Never repeat an uncertain command.'
                 : '') +
           (bashEnabled(chat) ? bashInstructions : ' Shell execution is unavailable.'),
         tools: [
-          ...fileTools(project.root),
-          ...(bashEnabled(chat) ? [this.bash.tool(project.id)] : []),
+          ...(chat.accessVersion && !chat.parentChatId
+            ? accessFileTools(project.id, project.root, this.access)
+            : fileTools(project.root)),
+          ...(chat.accessVersion && !chat.parentChatId ? [webTool(project.id, this.access)] : []),
+          ...(bashEnabled(chat) ? [this.bash.tool(project.id, !!chat.accessVersion)] : []),
           ...(chat.capabilitiesVersion === 2
             ? this.extensions
-                .tools(project.id)
+                .tools(project.id, !!chat.accessVersion)
                 .filter(
                   (t) => !chat.parentChatId || ['skills_tool', 'memory_load'].includes(t.name),
                 )
             : []),
-          ...(!chat.parentChatId ? [this.operations.tool(project.id)] : []),
+          ...(!chat.parentChatId
+            ? [this.operations.tool(project.id, chat.accessVersion ? this.access : undefined)]
+            : []),
           ...(!chat.parentChatId && chat.execution === 'docker'
             ? [this.docker.tool(project.id)]
             : []),
           ...(!chat.parentChatId && chat.execution === 'vercel'
-            ? [this.vercel.tool(project.id)]
+            ? [
+                chat.accessVersion
+                  ? this.networkTool(project.id, this.vercel.tool(project.id))
+                  : this.vercel.tool(project.id),
+              ]
             : []),
           ...(!chat.parentChatId && chat.execution === 'microsandbox'
             ? [this.microsandbox.tool(project.id)]
@@ -310,6 +344,8 @@ export class Coordinator {
       const chat = this.store.chat(id);
       if (!chat.model)
         throw new AppError(400, 'model_missing', 'Select a model for this account first.');
+      if (chat.accessVersion && !chat.parentChatId)
+        this.access.capture(chat.projectId, id, messageId);
       const restored = await this.session(id);
       signal.throwIfAborted();
       // Close an abandoned child turn before queuing an explicit continuation.
@@ -374,8 +410,14 @@ export class Coordinator {
                       ? ' Use run_javascript for local Microsandbox Node computation. No network, Docker, host mounts or credentials. Never repeat an uncertain command.'
                       : current.hostBashRevision
                         ? ' No sandbox is enabled.'
-                        : ' No code execution environment is enabled.') +
-                (bashEnabled(current) ? bashInstructions : ''),
+                        : current.accessVersion
+                          ? ' No sandbox is selected; host commands follow the access mode.'
+                          : ' No code execution environment is enabled.') +
+                (current.accessVersion
+                  ? ' Host commands and file/internet tools follow the selected access mode. Use fetch_url for public pages and bash for commands. Calls pause for approval when necessary and resume automatically. Full Access permits OS-user file and network access; other modes ask about unknown or risky effects. Never bypass a pending or denied action using another tool.'
+                  : bashEnabled(current)
+                    ? bashInstructions
+                    : ''),
             }
           : {}),
       });

@@ -1,6 +1,6 @@
 # npm packaging
 
-The public package is named `a0-slim`, licensed MIT, and versioned `0.1.0-alpha.2`. It remains an alpha; the `latest` npm tag identifies the current release, not a stability guarantee. Manual npm installation requires Node 24 and npm 11.19 or newer; the one-command installer sets up a private runtime when needed. macOS arm64 and Linux x64 are the tested targets.
+The public package is named `a0-slim`, licensed MIT, and versioned `0.1.0-alpha.3`. It remains an alpha; the `latest` npm tag identifies the current release, not a stability guarantee. Manual npm installation requires Node 24 and npm 11.19 or newer; the one-command installer sets up a private runtime when needed. macOS arm64 and Linux x64 are the tested targets.
 
 ## One-command installer
 
@@ -12,41 +12,47 @@ The script supports Apple Silicon macOS and Linux x64 with glibc. It reuses Node
 
 Installation uses `~/.local/share/a0-slim-cli` or `$XDG_DATA_HOME/a0-slim-cli`. Set `A0_SLIM_INSTALL_DIR` on the `sh` side of the pipe for a custom absolute path. npm runs in private storage with an empty configuration and a minimal environment, without inherited npm credentials. It installs the published alpha with all npm lifecycle scripts blocked. The pinned SQLite/CBOR packages already contain their supported native prebuilds; the installer loads those directly instead of invoking node-gyp. Native SQLite, CBOR and libfx must pass a probe before the release becomes active. No Python/compiler setup is needed on these supported targets. The launcher applies the same hash-checked libfx patch as the npm CLI.
 
-A failed download, checksum mismatch or failed native probe leaves the existing active release and app data intact. A directory lock excludes simultaneous installers. Normal interruption removes the staging directory and lock; after a hard kill, inspect the installer processes before removing its empty `.install-lock` directory. Only then retry. Completed releases are retained under `releases`; re-running a healthy installation reuses it without downloads. The script executes its main function only after the full function definitions have been read.
+A failed download, checksum mismatch or failed native probe leaves the existing active release and app data intact. A directory lock excludes simultaneous installers. Normal interruption removes the staging directory and lock; after a hard kill, inspect the installer processes before removing its empty `.install-lock` directory. Only then retry. Completed releases are retained under `releases`; re-running a healthy installation reuses it without downloads and preserves a verified newer release. The managed launcher checks for updates before startup, at most once a day; `a0-slim update` checks immediately. See [updates and recovery](UPDATES.md). The script executes its main function only after the full function definitions have been read.
 
-The installer prints the persistent launch path, normally `~/.local/share/a0-slim-cli/bin/a0-slim`. It does not edit shell startup files. The service runs in the foreground; Ctrl+C reaches the child service and releases its data lock. When startup succeeds, the launcher opens the loopback URL in the system browser; the pairing code stays in the terminal. `A0_SLIM_NO_BROWSER=1` or `--no-open` disables browser opening. The npm CLI also opens the browser directly. An already-running SLIM instance on the selected port can be reused when no explicit data directory was requested. A custom `A0_SLIM_DATA_DIR` always starts that requested workspace and retains normal port/data ownership checks.
+The installer registers `~/.local/bin/a0-slim` as a link to its persistent private launcher, normally `~/.local/share/a0-slim-cli/bin/a0-slim`. Repeated installation keeps that link; an unrelated existing file/link is never replaced. When `~/.local/bin` is absent from PATH, setup appends one marked block to the active shell’s startup file: zsh `.zshrc` (respecting `ZDOTDIR`), Bash `.bashrc` and its selected login profile, POSIX `.profile`, or Fish `conf.d/a0-slim.fish` (respecting `XDG_CONFIG_HOME`). Existing contents and dotfile links are preserved; the first edit makes an adjacent `.a0-slim.bak` backup. Unsupported shells or unwritable configuration retain a working direct launch path and print instructions. No system shell configuration is changed.
+
+Open a new terminal after first-time PATH setup, then run `a0-slim`. The installer also prints an export command for the current terminal because a child process cannot change its parent shell’s environment. The service runs in the foreground; Ctrl+C reaches the child service and releases its data lock. When startup succeeds, the launcher opens the loopback URL in the system browser; the pairing code stays in the terminal. `A0_SLIM_NO_BROWSER=1` or `--no-open` disables browser opening. `A0_SLIM_NO_UPDATE=1` skips the automatic update check for a launch. The npm CLI also opens the browser directly. An already-running SLIM instance on the selected port can be reused when no explicit data directory was requested. A custom `A0_SLIM_DATA_DIR` always starts that requested workspace and retains normal port/data ownership checks.
 
 Use `curl -fsSL https://raw.githubusercontent.com/TerminallyLazy/A0-SLIM/main/install.sh | sh -s -- --no-launch` to install without launching. `A0_SLIM_PORT` and `A0_SLIM_DATA_DIR` can also be set on the `sh` side of the pipe. The script never installs embeddings, weights or Microsandbox automatically.
 
-`npm run test:installer` performs actual installs with an existing compatible Node and with Node absent from PATH, using isolated homes and a path containing spaces/apostrophes. It starts and pairs the real app, checks UI/native readiness, tests existing-service reuse and clean shutdown, and repeats setup with downloads disabled. It uses no model account or cloud sandbox. Offline regression tests cover unsupported systems, root execution, truncated input, concurrent installation and a tampered Node archive.
+`npm run test:installer` performs actual installs with an existing compatible Node and with Node absent from PATH, using isolated homes and a path containing spaces/apostrophes. It proves the registered bare command works with the generated shell profile, starts and pairs the real app, checks UI/native readiness, tests existing-service reuse and clean shutdown, and repeats setup with downloads disabled. It uses no model account or cloud sandbox. Offline regression tests cover unsupported systems, root execution, truncated input, concurrent installation and a tampered Node archive.
+
+### Command setup verification (2026-10-29)
+
+Node 24 validation passed: 157 repository tests, typecheck and production build; dependency audit reported zero vulnerabilities. Actual installer runs with an existing Node/npm runtime and a downloaded private runtime both registered the bare `a0-slim` command, launched and paired the app, reused the running instance, stopped cleanly, and repeated successfully with downloads disabled. Regression checks cover Bash/zsh profile preservation, linked dotfiles, backups, spaces/apostrophes, idempotence and unrelated command preservation. Fish configuration generation is checked; live Fish startup is not claimed. The existing owner installation was repaired through the same registration code and `a0-slim --help` succeeded.
 
 ## Install from npm
 
 ```sh
-npm install -g a0-slim@0.1.0-alpha.2 --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+npm install -g a0-slim@0.1.0-alpha.3 --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
 a0-slim
 ```
 
 The allowance is limited to the pinned SQLite/CBOR native builds. Do not use `--allow-scripts=*`. Use a user-writable Node installation instead of `sudo`. The CLI applies its hash-checked libfx patch when first started, even when its own postinstall hook was blocked. Starting the app never downloads model weights or optional runtimes.
 
-For a dedicated local installation, use the directory steps below and replace the tarball path with `a0-slim@0.1.0-alpha.2`.
+For a dedicated local installation, use the directory steps below and replace the tarball path with `a0-slim@0.1.0-alpha.3`.
 
 ## Download with curl
 
 Download the exact release tarball:
 
 ```sh
-curl -fL -o a0-slim-0.1.0-alpha.2.tgz https://github.com/TerminallyLazy/A0-SLIM/releases/download/v0.1.0-alpha.2/a0-slim-0.1.0-alpha.2.tgz
+curl -fL -o a0-slim-0.1.0-alpha.3.tgz https://registry.npmjs.org/a0-slim/-/a0-slim-0.1.0-alpha.3.tgz
 ```
 
 Then install it with Node 24 and npm 11.19 or newer:
 
 ```sh
-npm install -g ./a0-slim-0.1.0-alpha.2.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+npm install -g ./a0-slim-0.1.0-alpha.3.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
 a0-slim
 ```
 
-The download is about 470 KB; npm installs production dependencies separately. The GitHub asset and npm release use the same tested tarball. The exact SHA-256 is published in the release’s `SHA256SUMS` asset.
+npm installs production dependencies separately. Release checks and artifact integrity are recorded in `docs/verification/`.
 
 ## Build and install a tarball
 
@@ -65,7 +71,7 @@ Install the resulting file into a dedicated directory:
 mkdir slim-install
 cd slim-install
 npm init -y
-npm install /absolute/path/a0-slim-0.1.0-alpha.2.tgz --omit=dev
+npm install /absolute/path/a0-slim-0.1.0-alpha.3.tgz --omit=dev
 ```
 
 Recent npm versions block unapproved dependency scripts. If npm reports blocked SQLite/CBOR scripts, approve their pinned installed versions and rebuild them in this directory:
@@ -80,7 +86,13 @@ With npm versions that already ran those scripts, only the launch command is nee
 
 First launch guides account/model selection and a project folder; the native agent is included. Microsandbox, external ACP agents and local embeddings remain optional. See [first-run setup](FIRST-RUN.md).
 
-The service defaults to `http://127.0.0.1:4310`. `A0_SLIM_PORT` and `A0_SLIM_DATA_DIR` override the port and private storage location. Pairing, vault custody, recovery receipts and sandbox permissions are unchanged.
+The service defaults to `http://127.0.0.1:4310`. `A0_SLIM_PORT` and `A0_SLIM_DATA_DIR` override the port and private storage location. To run an independent second instance, choose both a different port and data directory:
+
+```sh
+A0_SLIM_PORT=4311 A0_SLIM_DATA_DIR="$HOME/.local/share/a0-slim-second" a0-slim
+```
+
+Running `a0-slim` by itself starts the default instance or reopens it when it is already running. Each independent instance has its own pairing and saved state. Pairing, vault custody, recovery receipts and sandbox permissions are unchanged.
 
 ## Optional local embeddings
 
@@ -108,7 +120,7 @@ The previous production dependency set occupied about 725 MB of file bytes / 808
 
 ## Verification
 
-`npm run check` covers TypeScript, regression tests and production build. `npm run test:package` packs and installs into temporary directories, checks shrinkwraps/licenses, proves ML/UI build packages cannot resolve from core, starts the CLI twice, serves the UI, uses SQLite, loads native libfx and cancels an early stream. It installs/removes the actual optional runtime and probes its CPU binding. CI runs this on Linux and macOS; Windows is not an accepted target.
+`npm run check` covers TypeScript, regression tests, production build and synchronization of generated installer modules. `npm run test:update` verifies an automatic startup update using an exact local tarball, synthetic registry metadata and a real dependency install, then starts and pairs the updated app while preserving prior release/data sentinels. `npm run test:package` packs and installs into temporary directories, checks shrinkwraps/licenses, proves ML/UI build packages cannot resolve from core, starts the CLI twice, serves the UI, uses SQLite, loads native libfx and cancels an early stream. It installs/removes the actual optional runtime and probes its CPU binding. CI runs this on Linux and macOS; Windows is not an accepted target.
 
 The explicit `npm run test:package -- --with-model` adds a public model download, checksums, actual offline embeddings, runtime removal/reinstallation and reuse of the retained model. It is not in default CI. The local check returned 384-dimensional unit vectors with cosine similarity 0.954691 for two equivalent synthetic garden sentences. No ChatGPT allowance, provider credentials, project files or cloud sandbox were used.
 
@@ -124,9 +136,9 @@ The packaging smoke test checks the installed CLI's Microsandbox endpoint and ve
 
 1. Run `npm ci`, `npm run check`, `npm run test:package` and the root/add-on high-severity audits. Review only the intended changes and commit them.
 2. Build from the committed source in a clean checkout. Run `npm pack`; inspect its file list, license, version and integrity. Never pack the working app's private data or unrelated local edits.
-3. Test that exact artifact with `npm run test:package -- --package /absolute/path/a0-slim-0.1.0-alpha.2.tgz --global-install`. This uses an isolated home/prefix and the documented native-script approvals, starts the real CLI twice, and removes its temporary installation afterward.
-4. With the owner's npm session, publish that tested tarball using `npm publish /absolute/path/a0-slim-0.1.0-alpha.2.tgz --access public --tag latest`. A new version requires a deliberate version change; never overwrite or unpublish an existing release as a retry.
-5. Verify public registry metadata and tarball integrity, then repeat the install check with `--package a0-slim@0.1.0-alpha.2 --global-install`. Record the release's source commit, checks, package sizes and integrity. Tag the verified source commit and publish its release notes.
+3. Test that exact artifact with `npm run test:package -- --package /absolute/path/a0-slim-0.1.0-alpha.3.tgz --global-install`. This uses an isolated home/prefix and the documented native-script approvals, starts the real CLI twice, and removes its temporary installation afterward.
+4. With the owner's npm session, publish that tested tarball using `npm publish /absolute/path/a0-slim-0.1.0-alpha.3.tgz --access public --tag latest`. A new version requires a deliberate version change; never overwrite or unpublish an existing release as a retry.
+5. Verify public registry metadata and tarball integrity, then repeat the install check with `--package a0-slim@0.1.0-alpha.3 --global-install`. Record the release's source commit, checks, package sizes and integrity. Tag the verified source commit and publish its release notes.
 
 Publication is an explicit maintainer action. CI builds/tests on Linux and macOS; a green CI job does not publish. Authentication and any required npm 2FA stay in the owner's npm flow, never in repository files or logs.
 

@@ -7,7 +7,7 @@ Vercel code execution runs remotely and does not require a local Docker engine. 
 1. Save the Vercel team, project and token in **Environments**, then complete the synthetic connection test with its usage acknowledgment. Existing saved credentials are reused.
 2. Under **Execution for new chats**, select **Vercel Sandbox · Node.js**. Approve code/input transfer and potential compute charges for the selected project.
 3. Start a new native chat. Older chats retain their original execution setting. The header shows Vercel ready, working, permission needed, check needed, or needs review. Ready means a sandbox can start on a code call, not that a persistent VM is connected.
-4. Use **Revoke Vercel usage** to block future calls. Changing saved credentials invalidates the connection test and grant; authorize the new connection and create a new chat. Revoking usage does not skip cleanup of a running call.
+4. Use **Revoke Vercel usage** to block future calls. Changing saved credentials or sandbox resources/timeouts invalidates the connection test and grant; authorize the new connection and create a new chat. Revoking usage does not skip cleanup of a running call.
 
 ## Supported work and limits
 
@@ -16,7 +16,7 @@ Vercel code execution runs remotely and does not require a local Docker engine. 
 | Boundary | Setting |
 | --- | --- |
 | SDK / runtime | `@vercel/sandbox@3.9.0`, `node22` |
-| Sandbox | One nonpersistent sandbox per call, 1 vCPU, 60-second lifetime |
+| Sandbox | One nonpersistent sandbox per call; 1/2/4 vCPUs with 2 GB each; 15-minute default lifetime, selectable up to 45 minutes |
 | Network | Deny-all outbound policy; no published ports |
 | Process | 10-second Node child, 128 MiB Node heap; provider command timeout 12 seconds |
 | Payload | 32 KiB code; 64 KiB input; 64 KiB combined stdout/stderr |

@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { Store } from '../src/storage/store.js';
 import { Vault } from '../src/providers/vault.js';
 import { DockerSandbox, dockerImage } from '../src/execution/docker.js';
+import { saveSandboxSizing } from '../src/execution/settings.js';
 import { ModalProof, createModalClient } from '../src/execution/modal.js';
 
 async function fixture() {
@@ -23,6 +24,7 @@ async function fixture() {
 }
 test('Docker pins local isolation, caches calls and reconciles uncertain creation without repeating it', async () => {
   const f = await fixture();
+  saveSandboxSizing(f.store, 'docker', { sessionTimeoutMinutes: 15, vcpus: 2, memoryMiB: 1024 });
   let creates = 0,
     exists = false,
     failCreate = false,
@@ -44,7 +46,8 @@ test('Docker pins local isolation, caches calls and reconciles uncertain creatio
       assert.ok(args.includes('ALL'));
       assert.ok(args.includes('no-new-privileges'));
       assert.ok(args.includes(dockerImage));
-      assert.equal(args[args.indexOf('--memory') + 1], '128m');
+      assert.equal(args[args.indexOf('--memory') + 1], '1024m');
+      assert.equal(args[args.indexOf('--cpus') + 1], '2');
       assert.equal(args[args.indexOf('--user') + 1], '65534:65534');
       assert.ok(!args.some((a) => ['--volume', '--mount', '--privileged', '--env'].includes(a)));
       assert.equal(f.store.receipts()[0]!.cleanup, 'unknown');
@@ -128,6 +131,7 @@ test('Modal proof bounds isolation, pins recovery scope, and stops the same tagg
     environment: 'main',
   };
   await f.vault.set('sandbox:modal', credentials);
+  saveSandboxSizing(f.store, 'modal', { sessionTimeoutMinutes: 30, vcpus: 2, memoryMiB: 1024 });
   let creates = 0,
     stops = 0,
     closed = 0,
@@ -164,7 +168,11 @@ test('Modal proof bounds isolation, pins recovery scope, and stops the same tagg
             name = options.name;
             tags = options.tags;
             assert.equal(options.blockNetwork, true);
-            assert.equal(options.timeoutMs, 60000);
+            assert.equal(options.timeoutMs, 30 * 60_000);
+            assert.equal(options.cpu, 1);
+            assert.equal(options.memoryMiB, 1024);
+            assert.equal(options.cpuLimit, options.cpu);
+            assert.equal(options.memoryLimitMiB, options.memoryMiB);
             assert.equal(options.includeOidcIdentityToken, false);
             assert.deepEqual(options.secrets, []);
             assert.deepEqual(options.volumes, {});
@@ -198,6 +206,7 @@ test('Modal proof bounds isolation, pins recovery scope, and stops the same tagg
     await f.vault.set('sandbox:modal', { ...credentials, appName: 'different' });
     assert.match(String((await proof.reconcile(unknown.id)).reconcileMessage), /original Modal/);
     await f.vault.set('sandbox:modal', credentials);
+    saveSandboxSizing(f.store, 'modal', { sessionTimeoutMinutes: 30, vcpus: 2, memoryMiB: 1024 });
     wrongOwner = true;
     assert.equal((await proof.reconcile(unknown.id)).cleanup, 'unknown');
     assert.equal(stops, 1);

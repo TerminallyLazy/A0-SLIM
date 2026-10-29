@@ -22,6 +22,7 @@ export type Connection = {
   account?: { subject: string; clientId: string; label: string };
 };
 export type Project = {
+  access?: import('./policy/access.js').AccessSelection;
   id: string;
   name: string;
   root: string;
@@ -30,6 +31,7 @@ export type Project = {
   vercelGrant?: { revision: string; approvedAt: string };
 };
 export type Chat = {
+  accessVersion?: 1;
   backend?: 'acp';
   id: string;
   title: string;

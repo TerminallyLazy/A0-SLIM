@@ -9,6 +9,7 @@ import { OpenShellEnvironment } from './openshell.js';
 import { ExecutionChoice, type VercelReadiness } from './execution-choice.js';
 import { Heading } from './workspace.js';
 import { MicrosandboxEnvironment } from './microsandbox.js';
+import { SandboxSizingForm } from './sandbox-sizing.js';
 import type { MicrosandboxState } from '../src/execution/microsandbox.js';
 
 type Actions = { refresh: () => Promise<void>; act: (fn: () => Promise<unknown>) => Promise<void> };
@@ -104,9 +105,10 @@ export function Environments({
         </div>
         <p>
           Disposable containers with no network, host-folder mounts or credentials. Node calls allow
-          five seconds; Bash allows up to thirty seconds. 128 MiB memory, bounded output. Local
-          engine licensing and electricity are separate.
+          five seconds; Bash allows up to thirty seconds, with bounded output. Local engine
+          licensing and electricity are separate.
         </p>
+        <SandboxSizingForm provider="docker" refresh={refresh} act={act} />
         <p className="fine">Install Bash support explicitly with this pinned Node Debian image:</p>
         <pre className="setup-command">
           docker pull node@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d
@@ -288,6 +290,7 @@ export function Environments({
                   </form>
                 </div>
               )}
+              <SandboxSizingForm provider={cloud.id} refresh={refresh} act={act} />
               {saved && (
                 <div className="proof-form">
                   <label className="checkbox">
@@ -326,7 +329,7 @@ export function Environments({
         })}
       </div>
       <p className="fine">
-        Allowances checked October 26, 2026; your provider dashboard is authoritative. Provider
+        Allowances checked October 28, 2026; your provider dashboard is authoritative. Provider
         logos identify integrations and do not imply endorsement. A saved credential is not a
         verified connection; check results and cleanup status appear below.
       </p>

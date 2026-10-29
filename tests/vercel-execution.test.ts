@@ -11,6 +11,7 @@ import { environmentStatus } from '../src/execution/status.js';
 import { createApp } from '../src/server/app.js';
 import { vercelFixture } from './helpers/vercel-execution.js';
 import { startModelFixture } from './helpers/model-server.js';
+import { saveSandboxSizing } from '../src/execution/settings.js';
 
 async function fixture() {
   const dir = await mkdtemp(join(tmpdir(), 'slim-vercel-code-')),
@@ -73,6 +74,41 @@ const input = {
   code: "process.stdout.write(require('node:fs').readFileSync(0, 'utf8').toUpperCase())",
   input: 'Vercel without Docker\n',
 };
+
+test('Vercel resource changes revoke old grants and the selected lifetime and CPU reach creation', async () => {
+  const h = await fixture();
+  try {
+    const sizing = { sessionTimeoutMinutes: 30, vcpus: 4, memoryMiB: 8192 };
+    saveSandboxSizing(h.store, 'vercel', sizing);
+    assert.equal(h.runner.readiness().available, false);
+    await assert.rejects(h.runner.run(input, h.context), /changed or revoked/);
+    const revision = h.runner.revision();
+    h.store.receipt({
+      id: randomUUID(),
+      kind: 'vercel-sandbox-proof',
+      connectionRevision: revision,
+      status: 'passed',
+      cleanup: 'deleted',
+    });
+    h.runner.authorize(h.projectId);
+    await assert.rejects(h.runner.run(input, h.context), /changed or revoked/);
+    h.store.saveChat({
+      ...h.store.chat(h.chatId),
+      id: randomUUID(),
+      sessionId: 'sizing-session',
+      executionRevision: revision,
+    });
+    h.f.lifetimeMs = 30 * 60_000;
+    h.f.vcpus = 4;
+    const receipt = await h.runner.run(input, { ...h.context, sessionId: 'sizing-session' });
+    assert.equal(receipt.status, 'passed');
+    assert.deepEqual(receipt.sizing, sizing);
+    assert.equal(receipt.lifetimeMs, h.f.lifetimeMs);
+    assert.equal(receipt.cleanup, 'deleted');
+  } finally {
+    await h.close();
+  }
+});
 
 test('Vercel executes bounded Node code without Docker, verifies cleanup and never repeats identical work', async () => {
   const h = await fixture();

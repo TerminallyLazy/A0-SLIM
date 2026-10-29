@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-29",
+  "scope": "Project access modes, automatic MCP setup and composer alignment",
+  "runtime": "Node 24.22.1",
+  "localValidation": {
+    "repositoryTests": 176,
+    "failedTests": 0,
+    "typecheck": "passed",
+    "productionBuild": "passed",
+    "packageSmoke": "passed",
+    "dependencyVulnerabilities": 0
+  },
+  "browser": {
+    "name": "Chrome",
+    "model": "synthetic local model fixture",
+    "mcp": "local HTTP fixture with two tools",
+    "verified": [
+      "New project defaults to Approve for me",
+      "Ordinary project edit completes automatically",
+      "Ask for Approval pauses a file edit and resumes the same turn after approval",
+      "Full Access completes the fixture edit without an approval prompt",
+      "Connect and enable discovers and enables both MCP tools",
+      "An explicit tool opt-out survives catalog refresh",
+      "Model selector and Access selector have matching 32 CSS pixel heights",
+      "Model selector, Access selector and Send button vertical centers differ by less than 0.01 CSS pixels"
+    ]
+  },
+  "boundaries": [
+    "Model responses and MCP tool results are synthetic; local file and process effects are real",
+    "No live cloud provider inference or billing acceptance is claimed by this receipt",
+    "Existing owner-host ACP and Plugin Hub receipts remain separate",
+    "No public npm release is included"
+  ]
+}

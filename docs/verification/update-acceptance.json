@@ -1,0 +1,33 @@
+{
+  "platform": "darwin",
+  "node": "v24.22.1",
+  "version": "0.1.0-alpha.2",
+  "source": "local packed artifact and synthetic registry metadata; real npm dependency installation",
+  "verified": [
+    "SHA-512",
+    "scripts disabled",
+    "native runtime probe",
+    "atomic release switch",
+    "previous release retained",
+    "saved data preserved",
+    "one launch automatically updated and started the app",
+    "paired browser API and served UI",
+    "automatic preference toggles",
+    "clean shutdown"
+  ],
+  "date": "2026-10-29",
+  "repositoryTests": {
+    "passed": 190,
+    "failed": 0
+  },
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "packageSmoke": "passed",
+  "installerSmoke": {
+    "existingNode": "passed",
+    "privateNodeBootstrap": "passed",
+    "offlineRepeat": "passed"
+  },
+  "dependencyVulnerabilities": 0,
+  "publicRelease": "No new npm release was published."
+}

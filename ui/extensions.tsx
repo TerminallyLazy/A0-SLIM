@@ -27,18 +27,25 @@ export const downloadText = (name: string, text: string, type = 'text/plain') =>
 };
 const sample =
   '---\nname: deliberate-work\ndescription: Inspect, act, and verify project changes with a clear evidence trail.\n---\nRead the relevant project files before changing anything. Break substantial work into a short plan. Use the available tools, check the result, and distinguish completed actions from proposals awaiting approval. Save useful, attributable findings only when project memory writes are enabled. Never claim a check ran unless a tool result supports it.\n';
-export function ExtensionWorkspace({ project, act }: { project?: Project; act: Act }) {
+export function ExtensionWorkspace({
+  project,
+  act,
+  initialSection = 'skills',
+}: {
+  project?: Project;
+  act: Act;
+  initialSection?: 'skills' | 'mcp';
+}) {
   const [data, setData] = useState<{ skills: Skill[]; servers: McpServer[]; calls: McpCall[] }>({
       skills: [],
       servers: [],
       calls: [],
     }),
-    [section, setSection] = useState('skills'),
+    [section, setSection] = useState<string>(initialSection),
     [markdown, setMarkdown] = useState(''),
     [source, setSource] = useState('User import'),
     [editing, setEditing] = useState<string>(),
     [transport, setTransport] = useState('http'),
-    [hostAck, setHostAck] = useState(false),
     [busy, setBusy] = useState(false);
   const base = `/projects/${project?.id}`;
   const refresh = async () => {
@@ -286,10 +293,9 @@ export function ExtensionWorkspace({ project, act }: { project?: Project; act: A
       {section === 'mcp' && (
         <>
           <div className="feature-intro">
-            <span className="pill">Explicit tool permissions</span>
             <p>
-              Discover a server’s tools, select what this project may use, and enable the
-              connection. Every call still needs approval of its exact arguments.
+              Tools are discovered and enabled when you connect. Calls follow your project’s access
+              mode. You can turn individual tools off below.
             </p>
           </div>
           <div className="extension-grid">
@@ -309,7 +315,13 @@ export function ExtensionWorkspace({ project, act }: { project?: Project; act: A
                 <article className="feature-item" key={server.id}>
                   <div className="panel-title">
                     <h3>{server.name}</h3>
-                    <span className="pill">{server.enabled ? 'Enabled' : 'Disabled'}</span>
+                    <span className="pill">
+                      {server.connectionError
+                        ? 'Needs attention'
+                        : server.enabled
+                          ? `Connected · ${server.allowed.length} ${server.allowed.length === 1 ? 'tool' : 'tools'} enabled`
+                          : 'Disabled'}
+                    </span>
                   </div>
                   <p className="wrap">
                     {server.transport !== 'stdio'
@@ -323,13 +335,20 @@ export function ExtensionWorkspace({ project, act }: { project?: Project; act: A
                       ? ` · Discovered ${new Date(server.verifiedAt).toLocaleString()}`
                       : ''}
                   </small>
+                  {server.connectionError && <p className="notice">{server.connectionError}</p>}
                   <div className="button-row">
                     <button
                       disabled={busy}
-                      onClick={() => run(() => api(`${base}/mcp/${server.id}/discover`, {}))}
+                      onClick={() =>
+                        run(() =>
+                          api(`${base}/mcp/${server.id}/discover`, {
+                            enable: !!server.connectionError,
+                          }),
+                        )
+                      }
                     >
                       <RefreshCw size={14} />
-                      {server.transport === 'stdio' ? 'Start & discover' : 'Discover tools'}
+                      {server.connectionError ? 'Retry connection' : 'Refresh tools'}
                     </button>
                     <button
                       disabled={busy || !server.verifiedAt}
@@ -353,61 +372,64 @@ export function ExtensionWorkspace({ project, act }: { project?: Project; act: A
                       <Trash2 size={15} />
                     </button>
                   </div>
-                  {server.tools.map((tool) => (
-                    <details className="tool-review" key={tool.name}>
-                      <summary>
-                        {tool.name}{' '}
-                        <span className="pill">
-                          {server.allowed.includes(tool.name)
-                            ? 'Allowed · approval per call'
-                            : 'Off'}
-                        </span>
-                      </summary>
-                      <p>{tool.description}</p>
-                      <pre>{JSON.stringify(tool.inputSchema, null, 2)}</pre>
-                      <label className="check-row">
-                        <input
-                          type="checkbox"
-                          checked={server.allowed.includes(tool.name)}
-                          disabled={busy}
-                          onChange={(e) =>
-                            run(() =>
-                              api(`${base}/mcp/${server.id}/configure`, {
-                                enabled: server.enabled,
-                                allowed: e.target.checked
-                                  ? [...server.allowed, tool.name]
-                                  : server.allowed.filter((n) => n !== tool.name),
-                              }),
-                            )
-                          }
-                        />
-                        Allow this tool for the project
-                      </label>
-                      {server.enabled && server.allowed.includes(tool.name) && (
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            const value = String(new FormData(e.currentTarget).get('arguments'));
-                            run(async () => {
-                              await api(`${base}/mcp-calls`, {
-                                serverId: server.id,
-                                tool: tool.name,
-                                args: JSON.parse(value),
-                                operationId: crypto.randomUUID(),
+                  <details>
+                    <summary>Tools · {server.tools.length}</summary>
+                    {server.tools.map((tool) => (
+                      <details className="tool-review" key={tool.name}>
+                        <summary>
+                          {tool.name}{' '}
+                          <span className="pill">
+                            {server.allowed.includes(tool.name) ? 'Enabled' : 'Off'}
+                          </span>
+                        </summary>
+                        <p>{tool.description}</p>
+                        <pre>{JSON.stringify(tool.inputSchema, null, 2)}</pre>
+                        <label className="check-row">
+                          <input
+                            type="checkbox"
+                            checked={server.allowed.includes(tool.name)}
+                            disabled={busy}
+                            onChange={(e) =>
+                              run(() =>
+                                api(`${base}/mcp/${server.id}/configure`, {
+                                  enabled: server.enabled,
+                                  allowed: e.target.checked
+                                    ? [...server.allowed, tool.name]
+                                    : server.allowed.filter((n) => n !== tool.name),
+                                }),
+                              )
+                            }
+                          />
+                          Enable this tool
+                        </label>
+                        {server.enabled && server.allowed.includes(tool.name) && (
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              const value = String(new FormData(e.currentTarget).get('arguments'));
+                              run(async () => {
+                                await api(`${base}/mcp-calls`, {
+                                  serverId: server.id,
+                                  tool: tool.name,
+                                  args: JSON.parse(value),
+                                  operationId: crypto.randomUUID(),
+                                });
+                                setSection('calls');
                               });
-                              setSection('calls');
-                            });
-                          }}
-                        >
-                          <label>
-                            Test arguments (JSON)
-                            <textarea name="arguments" defaultValue="{}" rows={3} />
-                          </label>
-                          <button disabled={busy}>Stage test for review</button>
-                        </form>
-                      )}
-                    </details>
-                  ))}
+                            }}
+                          >
+                            <label>
+                              Test arguments (JSON)
+                              <textarea name="arguments" defaultValue="{}" rows={3} />
+                            </label>
+                            <button disabled={busy}>
+                              {project.access ? 'Run test' : 'Stage test for review'}
+                            </button>
+                          </form>
+                        )}
+                      </details>
+                    ))}
+                  </details>
                 </article>
               ))}
             </section>
@@ -433,11 +455,10 @@ export function ExtensionWorkspace({ project, act }: { project?: Project; act: A
                         : {
                             command: data.get('command'),
                             args: JSON.parse(String(data.get('args') || '[]')),
-                            acknowledgeHostExecution: hostAck,
+                            acknowledgeHostExecution: true,
                           }),
                     });
                     form.reset();
-                    setHostAck(false);
                   });
                 }}
               >
@@ -449,7 +470,7 @@ export function ExtensionWorkspace({ project, act }: { project?: Project; act: A
                   Transport
                   <select value={transport} onChange={(e) => setTransport(e.target.value)}>
                     <option value="http">Streamable HTTP</option>
-                    <option value="agent-zero">Agent Zero MCP tools · preview</option>
+                    <option value="agent-zero">Agent Zero task delegation · preview</option>
                     <option value="stdio">Local stdio · full trust</option>
                   </select>
                 </label>
@@ -517,23 +538,15 @@ export function ExtensionWorkspace({ project, act }: { project?: Project; act: A
                         rows={3}
                       />
                     </label>
-                    <label className="check-row">
-                      <input
-                        type="checkbox"
-                        checked={hostAck}
-                        onChange={(e) => setHostAck(e.target.checked)}
-                      />
-                      I trust this executable and its arguments to run with my OS account, outside a
-                      sandbox. It can read or change my files.
-                    </label>
                     <p>
-                      Discovery starts the process. The app supplies a minimal environment and no
-                      saved model credentials. This is not an installer.
+                      Connecting starts this local program with your OS account’s file and network
+                      access. Project access modes govern SLIM’s tool calls; they do not sandbox the
+                      server process.
                     </p>
                   </>
                 )}
-                <button className="primary" disabled={busy || (transport === 'stdio' && !hostAck)}>
-                  Save disabled connection
+                <button className="primary" disabled={busy}>
+                  {busy ? 'Connecting…' : 'Connect and enable'}
                 </button>
               </form>
             </section>
@@ -544,8 +557,8 @@ export function ExtensionWorkspace({ project, act }: { project?: Project; act: A
         <section className="feature-panel">
           <h2>Review tool calls</h2>
           <p>
-            Check the server, tool, and arguments before approving. A completed result becomes
-            available to the agent through mcp_result on your next message.
+            New chats show approvals in the conversation and continue after your decision. This
+            history also contains legacy calls and outcomes that need recovery review.
           </p>
           <button onClick={() => run(refresh)} disabled={busy}>
             <RefreshCw size={14} />
@@ -632,13 +645,21 @@ export function ExtensionWorkspace({ project, act }: { project?: Project; act: A
     </>
   );
 }
-export function PluginHubView({ project, act }: { project?: Project; act: Act }) {
+export function PluginHubView({
+  project,
+  act,
+  navigate,
+}: {
+  project?: Project;
+  act: Act;
+  navigate: (view: 'agents' | 'extensions', section?: 'skills' | 'mcp') => void;
+}) {
   const [catalog, setCatalog] = useState<HubCatalog | null>(null),
     [query, setQuery] = useState(''),
     [filter, setFilter] = useState('all'),
     [busy, setBusy] = useState(false),
     [selected, setSelected] = useState<HubEntry>(),
-    [preview, setPreview] = useState<{ markdown: string; source: string }>(),
+    [preview, setPreview] = useState<{ markdown: string; source: string; warnings: string[] }>(),
     [notice, setNotice] = useState('');
   useEffect(() => {
     void act(async () => setCatalog(await api('/hub')));
@@ -661,7 +682,7 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
   };
   const rows = (catalog?.entries ?? []).filter(
     (e) =>
-      (filter === 'all' || (e.assessment?.status ?? 'Compatibility unknown') === filter) &&
+      (filter === 'all' || (e.assessment?.status ?? 'Not assessed') === filter) &&
       `${e.title} ${e.description} ${e.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase()),
   );
   return (
@@ -683,7 +704,13 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
           Compatibility
           <select value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="all">All assessments</option>
-            {['Requires Agent Zero', 'Port available', 'Compatibility unknown'].map((v) => (
+            {[
+              'Verified tools',
+              'Runs in Agent Zero',
+              'Skill import available',
+              'Port required',
+              'Not assessed',
+            ].map((v) => (
               <option key={v}>{v}</option>
             ))}
           </select>
@@ -718,9 +745,9 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
       <div className="permission-note">
         <ShieldCheck size={18} />
         <span>
-          Python plugins run in Agent Zero. Use Agents to connect the whole agent over ACP, or
-          connect its MCP server here for individual remote tools. Agent Zero UI hooks do not become
-          native SLIM screens. Review and import portable SKILL.md instructions separately.
+          Use ACP for an Agent Zero conversation. Its built-in MCP server delegates chat tasks;
+          individual plugin tools need a supported companion adapter. Plugin screens and lifecycle
+          hooks stay in Agent Zero. Review skill instructions and their dependencies separately.
         </span>
       </div>
       {selected && (
@@ -738,8 +765,43 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
           </div>
           <p>{selected.assessment?.reason}</p>
           <small className="wrap">
-            Assessed revision {selected.commit} · {selected.assessment?.checkedAt}
+            Source assessment · {selected.commit} · {selected.assessment?.checkedAt}
           </small>
+          <ul>
+            {selected.assessment?.capabilities.map((capability) => (
+              <li key={capability.kind}>
+                <strong>{capability.kind}</strong>: {capability.detail}
+              </li>
+            ))}
+          </ul>
+          {selected.assessment?.adapter && (
+            <p>
+              Companion {selected.assessment.adapter.version} · Agent Zero{' '}
+              {selected.assessment.adapter.hostVersion} ·{' '}
+              {selected.assessment.adapter.operations.join(', ')} ·{' '}
+              {selected.assessment.adapter.verified
+                ? 'Synthetic-data execution verified; check your host separately.'
+                : 'Prototype; runtime acceptance pending.'}
+            </p>
+          )}
+          {selected.assessment?.adapter && (
+            <p>
+              {selected.assessment.adapter.evidence} · {selected.assessment.adapter.checkedAt}
+            </p>
+          )}
+          <div className="button-row">
+            <button onClick={() => navigate('agents')}>Use in Agent Zero</button>
+            {selected.assessment?.adapter && (
+              <button onClick={() => navigate('extensions', 'mcp')}>Connect companion tools</button>
+            )}
+            <a
+              href="https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/PLUGIN-COMPANION.md"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Setup and limits
+            </a>
+          </div>
           <div className="button-row">
             {selected.assessment?.skills.map((path) => (
               <button
@@ -755,6 +817,11 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
           </div>
           {preview && (
             <>
+              {preview.warnings.map((warning) => (
+                <p className="permission-note" key={warning}>
+                  {warning}
+                </p>
+              ))}
               <pre>{preview.markdown}</pre>
               <p className="wrap">{preview.source}</p>
               <button
@@ -762,7 +829,10 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
                 disabled={busy || !project}
                 onClick={() =>
                   run(async () => {
-                    await api(`/projects/${project!.id}/skills`, preview);
+                    await api(`/projects/${project!.id}/skills`, {
+                      markdown: preview.markdown,
+                      source: preview.source,
+                    });
                     setNotice(
                       `Imported disabled into ${project!.name}. Enable it from Skills & MCP after reviewing.`,
                     );
@@ -790,7 +860,7 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
           <article className="hub-card" key={entry.id}>
             <div className="panel-title">
               <small>{entry.version || 'Unversioned'}</small>
-              <span className="pill">{entry.assessment?.status ?? 'Compatibility unknown'}</span>
+              <span className="pill">{entry.assessment?.status ?? 'Not assessed'}</span>
             </div>
             <h2>{entry.title}</h2>
             <p>{entry.description}</p>

@@ -39,6 +39,8 @@ test(
         ';',
       )[0]!;
       const project = (await call('/projects', { name: 'Bash fixture', root })).json();
+      // Existing projects retain their explicit host grant and original chat identities.
+      store.saveProject({ ...store.project(project.id), access: undefined });
       assert.equal((await call(`/projects/${project.id}/bash`, { enabled: true })).statusCode, 400);
       assert.equal(
         (

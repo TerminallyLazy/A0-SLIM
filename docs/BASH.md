@@ -2,7 +2,7 @@
 
 Included in `a0-slim@0.1.0-alpha.2` and later.
 
-New native chats expose `bash` when a sandbox is selected or host Bash has been explicitly enabled for the project. Existing chats retain their tool identities; start a new chat after changing permissions. ACP agents retain their own execution policies. Read-only subordinates do not receive Bash.
+New native chats with an [access mode](ACCESS.md) expose `bash`; when no sandbox is selected, host calls use that mode. Full Access runs them without discretionary approval; Approve for me and Ask for Approval review arbitrary host commands inline and then resume the same turn. Legacy chats expose `bash` only when a sandbox or their separate explicit host grant was selected. Existing chats retain their tool identities; start a new chat after changing permissions. ACP agents retain their own execution policies. Read-only subordinates do not receive Bash.
 
 ```json
 {"command":"items=(paper garden); printf '%s\\n' \"${items[*]}\" | sort","target":"sandbox","input":"","timeout_ms":10000}
@@ -12,7 +12,7 @@ The tool executes `/bin/bash --noprofile --norc -o pipefail -c` with arguments a
 
 | Boundary | Sandbox | Host |
 | --- | --- | --- |
-| Execution | Chat's frozen Docker, Vercel or Microsandbox adapter | Explicit per-project permission; frozen grant revision per chat |
+| Execution | Chat's frozen Docker, Vercel or Microsandbox adapter | Project access mode for updated chats; frozen explicit grant for legacy chats |
 | Lifetime | Disposable per call; combine related steps into one script | Fresh shell per call; host files persist |
 | Working directory | `/work` in Docker, `/tmp` in Vercel/Microsandbox by default | Project folder initially; explicit `cwd` selections retained per chat |
 | Shell state | `cd`, variables and functions last one call | `cd`, variables and functions last one call |
@@ -25,10 +25,10 @@ These are noninteractive scripts, not persistent PTYs. Shell variables and backg
 
 ## Setup
 
-- **Vercel:** retain the existing passing connection check and project cloud-use grant. Bash uses the same 60-second disposable VM, three-call per-turn and ten-call per-ten-minute budgets as Node. No Docker dependency. A Bash failure never selects host execution automatically.
+- **Vercel:** retain the existing passing connection check and project cloud-use grant. Bash uses the same disposable VM with the selected session timeout (15 minutes by default), three-call per-turn and ten-call per-ten-minute budgets as Node. No Docker dependency. A Bash failure never selects host execution automatically.
 - **Docker:** start the local engine and install the separate Bash-capable image: `docker pull node@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d`. The previous Alpine image remains supported for existing Node calls. Bash image presence is shown separately in Environments.
 - **Microsandbox:** update the optional add-on in Environments and rerun its check. The image is now digest-pinned Node 22 Bookworm Slim with real Bash. Existing installed workers remain available to reconcile their original VMs before update. The larger image is an optional runtime download, not part of the core npm archive.
-- **Host:** in Environments, read and select the explicit project permission, then enable host Bash and start a new chat. `/bin/bash` on macOS or Linux is required. Disabling it cancels current host commands and blocks dispatch from old chats. Re-enabling produces a new grant; old chats do not regain access.
+- **Host:** select the project access mode; updated chats need no additional enable toggle. Legacy projects can retain the existing explicit permission in Environments and start a new chat. `/bin/bash` on macOS or Linux is required. Disabling it cancels current host commands and blocks dispatch from old chats. Re-enabling produces a new grant; old chats do not regain access.
 
 Host Bash can directly read and modify files, make network requests, and access credentials stored on disk. A working directory is not isolation and host commands bypass the staged artifact review. The child receives a small explicit environment; shell startup profiles, `BASH_ENV`, `NODE_OPTIONS`, model keys and other inherited variables are excluded. This does not make host execution safe for untrusted commands. Use a sandbox for isolation.
 

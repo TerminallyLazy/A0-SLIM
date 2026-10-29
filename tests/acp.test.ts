@@ -314,3 +314,44 @@ test('ACP service restart preserves unfinished intent as a hold across profiles'
     await rm(f.project, { recursive: true, force: true });
   }
 });
+
+// Live Agent Zero CLI 2.14 emits full snapshots, including revisions, not deltas.
+test('ACP snapshot compatibility is scoped to Agent Zero 2.14 and preserves raw update text', async () => {
+  for (const flags of [[], ['--a0-snapshots'], ['--a0-snapshots', '--future']]) {
+    const f = await setup(flags);
+    try {
+      await f.prompt('snapshots');
+      const events = f.events().filter((e) => e.type.startsWith('text_'));
+      assert.deepEqual(
+        events.map((e) => e.delta),
+        ['Hel', 'Hello', 'Hi, corrected.'],
+      );
+      const snapshot = flags.includes('--a0-snapshots') && !flags.includes('--future');
+      assert.ok(events.every((e) => e.type === (snapshot ? 'text_snapshot' : 'text_delta')));
+      await f.acp.close();
+      const restored = new ACPClient(f.store);
+      restored.prompt(f.chatId, 'snapshots', randomUUID());
+      await until(() => f.store.chat(f.chatId).status === 'idle');
+      assert.equal(f.events().filter((e) => e.delta === 'REPLAY MUST NOT DUPLICATE').length, 0);
+      await restored.close();
+    } finally {
+      await f.cleanup();
+    }
+  }
+});
+
+test('Full Access automatically selects only the offered one-time ACP permission', async () => {
+  const f = await setup();
+  try {
+    const project = f.store.project(f.store.chat(f.chatId).projectId);
+    f.store.saveProject({ ...project, access: { mode: 'full', revision: randomUUID() } });
+    await f.prompt('permission');
+    assert.equal(f.acp.pending().length, 0);
+    assert.ok(f.events().some((e) => e.delta?.includes('Decision: yes')));
+    const record = f.store.records<any>('acp-permission')[0];
+    assert.equal(record.authority, 'full-access');
+    assert.equal(record.outcome.optionId, 'yes');
+  } finally {
+    await f.cleanup();
+  }
+});

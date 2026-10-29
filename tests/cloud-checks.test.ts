@@ -107,7 +107,7 @@ test('E2B SDK wiring pins credentials, endpoint, network and lifetime; reads do 
         assert.equal(options.apiUrl, 'https://api.e2b.app');
         assert.equal(options.retries, 0);
         assert.equal(options.allowInternetAccess, false);
-        assert.equal(options.timeoutMs, 60000);
+        assert.equal(options.timeoutMs, 15 * 60_000);
         assert.equal(options.network.allowPublicTraffic, false);
         assert.deepEqual(options.lifecycle, { onTimeout: 'kill', autoResume: false });
         assert.deepEqual(options.envs, {});
@@ -176,7 +176,8 @@ test('Daytona SDK wiring uses private ephemeral sandboxes and verified deletion'
           assert.equal(bounds.timeout, 30);
           assert.equal(options.networkBlockAll, true);
           assert.equal(options.public, false);
-          assert.equal(options.ttlMinutes, 1);
+          assert.equal(options.ttlMinutes, 30);
+          assert.deepEqual(options.resources, { cpu: 4, memory: 4, disk: 3 });
           assert.equal(options.autoDeleteInterval, 0);
           assert.equal(options.ephemeral, true);
           assert.deepEqual(options.secrets, {});
@@ -192,7 +193,11 @@ test('Daytona SDK wiring uses private ephemeral sandboxes and verified deletion'
         },
       }) as any,
   );
-  await driver.create('fixture-name', { app: 'a0-slim' });
+  await driver.create(
+    'fixture-name',
+    { app: 'a0-slim' },
+    { sessionTimeoutMinutes: 30, vcpus: 4, memoryMiB: 4096 },
+  );
   assert.equal(await driver.execute('fixture-id'), 'fixture-output');
   assert.equal((await driver.find('fixture-name', {})).length, 1);
   await driver.destroy('fixture-id');

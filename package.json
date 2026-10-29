@@ -1,6 +1,6 @@
 {
   "name": "a0-slim",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "type": "module",
   "description": "A local-first agent workspace built around libfx",
   "engines": {
@@ -14,7 +14,9 @@
     "start": "node dist/server/cli.js",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
-    "check": "npm run typecheck && npm test && npm run build",
+    "check": "node scripts/sync-installer.mjs --check && npm run typecheck && npm test && npm run build",
+    "sync:installer": "node scripts/sync-installer.mjs",
+    "test:update": "node scripts/update-smoke.mjs",
     "prepack": "npm run build",
     "test:package": "node scripts/package-smoke.mjs",
     "test:installer": "node scripts/installer-smoke.mjs"
@@ -64,6 +66,7 @@
     "bin",
     "dist",
     "scripts/patch-libfx.cjs",
+    "scripts/update.mjs",
     "addons/local-embeddings/package.json",
     "addons/local-embeddings/npm-shrinkwrap.json",
     "addons/local-embeddings/worker.mjs",
@@ -78,6 +81,8 @@
     "LICENSE",
     "docs/MICROSANDBOX.md",
     "docs/BASH.md",
+    "docs/ACCESS.md",
+    "docs/UPDATES.md",
     "docs/FIRST-RUN.md",
     "addons/openshell/package.json",
     "addons/openshell/worker.mjs",

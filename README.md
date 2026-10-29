@@ -2,7 +2,7 @@
 
 A local-first agent workspace inspired by Agent Zero. A Node service runs the agent loop, project tools, memory, and extensions; a browser UI exposes their state and permissions.
 
-**Status: alpha 0.1.0-alpha.2 with guided first-run setup, native Bash, P2 extensions, memory and bounded subordinates.** ChatGPT text/functions, reviewed artifacts, optional local Docker execution and bounded Vercel Node.js execution are implemented. Cloud account acceptance and broader release gates remain open. See [P1 evidence and limitations](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P1.md) and [P2 verification](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P2.md).
+**Status: alpha 0.1.0-alpha.3 with guided first-run setup, native Bash, P2 extensions, memory and bounded subordinates.** ChatGPT text/functions, reviewed artifacts, optional local Docker execution and bounded Vercel Node.js execution are implemented. Cloud account acceptance and broader release gates remain open. See [P1 evidence and limitations](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P1.md) and [P2 verification](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P2.md).
 
 ## Install and launch with one command
 
@@ -14,20 +14,36 @@ curl -fsSL https://raw.githubusercontent.com/TerminallyLazy/A0-SLIM/main/install
 
 This installs A0 SLIM, opens the browser when available, and keeps the service running in your terminal. Enter the pairing code printed there. Press **Ctrl+C** to stop. If A0 SLIM is already running on the default workspace/selected port, the launcher opens that instance instead.
 
-The installer reuses Node 24 with compatible npm 11.19+ (11.x). Otherwise it downloads a private, checksum-verified Node 24.22.1 runtime. No `sudo`, global Node replacement or shell-profile changes are needed. Files live in `~/.local/share/a0-slim-cli` (or `$XDG_DATA_HOME/a0-slim-cli`); app data remains in its normal location. The terminal prints the exact command for starting again, normally:
+The installer reuses Node 24 with compatible npm 11.19+ (11.x). Otherwise it downloads a private, checksum-verified Node 24.22.1 runtime. No `sudo` or global Node replacement is needed. Files live in `~/.local/share/a0-slim-cli` (or `$XDG_DATA_HOME/a0-slim-cli`); app data remains in its normal location. The installer registers `a0-slim` in `~/.local/bin` and configures your shell’s PATH when needed. Existing shell settings are preserved and backed up before an appended PATH block. Open a new terminal after first-time PATH setup, then start again with:
 
 ```sh
-~/.local/share/a0-slim-cli/bin/a0-slim
+a0-slim
 ```
 
+The current terminal cannot inherit environment changes from the piped installer; it prints a one-line PATH command for immediate use when needed. An unrelated existing `~/.local/bin/a0-slim` is preserved, and the private launcher path is printed instead.
+
 Optional embeddings, model weights and Microsandbox still require separate setup in the app. See [installer options and recovery](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/PACKAGING.md#one-command-installer).
+
+### Updates
+
+Curl installations **update automatically before startup**, at most once a day. Just run `a0-slim` as usual. Downloads are verified and the native runtime is checked before switching versions. An offline or failed update starts the installed version; running sessions are never interrupted.
+
+To update immediately:
+
+```sh
+a0-slim update
+```
+
+Use `a0-slim update --check` to check without installing, `a0-slim update --auto=off` to disable automatic updates, or `--auto=on` to restore them. `A0_SLIM_NO_UPDATE=1 a0-slim` skips the startup check once. An update installed while the app is running takes effect on its next start.
+
+Existing curl users need to rerun the installer once to get these commands. npm installations remain managed by npm: `npm install -g a0-slim@latest --ignore-scripts`. Source checkouts remain managed by Git. See [update behavior and recovery](docs/UPDATES.md).
 
 ## Install with your own Node and npm
 
 Use **Node 24** and npm 11.19 or newer. macOS arm64 and Linux x64 are the tested targets. This is an alpha release.
 
 ```sh
-npm install -g a0-slim@0.1.0-alpha.2 --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+npm install -g a0-slim@0.1.0-alpha.3 --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
 a0-slim
 ```
 
@@ -46,34 +62,34 @@ Closing the tab detaches the viewer; **Stop** cancels the current model turn. St
 Download the exact release tarball:
 
 ```sh
-curl -fL -o a0-slim-0.1.0-alpha.2.tgz https://github.com/TerminallyLazy/A0-SLIM/releases/download/v0.1.0-alpha.2/a0-slim-0.1.0-alpha.2.tgz
+curl -fL -o a0-slim-0.1.0-alpha.3.tgz https://registry.npmjs.org/a0-slim/-/a0-slim-0.1.0-alpha.3.tgz
 ```
 
 Then install it with Node 24 and npm 11.19 or newer:
 
 ```sh
-npm install -g ./a0-slim-0.1.0-alpha.2.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+npm install -g ./a0-slim-0.1.0-alpha.3.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
 a0-slim
 ```
 
-The download is about 470 KB; npm installs production dependencies separately. The GitHub asset and npm release use the same tested tarball. The exact SHA-256 is in the release’s `SHA256SUMS` asset.
+npm installs production dependencies separately. Release checks and artifact integrity are recorded in `docs/verification/`.
 
 ## What works
 
 - Projects, saved chats, streaming, Markdown assistant replies, transcript replay, message deduplication, Stop and Redirect through native libfx. Redirect stops the active turn, then submits your revised direction.
 - AI Gateway and compatible endpoints, including local model servers. Each chat keeps its selected model connection and execution environment; changing defaults affects new chats.
 - Dedicated Sign in with ChatGPT registration, account model discovery, encrypted tokens, serialized refresh and disconnect. The text/function bridge preserves completed provider output, encrypted reasoning and message phase in an encrypted local journal. It waits for terminal success before releasing tool calls.
-- Scoped file reads and **reviewed text artifacts**. `write_file` stages an immutable preview; only the paired browser can approve its exact content and destination. Conflicts and interrupted writes block further project changes until reconciled.
-- Optional **local Docker** execution: disposable Node.js containers, no network, no host-folder mounts or model credentials, non-root user, read-only base image, 128 MiB memory and five seconds per call. Output can become a reviewed artifact. Core chat does not require Docker.
+- **Three access modes:** Full Access, Approve for me (the new-project default), and Ask for Approval. Native files, web requests, host commands and MCP calls follow the selected mode. Required approvals appear in chat and resume the same turn. File changes retain atomic receipts and conflict checks. Existing projects/chats retain their prior permissions until explicitly updated. See [access modes](docs/ACCESS.md).
+- Optional **local Docker** execution: disposable Node.js containers, no network, no host-folder mounts or model credentials, non-root user, read-only base image, selectable CPU/memory (128 MiB by default) and five seconds per Node call. Output can become a reviewed artifact. Core chat does not require Docker.
 - **Vercel Sandbox, Modal, E2B and Daytona** connection forms and bounded synthetic checks, with official logos, signup/sign-in links, guided credential setup, explicit usage acknowledgment and recovery receipts. Vercel supports native chat code calls; the other three providers currently support synthetic checks only.
-- **Skills & MCP:** import, inspect, enable, export, update and roll back project SKILL.md instructions. New native chats load relevant skills through `skills_tool`. Connect Streamable HTTP or explicitly trusted local stdio MCP servers, discover tools, and grant each tool separately. Calls enter an exact-argument approval queue; ambiguous effects block further calls to the server.
+- **Skills & MCP:** import, inspect, enable, export, update and roll back project SKILL.md instructions. New native chats load relevant skills through `skills_tool`. Connect Streamable HTTP or explicitly trusted local stdio MCP servers with **Connect and enable**. Tools are discovered and enabled automatically, with optional per-tool switches. Calls follow the access mode; ambiguous effects still block further calls to that server.
 - **External agents over ACP:** choose an Agent Zero or custom stdio agent for a new chat. Separate saved sessions, Markdown streaming, tool activity, one-time permission decisions and conservative recovery. Native SLIM/libfx and MCP remain available. See [ACP setup and boundaries](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/ACP.md).
-- **Agent Zero MCP tools preview:** the Agent Zero preset connects to its built-in Streamable HTTP MCP endpoint. Store the base URL and encrypted token separately, optionally bind a remote project, discover the exposed tools, and review every call. Python plugins continue running on Agent Zero. A real instance check remains pending.
-- **Plugin Hub:** refresh the actual upstream catalog, search it, assess pinned repository trees, and review/import individual portable Markdown skills. No install hooks run. Unknown or Python/UI plugins are never advertised as native Node extensions.
+- **Agent Zero MCP delegation preview:** the Agent Zero preset connects to its built-in Streamable HTTP MCP endpoint. Store the base URL and encrypted token separately, optionally bind a remote project, automatically discover its tools, and use the selected access mode. Python plugins continue running on Agent Zero. A real instance check remains pending.
+- **Plugin Hub:** assess tools, skills, lifecycle and UI separately at exact repository revisions, with a SLIM-owned compatibility overlay. The optional [DB Hub companion](docs/PLUGIN-COMPANION.md) exposes status/schema for existing SQLite databases on pinned Agent Zero 2.14. Actual plugin execution on synthetic data is verified; owner-host acceptance remains separate. No install hooks run while browsing.
 - **Memory:** SQLite/FTS5 project notes in `main`, `fragments`, and `solutions`, with source labels, editing, deletion, portable text import/export, and separate agent read/write permissions. New chats receive bounded lexical recall at turn start and can call `memory_load`, `memory_save`, and `memory_delete`.
 - **Embeddings:** optional local inference runtime installed from Memory → Embeddings & models, followed by an explicit pinned Hugging Face MiniLM download (22.6 MiB). Installation supports cancellation, retry and removal; model files have checksums, progress, pause/retry and offline verification. CPU inference runs in a worker with network fetch disabled. Separate compatible `/embeddings` connections require their own credentials and an explicit project data-sharing choice. Reindexing validates dimensions and switches namespaces only after successful completion; lexical search stays available.
 - **Subordinates:** new chats can delegate read-only research/review through `call_subordinate`, inspect each child transcript, stop its work and continue the same child from its parent. Children inherit the project, model connection and a subset of permitted skills/recall; they cannot write, execute code or call MCP.
-- Graphite/Paper themes, three accents, two densities, responsive file/artifact inspector, and original Agent Zero symbols.
+- Twelve theme presets with dark/light palettes, gradients, custom colors, a live preview with Save/Reset, and two densities. Existing appearance preferences are preserved. Responsive file/artifact inspector and original Agent Zero symbols.
 
 ### Free sandbox choices
 
@@ -83,7 +99,7 @@ In **Environments**, local Docker uses your computer without cloud compute fees.
 
 [E2B](https://e2b.dev/pricing) offers $100 one-time credits (no credit card required to start); [Daytona](https://www.daytona.io/pricing) advertises $200 introductory compute. Both now have synthetic check adapters. These are not unlimited or recurring free compute.
 
-Each provider card has **Create account**, **Sign in**, **Open dashboard** and guided credential links. Authenticate on the provider’s site, then save its API key/token in A0 SLIM; no CLI setup is needed. Credentials remain encrypted in the local vault. A browser sign-in does not automatically grant this app access. **Save** makes no cloud request; **Check** requires an explicit usage checkbox. E2B kills its sandbox after 60 seconds; Daytona uses a one-minute lifetime, auto-stop and auto-delete. Cleanup confirms deletion by ID. Unknown creation outcomes block further checks; recovery never creates a replacement. Daytona checks use the US region and the stable SDK, not its v2 alpha.
+Each provider card has **Create account**, **Sign in**, **Open dashboard** and guided credential links. Authenticate on the provider’s site, then save its API key/token in A0 SLIM; no CLI setup is needed. Credentials remain encrypted in the local vault. A browser sign-in does not automatically grant this app access. **Save** makes no cloud request; **Check** requires an explicit usage checkbox. Session Timeout defaults to 15 minutes for Vercel, Modal, E2B, Daytona and Microsandbox, with provider-specific caps. CPU and memory choices stay within free-plan-eligible shapes; E2B custom sizing is unavailable because it requires Pro. Credit balances and account billing still apply. Vercel offers 1, 2 or 4 vCPUs with 2 GB per vCPU. Save settings, repeat the connection check and start a new chat after changes. [Resource limits and sources](docs/SANDBOX-SETTINGS.md). E2B kills timed-out sandboxes; Daytona uses wall-clock TTL, auto-stop and auto-delete. Cleanup confirms deletion by ID. Unknown creation outcomes block further checks; recovery never creates a replacement. Daytona checks use the US region and the stable SDK, not its v2 alpha.
 
 Vercel setup retains the Team and Project IDs when reopened. Leave the token blank to keep the saved token. A team slug is resolved to its canonical ID through an authenticated project lookup before compute starts. If an earlier check is stuck with an unknown outcome, use **Recheck & clean up**. For an absent resource, **Record a provider review** requires explicit confirmation, verified project ownership, an exact-name 404 and a complete project sandbox listing; it preserves the original failed receipt. One real Vercel synthetic check passed with deletion confirmed on October 26, 2026. Vercel now also supports bounded native chat execution; one approved native chat calculation also passed with exact output and verified deletion on October 26, 2026. See [Vercel execution](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/VERCEL.md).
 
@@ -103,7 +119,7 @@ Native model calls share a persisted 40-request/10-minute budget per project, co
 
 Start a **new chat** for subordinate agents and the current P2 tools. Earlier chats retain their original runtime identity and tool set so recovery history remains usable. Capability snapshots freeze each new turn; permission revocation is checked again at tool dispatch. This is functional Agent Zero influence, not full parity: see the [capability comparison](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/AGENT-ZERO-COMPATIBILITY.md).
 
-Native Python plugins, arbitrary cloud agent execution, MCP OAuth/Apps, browser embeddings, automatic document ingestion, shared cross-project memory and executable third-party Slim plugins remain future work. The Agent Zero bridge is protocol-tested with a synthetic server; actual plugin behavior requires checks against the owner’s Agent Zero instance. MCP approvals do not isolate a local stdio process: it runs with the OS user’s authority. Hosted embedding revisions are user-supplied namespace labels; provider-side model changes cannot be independently pinned by this compatible API.
+Native Python plugins, arbitrary cloud agent execution, MCP OAuth/Apps, browser embeddings, automatic document ingestion, shared cross-project memory and executable third-party Slim plugins remain future work. The built-in Agent Zero MCP delegation preset is protocol-tested with a synthetic server. The separately packaged DB Hub companion has real Python-tool acceptance on synthetic SQLite data; other plugins and the owner’s host remain separate gates. MCP approvals do not isolate a local stdio process: it runs with the OS user’s authority. Hosted embedding revisions are user-supplied namespace labels; provider-side model changes cannot be independently pinned by this compatible API.
 
 Subordinates have at most two levels, two active assignments per root turn, six assignments per root turn, eight model requests per assignment, two minutes (or the parent’s remaining time), and a 16,000-character returned summary. All requests consume the same connection budget. These are request/time limits, not a guaranteed token or dollar ceiling. Only the assignment is passed from the parent; children retain their own history. An interrupted child is held for inspection and explicit continuation instead of being silently recreated. Stop on a parent cancels its descendants and waits for pending child startup and cleanup. After a service crash, continuation may wait up to 40 seconds for the native runtime's local lock and terminal evidence; it sends no model requests during that cleanup. Missing evidence keeps the child interrupted.
 
@@ -111,7 +127,7 @@ Subordinates have at most two levels, two active assignments per root turn, six 
 
 1. In **Skills & MCP**, review a SKILL.md and import it disabled, then enable it for the selected project. Start a new chat and ask a task relevant to that skill.
 2. For MCP, save a connection, discover its catalog, allow selected tools and enable the server. The agent stages a call; open **Approvals** to review its arguments and run it once. Send a follow-up message so the agent retrieves the result.
-3. For individual Agent Zero MCP tools, enable **Settings → MCP Server** in Agent Zero. In Slim choose **Agent Zero MCP tools**, enter only the instance base URL, and put the token in its separate password field. Use HTTPS for non-loopback instances. Never paste a token-bearing MCP URL into the endpoint field.
+3. To delegate tasks through Agent Zero MCP, enable **Settings → MCP Server** in Agent Zero. In Slim choose **Agent Zero task delegation**, enter only the instance base URL, and put the token in its separate password field. Use HTTPS for non-loopback instances. Never paste a token-bearing MCP URL into the endpoint field.
 4. In **Memory**, add notes and decide whether the agent may recall or save/delete them. Embeddings are optional. Use **Embeddings & models** to download MiniLM or add an independent hosted connection, then explicitly build the selected project’s index.
 
 5. In a **new chat**, ask for a focused subordinate review. Open the child from **Subordinate tasks**, inspect its activity, and choose **Continue in parent** to draft a follow-up. Sending that draft is a separate action. Existing chats keep their earlier tool sets.

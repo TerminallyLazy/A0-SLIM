@@ -7,6 +7,7 @@ import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AppError } from '../domain.js';
 import { installAddonDependencies, type AddonInstaller } from '../memory/embedding-addon.js';
+import type { SandboxSizing } from './sizing.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const microsandboxSource = resolve(
@@ -26,6 +27,7 @@ export type MicroRequest = {
   code?: string;
   input?: string;
   runtimeId?: string;
+  sizing?: SandboxSizing;
 };
 export type MicroResult = {
   version?: string;

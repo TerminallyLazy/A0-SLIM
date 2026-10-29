@@ -29,7 +29,9 @@ for await (const line of lines) {
   if (method === 'initialize')
     result(id, {
       protocolVersion: process.argv.includes('--bad-version') ? 999 : 1,
-      agentInfo: { name: 'fixture', version: '1.0.0' },
+      agentInfo: process.argv.includes('--a0-snapshots')
+        ? { name: 'agent-zero', version: process.argv.includes('--future') ? '2.15' : '2.14' }
+        : { name: 'fixture', version: '1.0.0' },
       agentCapabilities: { loadSession: !process.argv.includes('--no-load') },
       authMethods: [],
     });
@@ -99,6 +101,10 @@ for await (const line of lines) {
         content: 'no',
       });
       text(response.error ? 'Write denied' : 'UNEXPECTED WRITE');
+    } else if (input === 'snapshots') {
+      text('Hel');
+      text('Hello');
+      text('Hi, corrected.');
     } else {
       text('**Paper Garden** has `three` leaves.');
     }

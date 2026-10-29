@@ -116,7 +116,7 @@ try {
     name: `a0-slim-${id}`,
     hostId: store.meta('host_id')!,
     runtimeId: proof.runtimeId,
-    revision: await micro.addon.fingerprint(),
+    revision: (await micro.state()).revision,
     status: 'pending',
     cleanup: 'unknown',
     startedAt: new Date().toISOString(),

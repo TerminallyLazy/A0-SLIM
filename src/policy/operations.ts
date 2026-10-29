@@ -5,6 +5,8 @@ import { basename, dirname, join, relative } from 'node:path';
 import { z } from 'zod';
 import type { FxAgentHostTool } from 'libfx';
 import type { Store } from '../storage/store.js';
+import { accessPath, readAccessFile } from '../tools/access-files.js';
+import type { Access } from './access.js';
 import { AppError } from '../domain.js';
 import { readWorkspaceFile, workspacePath } from '../tools/files.js';
 
@@ -19,7 +21,7 @@ export type Operation = {
   before: string | null;
   content: string;
   digest: string;
-  policy: 'review-v1';
+  policy: 'review-v1' | 'access-v1';
   createdAt: string;
   status: 'pending' | 'running' | 'unknown' | 'applied' | 'rejected' | 'conflict';
   approvedAt?: string;
@@ -44,9 +46,10 @@ const actionDigest = (o: Omit<Operation, 'digest' | 'id' | 'createdAt' | 'status
     }),
   );
 
-/** Host-owned approval ledger. Model calls can stage text; only the paired UI can apply it. */
+/** Host-owned file ledger. Application requires a mode decision or exact paired-UI approval. */
 export class Operations {
   private locks = new Set<string>();
+  private fileLocks = new Set<string>();
   constructor(
     private store: Store,
     private afterWrite?: () => Promise<void>,
@@ -79,7 +82,8 @@ export class Operations {
       this.locks.delete(projectId);
     }
   }
-  private async target(root: string, path: string) {
+  private async target(root: string, path: string, wide = false) {
+    if (wide) return accessPath(root, path, true);
     // Validate the leaf name as well as its existing parent, including denied hidden paths.
     const parent = await workspacePath(root, dirname(path));
     const name = basename(path);
@@ -100,13 +104,28 @@ export class Operations {
     }
     return { target, path: normalized, parent: parent.target };
   }
-  private async current(root: string, path: string) {
+  private async current(root: string, path: string, wide = false) {
     try {
-      return await readWorkspaceFile(root, path);
+      return wide
+        ? await readAccessFile((await accessPath(root, path)).target)
+        : await readWorkspaceFile(root, path);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
       throw error;
     }
+  }
+  async readCurrent(id: string) {
+    const operation = this.store.operation(id);
+    const root = this.store.project(operation.projectId).root;
+    const wide = operation.policy === 'access-v1';
+    const destination = await this.target(root, operation.path, wide);
+    if (wide && destination.path !== operation.path)
+      throw new AppError(
+        409,
+        'path_changed',
+        'The recorded path changed. Restore it before review.',
+      );
+    return this.current(root, operation.path, wide);
   }
   async propose(
     projectId: string,
@@ -126,7 +145,8 @@ export class Operations {
       if (!chat || !messageId)
         throw new AppError(409, 'scope_missing', 'The artifact has no owning chat turn.');
       const root = this.store.project(projectId).root;
-      const destination = await this.target(root, parsed.path);
+      const wide = chat.accessVersion === 1;
+      const destination = await this.target(root, parsed.path, wide);
       const existing = this.store
         .operations()
         .find((o) => o.sessionId === sessionId && o.messageId === messageId && o.callId === callId);
@@ -135,7 +155,7 @@ export class Operations {
           throw new AppError(409, 'action_changed', 'A repeated tool call changed its artifact.');
         return existing;
       }
-      const before = await this.current(root, destination.path);
+      const before = await this.current(root, destination.path, wide);
       const action = {
         projectId,
         chatId: chat.id,
@@ -145,7 +165,7 @@ export class Operations {
         path: destination.path,
         before,
         content: parsed.content,
-        policy: 'review-v1' as const,
+        policy: wide ? ('access-v1' as const) : ('review-v1' as const),
       };
       const operation: Operation = {
         ...action,
@@ -158,7 +178,7 @@ export class Operations {
       return operation;
     });
   }
-  async apply(id: string, digest: string) {
+  async apply(id: string, digest: string, authorize?: () => void) {
     const initial = this.store.operation(id);
     return this.locked(initial.projectId, async () => {
       const operation = this.store.operation(id);
@@ -173,69 +193,98 @@ export class Operations {
       if (operation.status !== 'pending')
         throw new AppError(409, 'approval_required', 'This artifact is not waiting for approval.');
       const root = this.store.project(operation.projectId).root;
-      const destination = await this.target(root, operation.path);
-      if ((await this.current(root, operation.path)) !== operation.before)
+      const destination = await this.target(root, operation.path, operation.policy === 'access-v1');
+      if (operation.policy === 'access-v1' && destination.path !== operation.path)
+        throw new AppError(409, 'path_changed', 'The approved path changed.');
+      if (this.fileLocks.has(destination.target))
         throw new AppError(
           409,
-          'file_changed',
-          'The destination changed after this preview. Reject this artifact and generate a fresh proposal.',
+          'file_busy',
+          'Another project is applying this file. Try again when it finishes.',
         );
-      const parentIdentity = await lstat(destination.parent);
-      const temp = join(destination.parent, `.a0-slim-${operation.id}.tmp`);
-      const running: Operation = {
-        ...operation,
-        status: 'running',
-        approvedAt: new Date().toISOString(),
-      };
-      this.store.saveOperation(running);
+      this.fileLocks.add(destination.target);
       try {
-        const handle = await open(
-          temp,
-          constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW,
-          0o600,
-        );
-        try {
-          if (operation.before !== null)
-            await handle.chmod((await lstat(destination.target)).mode & 0o777);
-          await handle.writeFile(operation.content);
-          await handle.sync();
-        } finally {
-          await handle.close();
-        }
-        const checked = await this.target(root, operation.path);
-        const currentParent = await lstat(checked.parent);
         if (
-          currentParent.ino !== parentIdentity.ino ||
-          currentParent.dev !== parentIdentity.dev ||
-          (await this.current(root, operation.path)) !== operation.before
+          (await this.current(root, operation.path, operation.policy === 'access-v1')) !==
+          operation.before
         )
           throw new AppError(
             409,
             'file_changed',
-            'The destination changed while applying the artifact. Reconcile before retrying.',
+            'The destination changed after this preview. Reject this artifact and generate a fresh proposal.',
           );
-        if (operation.before === null)
-          await link(temp, destination.target); // Exclusive creation: never clobber a new file.
-        else await rename(temp, destination.target);
-        const parent = await open(destination.parent, constants.O_RDONLY);
+        // Retain the opened directory through publication and fsync. Reopening a path after
+        // checking it could sync a different directory if another process replaced that path.
+        const parent = await open(
+          destination.parent,
+          constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+        );
         try {
-          await parent.sync();
+          const parentIdentity = await parent.stat();
+          const temp = join(destination.parent, `.a0-slim-${operation.id}.tmp`);
+          const running: Operation = {
+            ...operation,
+            status: 'running',
+            approvedAt: new Date().toISOString(),
+          };
+          authorize?.();
+          this.store.saveOperation(running);
+          try {
+            const handle = await open(
+              temp,
+              constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW,
+              0o600,
+            );
+            try {
+              if (operation.before !== null)
+                await handle.chmod((await lstat(destination.target)).mode & 0o777);
+              await handle.writeFile(operation.content);
+              await handle.sync();
+            } finally {
+              await handle.close();
+            }
+            const checked = await this.target(
+              root,
+              operation.path,
+              operation.policy === 'access-v1',
+            );
+            const currentParent = await lstat(checked.parent);
+            if (
+              checked.path !== destination.path ||
+              currentParent.ino !== parentIdentity.ino ||
+              currentParent.dev !== parentIdentity.dev ||
+              (await this.current(root, operation.path, operation.policy === 'access-v1')) !==
+                operation.before
+            )
+              throw new AppError(
+                409,
+                'file_changed',
+                'The destination changed while applying the artifact. Reconcile before retrying.',
+              );
+            authorize?.();
+            if (operation.before === null)
+              await link(temp, destination.target); // Exclusive creation: never clobber a new file.
+            else await rename(temp, destination.target);
+            await parent.sync();
+            await this.afterWrite?.();
+            const applied: Operation = {
+              ...running,
+              status: 'applied',
+              resolvedAt: new Date().toISOString(),
+            };
+            this.store.saveOperation(applied);
+            return applied;
+          } catch (error) {
+            this.store.saveOperation({ ...running, status: 'unknown' });
+            throw error;
+          } finally {
+            await rm(temp, { force: true });
+          }
         } finally {
           await parent.close();
         }
-        await this.afterWrite?.();
-        const applied: Operation = {
-          ...running,
-          status: 'applied',
-          resolvedAt: new Date().toISOString(),
-        };
-        this.store.saveOperation(applied);
-        return applied;
-      } catch (error) {
-        this.store.saveOperation({ ...running, status: 'unknown' });
-        throw error;
       } finally {
-        await rm(temp, { force: true });
+        this.fileLocks.delete(destination.target);
       }
     });
   }
@@ -250,15 +299,24 @@ export class Operations {
           'Only an interrupted or conflicting change needs reconciliation.',
         );
       const root = this.store.project(operation.projectId).root;
-      await this.target(root, operation.path);
-      const current = await this.current(root, operation.path);
+      const destination = await this.target(root, operation.path, operation.policy === 'access-v1');
+      if (operation.policy === 'access-v1' && destination.path !== operation.path)
+        throw new AppError(
+          409,
+          'path_changed',
+          'The recorded path changed. Restore it before reconciliation.',
+        );
+      const current = await this.current(root, operation.path, operation.policy === 'access-v1');
       const status =
         current === operation.content
           ? 'applied'
           : current === operation.before
             ? 'pending'
             : 'conflict';
-      const temp = join(dirname(join(root, operation.path)), `.a0-slim-${operation.id}.tmp`);
+      const temp = join(
+        (await this.target(root, operation.path, operation.policy === 'access-v1')).parent,
+        `.a0-slim-${operation.id}.tmp`,
+      );
       try {
         const handle = await open(temp, constants.O_RDONLY | constants.O_NOFOLLOW);
         try {
@@ -305,11 +363,12 @@ export class Operations {
     this.store.saveOperation(next);
     return next;
   }
-  tool(projectId: string): FxAgentHostTool {
+  tool(projectId: string, access?: Access): FxAgentHostTool {
     return {
       name: 'write_file',
-      description:
-        'Propose a text artifact or replacement (max 256 KiB). This stages a preview for human approval; it does NOT write the project. Existing parent directories are required. Never claim it was applied.',
+      description: access
+        ? 'Write a text file (max 256 KiB), keeping a diff and atomic receipt. Relative, absolute and ~/ paths are supported. The access mode may pause for approval; approval resumes this call. Existing parent directories are required.'
+        : 'Propose a text artifact or replacement (max 256 KiB). This stages a preview for human approval; it does NOT write the project. Existing parent directories are required. Never claim it was applied.',
       inputSchema: {
         type: 'object',
         properties: { path: { type: 'string' }, content: { type: 'string' } },
@@ -328,6 +387,26 @@ export class Operations {
           saved?.messageId ?? '',
           input,
         );
+        if (access && operation.status === 'pending') {
+          const path = await accessPath(this.store.project(projectId).root, operation.path, true);
+          try {
+            const check = await access.authorize(access.context(projectId, context), {
+              kind: 'write',
+              title: 'Edit file',
+              target: path.target,
+              outside: path.outside,
+              sensitive: path.sensitive,
+              fingerprint: operation.digest,
+              details: `Before (up to 16000 characters):\n${(operation.before ?? '(new file)').slice(0, 16000)}\nAfter (up to 16000 characters):\n${operation.content.slice(0, 16000)}`,
+            });
+            const applied = await this.apply(operation.id, operation.digest, check);
+            return { artifactId: applied.id, path: applied.path, status: applied.status };
+          } catch (error) {
+            if (this.store.operation(operation.id).status === 'pending')
+              this.reject(operation.id, operation.digest);
+            throw error;
+          }
+        }
         return {
           artifactId: operation.id,
           path: operation.path,

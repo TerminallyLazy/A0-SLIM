@@ -1,3 +1,7 @@
+import { AccessPicker, AccessApprovals } from './access.js';
+import type { AccessDecision } from '../src/policy/access.js';
+import { AppearanceSettings } from './appearance.js';
+import { applyAppearance, loadAppearance, saveAppearance, type Appearance } from './theme.js';
 import { FirstRun } from './first-run.js';
 import type { FirstRunState } from '../src/server/first-run.js';
 import { BashOutput } from './bash-output.js';
@@ -6,7 +10,6 @@ import {
   BookOpen,
   ArrowUp,
   ArrowUpRight,
-  Check,
   ChevronLeft,
   Circle,
   Folder,
@@ -38,6 +41,7 @@ import type { MicrosandboxState } from '../src/execution/microsandbox.js';
 import { DelegatedTasks, type DelegationSummary } from './delegations.js';
 
 type State = {
+  accessDecisions: AccessDecision[];
   firstRun: FirstRunState;
   acp: ACPState;
   projects: Project[];
@@ -64,6 +68,7 @@ type View =
   | 'hub'
   | 'memory';
 const empty: State = {
+  accessDecisions: [],
   firstRun: { required: false, workspacePath: '' },
   microsandbox: null,
   vercelExecution: {
@@ -103,6 +108,7 @@ export function App() {
   const [paired, setPaired] = useState<boolean | null>(null),
     [state, setState] = useState<State>(empty);
   const [loaded, setLoaded] = useState(false);
+  const [extensionSection, setExtensionSection] = useState<'skills' | 'mcp'>('skills');
   const [view, setView] = useState<View>('chat'),
     [projectId, setProjectId] = useState(''),
     [connectionId, setConnectionId] = useState(''),
@@ -115,10 +121,12 @@ export function App() {
     [inspector, setInspector] = useState(false),
     [mobileNav, setMobileNav] = useState(false),
     [tab, setTab] = useState('activity');
-  const [projectForm, setProjectForm] = useState(false),
-    [theme, setTheme] = useState(() => localStorage.getItem('slim.theme') ?? 'graphite');
-  const [accent, setAccent] = useState(() => localStorage.getItem('slim.accent') ?? 'sage'),
-    [density, setDensity] = useState(() => localStorage.getItem('slim.density') ?? 'comfortable');
+  const [projectForm, setProjectForm] = useState(false);
+  const [appearance, setAppearance] = useState(loadAppearance);
+  function updateAppearance(next: Appearance) {
+    saveAppearance(next, localStorage);
+    setAppearance(structuredClone(next));
+  }
   const scroll = useRef<HTMLDivElement>(null),
     sendLock = useRef(false);
   const project = state.projects.find((p) => p.id === projectId),
@@ -154,8 +162,10 @@ export function App() {
           : !state.vercelExecution.available
             ? 'check needed'
             : 'ready';
+  const [accessBusy, setAccessBusy] = useState(false);
   const refresh = async () => {
     const next = await api<State>('/state');
+    next.accessDecisions ??= [];
     next.firstRun ??= empty.firstRun; // An older running service may still serve the freshly built UI.
     setState(next);
     setLoaded(true);
@@ -194,13 +204,8 @@ export function App() {
     return () => clearInterval(timer);
   }, [paired]);
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.dataset.accent = accent;
-    document.documentElement.dataset.density = density;
-    localStorage.setItem('slim.theme', theme);
-    localStorage.setItem('slim.accent', accent);
-    localStorage.setItem('slim.density', density);
-  }, [theme, accent, density]);
+    applyAppearance(appearance, document.documentElement);
+  }, [appearance]);
   useEffect(() => {
     const url = new URL(location.href),
       result = url.searchParams.get('connection');
@@ -314,7 +319,8 @@ export function App() {
       previous?.focus();
     };
   }, [projectForm]);
-  const navigate = (next: View) => {
+  const navigate = (next: View, section: 'skills' | 'mcp' = 'skills') => {
+    setExtensionSection(section);
     setView(next);
     setMobileNav(false);
     setError('');
@@ -337,7 +343,7 @@ export function App() {
     });
   async function send(event: FormEvent) {
     event.preventDefault();
-    if (!prompt.trim() || sendLock.current || chat?.parentChatId) return;
+    if (!prompt.trim() || sendLock.current || accessBusy || chat?.parentChatId) return;
     sendLock.current = true;
     setBusy(true);
     await act(async () => {
@@ -428,8 +434,12 @@ export function App() {
       <FirstRun
         notice={error}
         clearNotice={() => setError('')}
-        theme={theme}
-        setTheme={setTheme}
+        theme={appearance.mode === 'light' ? 'paper' : 'graphite'}
+        setTheme={(theme) => {
+          void act(async () =>
+            updateAppearance({ ...appearance, mode: theme === 'paper' ? 'light' : 'dark' }),
+          );
+        }}
         setup={state.firstRun}
         projects={state.projects}
         connections={state.connections}
@@ -719,6 +729,29 @@ export function App() {
               )}
             </div>
             <div className="composer-wrap">
+              <AccessApprovals
+                decisions={state.accessDecisions}
+                chatId={chatId}
+                act={act}
+                refresh={refresh}
+              />
+              {project?.access &&
+                chat &&
+                !chat.accessVersion &&
+                !external &&
+                !chat.parentChatId && (
+                  <p className="notice">
+                    This chat keeps its original tools.{' '}
+                    <button
+                      onClick={() => {
+                        setChatId('');
+                        setPrompt('');
+                      }}
+                    >
+                      Start a chat with updated tools
+                    </button>
+                  </p>
+                )}
               {external && (
                 <>
                   <AgentPermissions state={state.acp} chatId={chatId} act={act} refresh={refresh} />
@@ -832,14 +865,25 @@ export function App() {
                           </option>
                         ))}
                     </select>
-                    <span className="boundary">
-                      <ShieldCheck size={13} />{' '}
-                      {external
-                        ? 'Agent permissions apply'
-                        : hostBashEnabled
-                          ? 'Direct host access enabled'
-                          : 'Review before applying'}
-                    </span>
+                    {project && (
+                      <AccessPicker
+                        project={project}
+                        act={act}
+                        refresh={refresh}
+                        compact
+                        onBusyChange={setAccessBusy}
+                      />
+                    )}
+                    {(external || !(project?.access && (!chat || chat.accessVersion))) && (
+                      <span className="boundary">
+                        <ShieldCheck size={13} />{' '}
+                        {external
+                          ? 'External agent permissions also apply'
+                          : hostBashEnabled
+                            ? 'Direct host access enabled'
+                            : 'Review before applying'}
+                      </span>
+                    )}
                     {running && !external && prompt.trim() && (
                       <button
                         type="submit"
@@ -869,6 +913,7 @@ export function App() {
                         aria-label="Send message"
                         disabled={
                           busy ||
+                          accessBusy ||
                           !project ||
                           (external
                             ? !agent || agent.disabled || state.acp.holds.length > 0
@@ -926,64 +971,7 @@ export function App() {
             )}
             {view === 'appearance' && (
               <>
-                <Heading title="Appearance">
-                  Choose a theme, accent color, and spacing. Preferences are saved in this browser.
-                </Heading>
-                <div className="setting-row">
-                  <div>
-                    <h3>Appearance</h3>
-                    <p>Choose a workspace that suits your light.</p>
-                  </div>
-                  <div className="segmented">
-                    {['graphite', 'paper'].map((t) => (
-                      <button
-                        className={theme === t ? 'selected' : ''}
-                        aria-pressed={theme === t}
-                        key={t}
-                        onClick={() => setTheme(t)}
-                      >
-                        {t === 'paper' ? 'Paper' : 'Graphite'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="setting-row">
-                  <div>
-                    <h3>Accent</h3>
-                    <p>Choose the color used for controls and selection.</p>
-                  </div>
-                  <div className="swatches">
-                    {['sage', 'sky', 'clay'].map((a) => (
-                      <button
-                        aria-label={`${a} accent`}
-                        aria-pressed={accent === a}
-                        className={`swatch ${a} ${accent === a ? 'active' : ''}`}
-                        key={a}
-                        onClick={() => setAccent(a)}
-                      >
-                        {accent === a && <Check size={16} />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="setting-row">
-                  <div>
-                    <h3>Density</h3>
-                    <p>Space to breathe, or room for more.</p>
-                  </div>
-                  <div className="segmented">
-                    {['comfortable', 'compact'].map((d) => (
-                      <button
-                        key={d}
-                        className={density === d ? 'selected' : ''}
-                        aria-pressed={density === d}
-                        onClick={() => setDensity(d)}
-                      >
-                        {d === 'compact' ? 'Compact' : 'Comfortable'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <AppearanceSettings value={appearance} save={updateAppearance} />
                 <div className="brand-credit">
                   <img src="/a0-horizontal-banner.svg" alt="Agent Zero" width="1500" height="500" />
                   <div>
@@ -1001,9 +989,14 @@ export function App() {
               </>
             )}
             {view === 'extensions' && (
-              <ExtensionWorkspace key={projectId} project={project} act={act} />
+              <ExtensionWorkspace
+                key={projectId}
+                project={project}
+                act={act}
+                initialSection={extensionSection}
+              />
             )}
-            {view === 'hub' && <PluginHubView project={project} act={act} />}
+            {view === 'hub' && <PluginHubView project={project} act={act} navigate={navigate} />}
             {view === 'memory' && <MemoryWorkspace key={projectId} project={project} act={act} />}
           </div>
         )}
@@ -1045,6 +1038,14 @@ export function App() {
               <>
                 <h3>{chat?.title ?? 'New chat'}</h3>
                 <p>Current model, execution environment, and chat status.</p>
+                {project && (
+                  <AccessPicker
+                    project={project}
+                    act={act}
+                    refresh={refresh}
+                    onBusyChange={setAccessBusy}
+                  />
+                )}
                 <div className="detail">
                   <span>Model</span>
                   <span>{chat?.model || connection?.model || 'Not selected'}</span>
@@ -1064,7 +1065,11 @@ export function App() {
                 <div className="detail">
                   <span>Files</span>
                   <span>
-                    {hostBashEnabled ? 'Host Bash can write directly' : 'Approval required'}
+                    {project?.access && (!chat || chat.accessVersion)
+                      ? 'Selected access mode'
+                      : hostBashEnabled
+                        ? 'Host Bash can write directly'
+                        : 'Approval required'}
                   </span>
                 </div>
                 <div className="detail">
@@ -1090,9 +1095,11 @@ export function App() {
                     ))}
                 </div>
                 <p className="fine">
-                  {hostBashEnabled
-                    ? 'Host Bash can change files directly with your OS account permissions.'
-                    : 'File changes appear as reviewable artifacts. Sandbox files are disposable.'}{' '}
+                  {project?.access && (!chat || chat.accessVersion)
+                    ? 'Files and host commands use the selected access mode. Sandbox files are disposable.'
+                    : hostBashEnabled
+                      ? 'Host Bash can change files directly with your OS account permissions.'
+                      : 'File changes appear as reviewable artifacts. Sandbox files are disposable.'}{' '}
                   Background scheduling is not enabled.
                 </p>
               </>
@@ -1178,9 +1185,10 @@ function Transcript({
         text: typeof event.input === 'string' ? event.input : '',
         key: cursor,
       });
-    if (event.type === 'text_delta') {
+    if (event.type === 'text_delta' || event.type === 'text_snapshot') {
       const last = entries.at(-1);
-      if (last?.type === 'assistant') last.text += event.delta;
+      if (last?.type === 'assistant')
+        last.text = event.type === 'text_snapshot' ? event.delta : last.text + event.delta;
       else entries.push({ type: 'assistant', text: event.delta, key: cursor });
     }
     if (event.type === 'tool_start')

@@ -35,3 +35,7 @@ Client limits: 8 connections, 32 pending permissions, 1 MiB protocol frames, 2 M
 Deferred: ACP HTTP transport, interactive protocol authentication, model/mode selection, attachments, persistent grants, client terminal/write services, sharing SLIM MCP servers or memory with an external agent, and using ACP agents as native subordinates. Agent Zero MCP tools remain available separately in **Skills & MCP**.
 
 Live task attempt on 2026-10-26 stopped before prompt dispatch: local discovery found the owner instance, which reported `auth_required: true`; the CLI session verification returned false. No remote session ID or model output was returned, and the synthetic file remained unchanged. Owner CLI sign-in is required before the already-authorized single task can proceed. The handshake alone did not detect this authentication requirement.
+
+## Owner-host task acceptance — 2026-10-29
+
+The earlier sign-in gate is closed. The saved session used the exact `localhost` host alias. On pinned Agent Zero 2.14 with CLI 2.14, a synthetic project with a read-only SQLite connection completed a real-model DB Hub status/schema task and another schema task after SLIM restart/reload. Both ended normally; the database hash was unchanged. The journal preserves text exactly as received. For this exact CLI version, SLIM renders its cumulative assistant updates as snapshots; other agents/versions keep standard ACP chunk semantics. See [the scoped acceptance receipt](verification/plugin-hub-owner-acceptance.json).

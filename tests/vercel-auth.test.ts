@@ -191,9 +191,9 @@ test('Vercel missing-resource review requires original scope, elapsed lifetime, 
     );
     await assert.rejects(
       proof.reviewAbsence(receipt.id, 'Checked this exact resource in the provider dashboard.'),
-      /60-second/,
+      /recorded session timeout/,
     );
-    receipt.startedAt = new Date(Date.now() - 120_000).toISOString();
+    receipt.startedAt = new Date(Date.now() - Number(receipt.lifetimeMs) - 1_000).toISOString();
     store.receipt(receipt);
     await assert.rejects(
       proof.reviewAbsence(receipt.id, 'Checked this exact resource in the provider dashboard.'),

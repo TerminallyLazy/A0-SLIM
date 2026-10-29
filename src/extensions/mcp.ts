@@ -28,6 +28,9 @@ export type McpServer = {
   enabled: boolean;
   tools: McpTool[];
   allowed: string[];
+  autoTools?: boolean;
+  disabledTools?: string[];
+  connectionError?: string;
   verifiedAt?: string;
   serverVersion?: string;
 };
@@ -62,10 +65,26 @@ export const mcpInput = z
   })
   .strict();
 const error = (code: string, message: string) => new AppError(409, code, message);
+const companionSchema = z
+  .object({
+    protocol: z.literal('a0-slim-tools/1'),
+    fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+    scopeId: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();
+export function companionDescriptor(tool: Pick<McpTool, 'inputSchema'>) {
+  const raw = tool.inputSchema['x-a0-slim-companion'];
+  if (raw === undefined) return undefined;
+  const parsed = companionSchema.safeParse(raw);
+  if (!parsed.success) throw error('companion_contract', 'Invalid companion identity.');
+  return parsed.data;
+}
 export class McpConnections {
   private active = new Map<string, AbortController>();
   private activeScopes = new Set<string>();
   private scope(server: McpServer) {
+    const companion = server.tools.map(companionDescriptor).find(Boolean);
+    if (companion) return digest({ companionScope: companion.scopeId });
     return digest({
       transport: server.transport,
       url: server.url,
@@ -78,6 +97,7 @@ export class McpConnections {
   constructor(
     private store: Store,
     private vault: Vault,
+    private invalidate?: (projectId: string, fingerprint: string) => void,
   ) {
     for (const c of this.calls())
       if (c.status === 'running') this.store.record('mcp-call', { ...c, status: 'unknown' });
@@ -140,6 +160,22 @@ export class McpConnections {
     if (input.token) await this.vault.set(`mcp:${server.id}`, { token: input.token });
     this.store.record('mcp', server);
     return server;
+  }
+  async setup(projectId: string, raw: unknown) {
+    const server = await this.add(projectId, raw);
+    this.store.record('mcp', { ...server, autoTools: true, disabledTools: [] });
+    try {
+      return await this.discover(projectId, server.id, true);
+    } catch {
+      const failed = {
+        ...this.get(projectId, server.id),
+        enabled: false,
+        connectionError:
+          'Connection failed. Check the address, credentials or installed command, then retry.',
+      };
+      this.store.record('mcp', failed);
+      return failed;
+    }
   }
   private async connect(server: McpServer, signal: AbortSignal) {
     const client = new Client({ name: 'a0-slim', version: '0.1.0' });
@@ -253,9 +289,15 @@ export class McpConnections {
         seen.add(cursor);
       }
     } while (cursor);
+    const companions = tools.map(companionDescriptor);
+    if (
+      companions.some(Boolean) &&
+      (companions.some((c) => !c) || new Set(companions.map((c) => JSON.stringify(c))).size !== 1)
+    )
+      throw error('companion_contract', 'Companion catalog must share one scope and revision.');
     return tools;
   }
-  async discover(projectId: string, id: string) {
+  async discover(projectId: string, id: string, enable = false) {
     const server = this.get(projectId, id);
     if (this.active.has(id)) throw error('mcp_busy', 'This server is busy.');
     const controller = new AbortController();
@@ -268,17 +310,30 @@ export class McpConnections {
         const next = {
           ...current,
           tools,
-          allowed: current.allowed.filter((n) =>
-            tools.some(
-              (t) =>
-                t.name === n &&
-                current.tools.some((old) => old.name === n && old.digest === t.digest),
-            ),
-          ),
+          enabled: enable || current.enabled,
+          connectionError: undefined,
+          allowed: current.autoTools
+            ? tools.filter((t) => !current.disabledTools?.includes(t.name)).map((t) => t.name)
+            : current.allowed.filter((n) =>
+                tools.some(
+                  (t) =>
+                    t.name === n &&
+                    current.tools.some((old) => old.name === n && old.digest === t.digest),
+                ),
+              ),
           verifiedAt: new Date().toISOString(),
           serverVersion: JSON.stringify(client.getServerVersion() ?? {}),
         };
         this.store.record('mcp', next);
+        for (const call of this.calls(projectId))
+          if (
+            call.serverId === id &&
+            call.status === 'pending' &&
+            !tools.some((t) => t.name === call.tool && t.digest === call.toolDigest)
+          ) {
+            this.store.record('mcp-call', { ...call, status: 'rejected' });
+            this.invalidate?.(projectId, call.digest);
+          }
         return next;
       } finally {
         await close();
@@ -291,11 +346,27 @@ export class McpConnections {
     const server = this.get(projectId, id);
     if (allowed.some((name) => !server.tools.some((t) => t.name === name)))
       throw error('mcp_permission', 'Discover and review this tool before allowing it.');
-    this.store.record('mcp', { ...server, enabled, allowed: [...new Set(allowed)] });
+    this.store.record('mcp', {
+      ...server,
+      enabled,
+      allowed: [...new Set(allowed)],
+      ...(server.autoTools
+        ? {
+            disabledTools: [
+              ...new Set([
+                ...(server.disabledTools ?? []).filter((n) => !allowed.includes(n)),
+                ...server.tools.filter((t) => !allowed.includes(t.name)).map((t) => t.name),
+              ]),
+            ],
+          }
+        : {}),
+    });
     if (!enabled) this.active.get(id)?.abort();
     for (const c of this.calls(projectId))
-      if (c.serverId === id && c.status === 'pending' && (!enabled || !allowed.includes(c.tool)))
+      if (c.serverId === id && c.status === 'pending' && (!enabled || !allowed.includes(c.tool))) {
         this.store.record('mcp-call', { ...c, status: 'rejected' });
+        this.invalidate?.(projectId, c.digest);
+      }
   }
   stage(
     projectId: string,
@@ -348,7 +419,13 @@ export class McpConnections {
     this.store.record('mcp-call', call);
     return call;
   }
-  async approve(projectId: string, id: string, hash: string) {
+  async approve(
+    projectId: string,
+    id: string,
+    hash: string,
+    check?: () => void,
+    signal?: AbortSignal,
+  ) {
     const call = this.calls(projectId).find((c) => c.id === id);
     if (!call || call.digest !== hash)
       throw error('mcp_approval', 'The reviewed action does not match.');
@@ -369,8 +446,13 @@ export class McpConnections {
     const abort = new AbortController();
     this.active.set(server.id, abort);
     this.activeScopes.add(this.scope(server));
+    const cancel = () => abort.abort();
+    signal?.addEventListener('abort', cancel, { once: true });
+    if (signal?.aborted) cancel();
     let sent = false;
     try {
+      check?.();
+      abort.signal.throwIfAborted();
       const { client, close } = await this.connect(server, abort.signal);
       try {
         const tools = await this.catalog(client, abort.signal),
@@ -386,17 +468,35 @@ export class McpConnections {
         const adapter = await createMcpAdapter({
           listTools: () => ({ tools: [tool] }),
           callTool: (params, _schema, options) =>
-            client.callTool(params as Parameters<Client['callTool']>[0], undefined, {
-              ...options,
-              timeout: 20000,
-            }),
+            client.callTool(
+              {
+                ...params,
+                ...(companionDescriptor(tool)
+                  ? {
+                      _meta: {
+                        'io.a0-slim/operation': {
+                          id: call.id,
+                          fingerprint: companionDescriptor(tool)!.fingerprint,
+                        },
+                      },
+                    }
+                  : {}),
+              } as Parameters<Client['callTool']>[0],
+              undefined,
+              {
+                ...options,
+                timeout: 20000,
+              },
+            ),
         } as McpClient);
         // The durable intent precedes the only external tool invocation. Never retry an ambiguous result.
+        check?.();
+        abort.signal.throwIfAborted();
         this.store.record('mcp-call', { ...call, status: 'running' });
         sent = true;
         const result = await adapter.tools[0]!.execute(call.args, {
           signal: abort.signal,
-          sessionId: 'human-approved',
+          sessionId: check ? 'access-approved' : 'human-approved',
           executionId: call.id,
         });
         const rendered = typeof result === 'string' ? result : JSON.stringify(result);
@@ -418,6 +518,7 @@ export class McpConnections {
     } finally {
       this.active.delete(server.id);
       this.activeScopes.delete(this.scope(server));
+      signal?.removeEventListener('abort', cancel);
     }
   }
   resolve(projectId: string, id: string, action: 'reject' | 'resolve', resolution: string) {

@@ -1,4 +1,5 @@
 import { Daytona, DaytonaNotFoundError, type Sandbox } from '@daytonaio/sdk';
+import { defaultSizing } from './sizing.js';
 import type { CloudCheckDriver, CloudKeyCredentials, CloudIdentity } from './cloud-check.js';
 
 export function createDaytonaClient(credentials: CloudKeyCredentials): Daytona {
@@ -45,20 +46,22 @@ export function createDaytonaDriver(
     }
   };
   return {
-    async create(name, labels) {
+    async create(name, labels, sizing = defaultSizing.daytona) {
       created = await client.create(
         {
           name,
           labels,
           language: 'python',
+          image: 'python:3.13-slim',
+          resources: { cpu: sizing.vcpus, memory: sizing.memoryMiB / 1024, disk: 3 },
           public: false,
           networkBlockAll: true,
           envVars: {},
           volumes: [],
           secrets: {},
-          autoStopInterval: 1,
+          autoStopInterval: sizing.sessionTimeoutMinutes,
           autoDeleteInterval: 0,
-          ttlMinutes: 1,
+          ttlMinutes: sizing.sessionTimeoutMinutes,
           ephemeral: true,
         },
         { timeout: 30 },
