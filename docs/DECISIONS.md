@@ -205,3 +205,5 @@ Implement the twelve named palettes and gallery/preview arrangement from the use
 ## Owner-supplied branding and New Chat polish — 2026-10-29
 
 Use the supplied slashed-zero wordmark for the persistent app identity and its matching banners in Appearance. Optimize the original compositions as WebP without redrawing the artwork. Keep the old Agent Zero vector sources and their notices for provenance and remaining compact uses. Remove the decorative tilted New Chat logo tile; align its heading and task starters with the composer, preserve the existing copy and theme system, and focus the composer when a starter inserts a draft. The authored interaction does not send the message or add animation.
+
+The user approved merging PR #2 and publishing this branding as npm alpha.4. Publish the exact tested clean-source tarball, verify ordinary public retrieval and integrity, then update the curl installer pin. Managed installs discover the new npm `latest` release through the existing updater; running chats are not interrupted. See [alpha.4 release evidence](verification/NPM-ALPHA4.md).
