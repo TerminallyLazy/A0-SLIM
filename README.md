@@ -2,7 +2,7 @@
 
 A local-first agent workspace inspired by Agent Zero. A Node service runs the agent loop, project tools, memory, and extensions; a browser UI exposes their state and permissions.
 
-**Status: alpha 0.1.0-alpha.4 with guided first-run setup, native Bash, P2 extensions, memory and bounded subordinates.** ChatGPT text/functions, reviewed artifacts, optional local Docker execution and bounded Vercel Node.js execution are implemented. Cloud account acceptance and broader release gates remain open. See [P1 evidence and limitations](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P1.md) and [P2 verification](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P2.md).
+**Status: alpha 0.1.0-alpha.5 with guided first-run setup, native Bash, P2 extensions, memory and bounded subordinates.** ChatGPT text/functions, reviewed artifacts, optional local Docker execution and bounded Vercel Node.js execution are implemented. Cloud account acceptance and broader release gates remain open. See [P1 evidence and limitations](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P1.md) and [P2 verification](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P2.md).
 
 ## Install and launch with one command
 
@@ -43,7 +43,7 @@ Existing curl users need to rerun the installer once to get these commands. npm 
 Use **Node 24** and npm 11.19 or newer. macOS arm64 and Linux x64 are the tested targets. This is an alpha release.
 
 ```sh
-npm install -g a0-slim@0.1.0-alpha.4 --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+npm install -g a0-slim@0.1.0-alpha.5 --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
 a0-slim
 ```
 
@@ -62,13 +62,13 @@ Closing the tab detaches the viewer; **Stop** cancels the current model turn. St
 Download the exact release tarball:
 
 ```sh
-curl -fL -o a0-slim-0.1.0-alpha.4.tgz https://registry.npmjs.org/a0-slim/-/a0-slim-0.1.0-alpha.4.tgz
+curl -fL -o a0-slim-0.1.0-alpha.5.tgz https://registry.npmjs.org/a0-slim/-/a0-slim-0.1.0-alpha.5.tgz
 ```
 
 Then install it with Node 24 and npm 11.19 or newer:
 
 ```sh
-npm install -g ./a0-slim-0.1.0-alpha.4.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+npm install -g ./a0-slim-0.1.0-alpha.5.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
 a0-slim
 ```
 

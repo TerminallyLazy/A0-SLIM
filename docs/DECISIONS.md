@@ -213,3 +213,7 @@ The user approved merging PR #2 and publishing this branding as npm alpha.4. Pub
 The owner rejected requiring an Agent Zero installation and approved a smaller SLIM-managed compatibility worker in the plan canvas. Keep the native agent and existing ACP/MCP routes; do not bundle the full Agent Zero framework. The first native adapter executes original, checksum-pinned DB Hub status/schema tools through a bounded compatibility API and standard MCP stdio. SLIM manages the optional standalone Python runtime, hash-locked wheels, project SQLite binding, enablement and recovery UI. This does not port DB Hub memory replacement, arbitrary Python hooks or Agent Zero screens.
 
 Keep installation opt-in and separate from catalog assessment. Native plugin readiness requires actual loading of the pinned source; calls use client-owned operation IDs, a durable journal and alias-aware holds. Existing full-host companion receipts cannot substitute for acceptance of this independent runtime. See `docs/NATIVE-PLUGINS.md` and `docs/verification/NATIVE-PLUGINS.md`.
+
+## Native plugin release — 2026-10-29
+
+The owner explicitly authorized merging PR #3 and publishing an app update. Release alpha.5 from the merged source, verify the exact packaged native-plugin flow and ordinary public npm tarball, then update the installer and the owner's managed installation. Preserve saved data and previous releases; optional Python/plugin downloads remain opt-in. The supported native capability remains DB Hub read-only SQLite status/schema.
