@@ -49,3 +49,7 @@ Unchanged official SVG artwork is retained in `ui/public/providers/`. Exact sour
 Pinned dependency: `@agentclientprotocol/sdk@2.0.2`, Apache-2.0, Zed Industries. Source: https://github.com/agentclientprotocol/typescript-sdk. Uses the stable ACP v1 interface. Preserve its packaged LICENSE and applicable notices when distributing. Agent executables are separately installed and licensed; none are bundled by SLIM.
 
 Microsandbox is an optional user-installed runtime, pinned to version 0.7.11 (Apache-2.0). Its SDK and native binaries are downloaded separately from npm and are not bundled with the core package. The official documentation icon is used to identify the integration; provenance is recorded in `ui/public/providers/sources.json`.
+
+## NVIDIA OpenShell
+
+The optional, user-installed `@nvidia/openshell-sdk@0.1.6` is Apache-2.0, copyright NVIDIA CORPORATION & AFFILIATES. Source: https://github.com/NVIDIA/OpenShell/tree/v0.1.6/sdk/typescript. SDK code and its dependencies are not vendored or bundled into core. Retain its applicable license notices in the separate installation. The official OpenShell favicon is copied unchanged from the pinned source to identify the integration; provenance and hash are in `ui/public/providers/sources.json`. NVIDIA retains its trademark rights; no endorsement is implied. The upstream Apache-2.0 license is retained in `docs/licenses/OpenShell-Apache-2.0.txt` for the artwork.

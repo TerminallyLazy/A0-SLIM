@@ -78,7 +78,10 @@
     "LICENSE",
     "docs/MICROSANDBOX.md",
     "docs/BASH.md",
-    "docs/FIRST-RUN.md"
+    "docs/FIRST-RUN.md",
+    "addons/openshell/package.json",
+    "addons/openshell/worker.mjs",
+    "docs/OPENSHELL.md"
   ],
   "repository": {
     "type": "git",

@@ -2544,3 +2544,10 @@ progress {
 .first-run nav button:disabled {
   opacity: 1;
 }
+
+.openshell-command {
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}

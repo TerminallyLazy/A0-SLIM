@@ -129,3 +129,7 @@ The packaging smoke test checks the installed CLI's Microsandbox endpoint and ve
 5. Verify public registry metadata and tarball integrity, then repeat the install check with `--package a0-slim@0.1.0-alpha.2 --global-install`. Record the release's source commit, checks, package sizes and integrity. Tag the verified source commit and publish its release notes.
 
 Publication is an explicit maintainer action. CI builds/tests on Linux and macOS; a green CI job does not publish. Authentication and any required npm 2FA stay in the owner's npm flow, never in repository files or logs.
+
+## Optional OpenShell
+
+The core bundles only the OpenShell install manifest, SLIM worker and setup guide. `@nvidia/openshell-sdk@0.1.6` is not a core dependency. Its authenticated GitHub Packages installation is performed explicitly in the displayed add-on directory, with lifecycle scripts disabled; the user's local lockfile records the resolved dependency graph. No gateway, image or VM runtime is downloaded by core install. See [OpenShell setup](OPENSHELL.md). The package smoke check asserts the worker/guide are present, the SDK cannot resolve from core, and the installed CLI reports an unconfigured optional connection.

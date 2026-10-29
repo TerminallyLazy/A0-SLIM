@@ -89,6 +89,10 @@ try {
     'addons/local-embeddings/worker.mjs',
     'docs/licenses/Agent-Zero-MIT.txt',
     'docs/MICROSANDBOX.md',
+    'docs/OPENSHELL.md',
+    'addons/openshell/package.json',
+    'addons/openshell/worker.mjs',
+    'dist/server/execution/openshell.js',
   ])
     assert.ok(files.includes(file), `Missing ${file}`);
   assert.ok(
@@ -132,6 +136,7 @@ try {
     'onnxruntime-node',
     'onnxruntime-web',
     'microsandbox',
+    '@nvidia/openshell-sdk',
     '@superradcompany/microsandbox-darwin-arm64',
     'react',
     'react-dom',
@@ -197,6 +202,11 @@ try {
       });
       assert.equal(microsandbox.status, 200);
       assert.equal((await microsandbox.json()).runtime.status, 'not-installed');
+      const openshell = await fetch(`${origin}/api/v1/sandbox/openshell`, { headers: { cookie } });
+      assert.equal(openshell.status, 200);
+      const openShellState = await openshell.json();
+      assert.equal(openShellState.addon.installed, false);
+      assert.equal(openShellState.status.connection, 'not_configured');
     } finally {
       child.kill('SIGTERM');
       await ended;

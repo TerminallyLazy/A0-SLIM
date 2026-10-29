@@ -1,0 +1,9 @@
+{
+  "name": "a0-slim-openshell-addon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@nvidia/openshell-sdk": "0.1.6"
+  }
+}

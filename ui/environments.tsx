@@ -5,6 +5,7 @@ import type { Project } from '../src/domain.js';
 import type { EnvironmentStatus } from '../src/execution/status.js';
 import { api } from './api.js';
 import { SpaceEnvironment } from './space.js';
+import { OpenShellEnvironment } from './openshell.js';
 import { ExecutionChoice, type VercelReadiness } from './execution-choice.js';
 import { Heading } from './workspace.js';
 import { MicrosandboxEnvironment } from './microsandbox.js';
@@ -61,13 +62,14 @@ export function Environments({
     (r) =>
       r.kind !== 'bash' &&
       r.kind !== 'space-sandbox-proof' &&
+      r.kind !== 'openshell-sandbox-proof' &&
       !String(r.kind).startsWith('microsandbox-'),
   );
   return (
     <>
       <Heading title="Environments">
-        Use a local microVM, Docker, a cloud sandbox, or your own SPACE server. Connection checks
-        and cleanup receipts show what is ready and what needs attention.
+        Use a local microVM, Docker, a cloud sandbox, or a gateway you manage. Connection checks and
+        cleanup receipts show what is ready and what needs attention.
       </Heading>
       {project && (
         <ExecutionChoice
@@ -90,6 +92,7 @@ export function Environments({
         />
       )}
       <MicrosandboxEnvironment state={microsandbox} refresh={refresh} act={act} />
+      <OpenShellEnvironment refresh={refresh} act={act} />
       <section className="environment-card">
         <div className="environment-heading">
           <ProviderMark id="docker" />

@@ -26,6 +26,8 @@ import { listWorkspace, readWorkspaceFile } from '../tools/files.js';
 import { extensionRoutes } from './extensions.js';
 import { ACPClient } from '../acp/client.js';
 import { SpaceProof } from '../execution/space.js';
+import { OpenShellProof } from '../execution/openshell.js';
+import type { OpenShellRunner } from '../execution/openshell-sdk.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const equal = (a: string, b: string) =>
@@ -39,6 +41,7 @@ export async function createApp(options: {
   vercel?: VercelDependencies;
   keySource?: () => Promise<Buffer>;
   accountsFactory?: (store: Store, vault: Vault) => ChatGPTAccounts;
+  openshell?: { runner: OpenShellRunner; installed: () => Promise<boolean> };
 }) {
   const origin = new URL(options.origin);
   if (origin.hostname !== '127.0.0.1' || origin.protocol !== 'http:')
@@ -53,6 +56,12 @@ export async function createApp(options: {
   const chatRuntime = (id: string) => (store.chat(id).backend === 'acp' ? acp : runtime);
   const sandbox = runtime.vercel.proof;
   const space = new SpaceProof(store, vault);
+  const openshell = new OpenShellProof(
+    store,
+    vault,
+    options.openshell?.runner,
+    options.openshell?.installed,
+  );
   const modal = new ModalProof(store, vault);
   const additionalClouds = {
     e2b: new CloudCheck('e2b', store, vault, createE2BDriver),
@@ -566,6 +575,30 @@ export async function createApp(options: {
       .parse(request.body);
     return runtime.microsandbox.reviewAbsence(idParams.parse(request.params).id, resolution);
   });
+  app.get('/api/v1/sandbox/openshell', async () => openshell.state());
+  app.post('/api/v1/sandbox/openshell', async (request) => openshell.save(request.body));
+  app.post('/api/v1/sandbox/openshell/check', async () => openshell.check());
+  app.post('/api/v1/sandbox/openshell/proof', async (request, reply) => {
+    z.object({ acknowledgeUsage: z.literal(true), acknowledgeDedicatedWorkspace: z.literal(true) })
+      .strict()
+      .parse(request.body);
+    return reply.code(202).send(await openshell.start());
+  });
+  app.post('/api/v1/sandbox/openshell/receipts/:id/reconcile', async (request, reply) =>
+    reply.code(202).send(await openshell.reconcile(idParams.parse(request.params).id)),
+  );
+  app.post('/api/v1/sandbox/openshell/receipts/:id/review-absence', async (request, reply) => {
+    const { resolution } = z
+      .object({
+        acknowledgeProviderReview: z.literal(true),
+        resolution: z.string().trim().min(20).max(2000),
+      })
+      .strict()
+      .parse(request.body);
+    return reply
+      .code(202)
+      .send(await openshell.reconcile(idParams.parse(request.params).id, resolution));
+  });
   app.get('/api/v1/sandbox/space', async () => space.state());
   app.post('/api/v1/sandbox/space', async (request) => space.save(request.body));
   app.post('/api/v1/sandbox/space/check', async () => space.check());
@@ -666,6 +699,7 @@ export async function createApp(options: {
     await app.register(serveStatic, { root: resolve(options.staticDir), index: ['index.html'] });
   }
   app.addHook('preClose', async () => {
+    await openshell.close();
     await space.close();
     await Promise.allSettled([...readers].map((reader) => reader.cancel()));
   });
@@ -674,5 +708,5 @@ export async function createApp(options: {
     await runtime.close();
     store.close();
   });
-  return { app, store, vault, runtime, acp, space };
+  return { app, store, vault, runtime, acp, space, openshell };
 }

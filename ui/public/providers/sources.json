@@ -36,5 +36,12 @@
     "sha256": "febc8bfb893e5fe404643501d2c5968c9b8b88679c57defa574f5c76327e2eb8",
     "retrieved": "2026-10-26",
     "file": "microsandbox.png"
+  },
+  "openshell": {
+    "source": "https://github.com/NVIDIA/OpenShell/blob/ac7f615cd12d5cc49cb16eb1f5f10ffeb1e90f47/docs/brand/assets/favicon.svg",
+    "sha256": "72d7af81cda8cd54a55eaa0c5ab0e99fdc05ff9c7094dc4aaeb0276cd38b2c08",
+    "retrieved": "2026-10-28",
+    "file": "openshell.svg",
+    "description": "Official OpenShell project mark from NVIDIA source; unchanged artwork."
   }
 }

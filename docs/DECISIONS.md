@@ -159,3 +159,13 @@ Actual Apple Silicon acceptance passed setup, chat integration through a local m
 Guide fresh npm users through model connection and explicit folder selection into the existing native runtime. Keep Agent Zero/ACP optional. ChatGPT uses the existing PKCE/account/model-catalog path; setup performs no inference. Default workspace creation reserves a durable ID and verifies ownership before recovery. Existing configured users keep their workspace and grants.
 
 Optional local Bash setup reuses Microsandbox’s explicit installation, synthetic proof and cleanup gates. It adds no core runtime dependencies. Host Bash stays separately opt-in. The CLI opens the browser while keeping the pairing code in the terminal; `--no-open` supports headless use. Refine the existing Agent Zero visual identity, with light/dark choice, keyboard focus, readable steps and one restrained completion check; no new font, animation dependency or decorative labels.
+
+## 2026-10-28 — Optional OpenShell gateway adapter
+
+Use the official SDK 0.1.6 as a separately installed add-on. Its current GitHub Packages authentication requirement must not make the core public npm package dependent on that registry. Load it only in an owned, bounded worker; install instructions keep registry credentials in npm. Use explicit HTTPS, mTLS/CA or OIDC credentials in the vault, and no ambient CLI configuration or model-provider export.
+
+Public health is not authenticated readiness. Verify protected current-user identity plus a workspace-scoped read, without demanding platform-admin gateway info. Show revision-bound, expiring connection evidence separately from execution and cleanup. Native runtime, ACP and MCP remain independent.
+
+Synthetic execution uses durable intent, ownership labels, stable resource IDs, exact bounded output/exit checks and expected-ID deletion waiting. The upstream name-addressed delete/exec API has no atomic ID condition, so require a dedicated workspace, disclose the residual race, and refuse observed replacements. Never resend an uncertain command or deletion. Lost creation with no known ID requires ownership-matched discovery or an explicitly recorded operator absence review. Connection changes cannot clear holds; recovery verifies original endpoint/workspace/CA and principal.
+
+The pinned public SDK source was built and exercised against a local TLS gRPC fixture; core fault tests and a separate live-gateway gate document the limits. Gateway installation, live compute and general OpenShell chat execution are not claimed by this preview. The user approved this implementation scope in the plan canvas workflow. See `docs/OPENSHELL.md` and `docs/plans/OPENSHELL.md`.
