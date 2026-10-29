@@ -78,7 +78,7 @@ export class Coordinator {
           (chat.execution === 'docker'
             ? ' Use run_javascript for bounded Node.js computation in a disposable local container without network, host files or credentials. Pass explicit text input; use write_file to propose returned results for review.'
             : chat.execution === 'vercel'
-              ? ' Use run_javascript for Node.js computation in Vercel. Docker is not used. Code and explicit text input are sent to Vercel under the project grant. No automatic workspace upload, model credentials or outbound network access. Every call has a 60-second sandbox lifetime; at most three calls per turn. Use write_file for local artifact review.'
+              ? ' Use run_javascript for Node.js computation in Vercel. Docker is not used. Code and explicit text input are sent to Vercel under the project grant. No automatic workspace upload, model credentials or outbound network access. Every call uses the configured sandbox session timeout; at most three calls per turn. Use write_file for local artifact review.'
               : chat.execution === 'microsandbox'
                 ? ' Use run_javascript for bounded Node computation in local Microsandbox microVMs. No Docker, guest network, host mounts or model credentials. Pass explicit text input and propose returned artifacts with write_file. Never repeat an uncertain command.'
                 : '') +

@@ -14,11 +14,17 @@ Installation uses `~/.local/share/a0-slim-cli` or `$XDG_DATA_HOME/a0-slim-cli`. 
 
 A failed download, checksum mismatch or failed native probe leaves the existing active release and app data intact. A directory lock excludes simultaneous installers. Normal interruption removes the staging directory and lock; after a hard kill, inspect the installer processes before removing its empty `.install-lock` directory. Only then retry. Completed releases are retained under `releases`; re-running a healthy installation reuses it without downloads. The script executes its main function only after the full function definitions have been read.
 
-The installer prints the persistent launch path, normally `~/.local/share/a0-slim-cli/bin/a0-slim`. It does not edit shell startup files. The service runs in the foreground; Ctrl+C reaches the child service and releases its data lock. When startup succeeds, the launcher opens the loopback URL in the system browser; the pairing code stays in the terminal. `A0_SLIM_NO_BROWSER=1` or `--no-open` disables browser opening. The npm CLI also opens the browser directly. An already-running SLIM instance on the selected port can be reused when no explicit data directory was requested. A custom `A0_SLIM_DATA_DIR` always starts that requested workspace and retains normal port/data ownership checks.
+The installer registers `~/.local/bin/a0-slim` as a link to its persistent private launcher, normally `~/.local/share/a0-slim-cli/bin/a0-slim`. Repeated installation keeps that link; an unrelated existing file/link is never replaced. When `~/.local/bin` is absent from PATH, setup appends one marked block to the active shell’s startup file: zsh `.zshrc` (respecting `ZDOTDIR`), Bash `.bashrc` and its selected login profile, POSIX `.profile`, or Fish `conf.d/a0-slim.fish` (respecting `XDG_CONFIG_HOME`). Existing contents and dotfile links are preserved; the first edit makes an adjacent `.a0-slim.bak` backup. Unsupported shells or unwritable configuration retain a working direct launch path and print instructions. No system shell configuration is changed.
+
+Open a new terminal after first-time PATH setup, then run `a0-slim`. The installer also prints an export command for the current terminal because a child process cannot change its parent shell’s environment. The service runs in the foreground; Ctrl+C reaches the child service and releases its data lock. When startup succeeds, the launcher opens the loopback URL in the system browser; the pairing code stays in the terminal. `A0_SLIM_NO_BROWSER=1` or `--no-open` disables browser opening. The npm CLI also opens the browser directly. An already-running SLIM instance on the selected port can be reused when no explicit data directory was requested. A custom `A0_SLIM_DATA_DIR` always starts that requested workspace and retains normal port/data ownership checks.
 
 Use `curl -fsSL https://raw.githubusercontent.com/TerminallyLazy/A0-SLIM/main/install.sh | sh -s -- --no-launch` to install without launching. `A0_SLIM_PORT` and `A0_SLIM_DATA_DIR` can also be set on the `sh` side of the pipe. The script never installs embeddings, weights or Microsandbox automatically.
 
-`npm run test:installer` performs actual installs with an existing compatible Node and with Node absent from PATH, using isolated homes and a path containing spaces/apostrophes. It starts and pairs the real app, checks UI/native readiness, tests existing-service reuse and clean shutdown, and repeats setup with downloads disabled. It uses no model account or cloud sandbox. Offline regression tests cover unsupported systems, root execution, truncated input, concurrent installation and a tampered Node archive.
+`npm run test:installer` performs actual installs with an existing compatible Node and with Node absent from PATH, using isolated homes and a path containing spaces/apostrophes. It proves the registered bare command works with the generated shell profile, starts and pairs the real app, checks UI/native readiness, tests existing-service reuse and clean shutdown, and repeats setup with downloads disabled. It uses no model account or cloud sandbox. Offline regression tests cover unsupported systems, root execution, truncated input, concurrent installation and a tampered Node archive.
+
+### Command setup verification (2026-10-29)
+
+Node 24 validation passed: 157 repository tests, typecheck and production build; dependency audit reported zero vulnerabilities. Actual installer runs with an existing Node/npm runtime and a downloaded private runtime both registered the bare `a0-slim` command, launched and paired the app, reused the running instance, stopped cleanly, and repeated successfully with downloads disabled. Regression checks cover Bash/zsh profile preservation, linked dotfiles, backups, spaces/apostrophes, idempotence and unrelated command preservation. Fish configuration generation is checked; live Fish startup is not claimed. The existing owner installation was repaired through the same registration code and `a0-slim --help` succeeded.
 
 ## Install from npm
 
@@ -80,7 +86,13 @@ With npm versions that already ran those scripts, only the launch command is nee
 
 First launch guides account/model selection and a project folder; the native agent is included. Microsandbox, external ACP agents and local embeddings remain optional. See [first-run setup](FIRST-RUN.md).
 
-The service defaults to `http://127.0.0.1:4310`. `A0_SLIM_PORT` and `A0_SLIM_DATA_DIR` override the port and private storage location. Pairing, vault custody, recovery receipts and sandbox permissions are unchanged.
+The service defaults to `http://127.0.0.1:4310`. `A0_SLIM_PORT` and `A0_SLIM_DATA_DIR` override the port and private storage location. To run an independent second instance, choose both a different port and data directory:
+
+```sh
+A0_SLIM_PORT=4311 A0_SLIM_DATA_DIR="$HOME/.local/share/a0-slim-second" a0-slim
+```
+
+Running `a0-slim` by itself starts the default instance or reopens it when it is already running. Each independent instance has its own pairing and saved state. Pairing, vault custody, recovery receipts and sandbox permissions are unchanged.
 
 ## Optional local embeddings
 

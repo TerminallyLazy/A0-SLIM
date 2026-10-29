@@ -14,11 +14,13 @@ curl -fsSL https://raw.githubusercontent.com/TerminallyLazy/A0-SLIM/main/install
 
 This installs A0 SLIM, opens the browser when available, and keeps the service running in your terminal. Enter the pairing code printed there. Press **Ctrl+C** to stop. If A0 SLIM is already running on the default workspace/selected port, the launcher opens that instance instead.
 
-The installer reuses Node 24 with compatible npm 11.19+ (11.x). Otherwise it downloads a private, checksum-verified Node 24.22.1 runtime. No `sudo`, global Node replacement or shell-profile changes are needed. Files live in `~/.local/share/a0-slim-cli` (or `$XDG_DATA_HOME/a0-slim-cli`); app data remains in its normal location. The terminal prints the exact command for starting again, normally:
+The installer reuses Node 24 with compatible npm 11.19+ (11.x). Otherwise it downloads a private, checksum-verified Node 24.22.1 runtime. No `sudo` or global Node replacement is needed. Files live in `~/.local/share/a0-slim-cli` (or `$XDG_DATA_HOME/a0-slim-cli`); app data remains in its normal location. The installer registers `a0-slim` in `~/.local/bin` and configures your shell’s PATH when needed. Existing shell settings are preserved and backed up before an appended PATH block. Open a new terminal after first-time PATH setup, then start again with:
 
 ```sh
-~/.local/share/a0-slim-cli/bin/a0-slim
+a0-slim
 ```
+
+The current terminal cannot inherit environment changes from the piped installer; it prints a one-line PATH command for immediate use when needed. An unrelated existing `~/.local/bin/a0-slim` is preserved, and the private launcher path is printed instead.
 
 Optional embeddings, model weights and Microsandbox still require separate setup in the app. See [installer options and recovery](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/PACKAGING.md#one-command-installer).
 

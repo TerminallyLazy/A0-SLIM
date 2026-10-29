@@ -369,3 +369,5 @@ Persist setup choices and completion separately from existing chat/runtime ident
 Offer optional local Bash setup through an explicitly acknowledged Microsandbox runtime/image download and one synthetic check. Enable the project only after the check passes with deletion verified. Chat works without execution. Host Bash is never automatically granted. Keep ML, microVM binaries and images outside the core npm package.
 
 First-run UI follows the existing Graphite/Paper palette, original Agent Zero symbols and platform UI type. Three real sequential steps, keyboard focus on the new heading, meaningful completion feedback, reduced-motion support and a visible appearance control provide polish without eyebrow labels or marketing copy.
+
+**Installer command setup (2026-10-29):** the one-command installer registers `a0-slim` under the user’s `~/.local/bin`, configures a missing shell PATH with one marked block and a backup, preserves unrelated commands/configuration, and retains the exact private launch path as fallback. New terminal sessions receive PATH changes automatically; independent instances use distinct port/data settings.

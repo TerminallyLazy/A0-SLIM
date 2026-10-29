@@ -183,3 +183,7 @@ Session Timeout defaults to 15 minutes, independently of short command deadlines
 Persist selected sizing and original lifetime in receipts. Changes invalidate connection/grant revisions and existing Vercel/Microsandbox chats; unknown outcomes remain held until the original lifetime and identity checks allow reconciliation. Active operations retain their captured settings.
 
 Live Agent Zero CLI 2.14 sends complete assistant snapshots as ACP message chunks. Normalize only that exact reported implementation into snapshot display events, preserving the original text in the journal. All other ACP agents/versions retain standard delta semantics. Local instance cookies include the port so simultaneous SLIM services cannot overwrite one another's browser pairing.
+
+## Discoverable curl-installed command — 2026-10-29
+
+Register the verified private launcher at `~/.local/bin/a0-slim`. If that directory is not in PATH, append one marked, backed-up block to the user shell configuration; preserve existing commands and configuration. Repeated installation does not duplicate entries. Do not replace global Node or write system profiles. Print a direct-launch fallback and explain the new-terminal requirement when a parent shell cannot inherit the installer’s environment. The default command reuses an existing default instance; separate instances require distinct port/data settings.

@@ -107,13 +107,28 @@ try {
     const cookie = paired.headers.get('set-cookie').split(';')[0];
     const embeddings = await fetch(`${origin}/api/v1/embeddings`, { headers: { cookie } });
     assert.equal((await embeddings.json()).local.runtime.status, 'not-installed');
+    const command = execFileSync(
+      '/bin/bash',
+      ['--noprofile', '--norc', '-c', '. "$HOME/.bashrc"; command -v a0-slim; a0-slim --help'],
+      { env, encoding: 'utf8' },
+    );
+    assert.ok(command.startsWith(join(env.HOME, '.local/bin/a0-slim') + '\n'));
+    assert.match(command, /Usage: a0-slim/);
+    assert.equal(
+      (await readFile(join(env.HOME, '.bashrc'), 'utf8')).split('# >>> A0 SLIM PATH >>>').length,
+      2,
+    );
     // A repeat launch with default data selection recognizes an existing service without replacing it.
     const reuseEnv = { ...env };
     delete reuseEnv.A0_SLIM_DATA_DIR;
-    const reuse = spawn(join(env.A0_SLIM_INSTALL_DIR, 'bin/a0-slim'), [], {
-      env: reuseEnv,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const reuse = spawn(
+      '/bin/bash',
+      ['--noprofile', '--norc', '-c', '. "$HOME/.bashrc"; exec a0-slim'],
+      {
+        env: reuseEnv,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
     let reused = '';
     reuse.stdout.on('data', (b) => {
       reused += b;
@@ -125,7 +140,7 @@ try {
     await assert.rejects(fetch(origin));
     assert.ok(!(await readdir(env.A0_SLIM_INSTALL_DIR)).includes('.install-lock'));
     console.log(
-      `${mode}: installer launched, paired, served UI; existing-service reuse and clean stop passed`,
+      `${mode}: installer registered a0-slim, launched, paired, served UI; existing-service reuse and clean stop passed`,
     );
   }
 
@@ -141,6 +156,7 @@ try {
     await new Promise((r) => server.close(r));
     const env = {
       HOME: home,
+      SHELL: '/bin/bash',
       PATH: mode === 'bootstrap' ? thin : process.env.PATH,
       A0_SLIM_INSTALL_DIR: join(home, "app's install directory"),
       A0_SLIM_DATA_DIR: join(home, 'data'),

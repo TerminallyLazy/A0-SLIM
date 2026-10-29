@@ -199,6 +199,94 @@ writeFileSync(`${launcher}.tmp`, `#!/bin/sh\nexec ${quote(node)} ${quote(join(ro
 renameSync(`${launcher}.tmp`, launcher);
 console.log(`\nInstalled. To start again: ${quote(launcher)}\n`);
 JS
+  # Register the verified launcher without replacing another installation's command.
+  "$slim_node" --input-type=module - "$slim_root" <<'REGISTER'
+import { appendFileSync, constants, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, realpathSync, symlinkSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
+const root = process.argv[2];
+const home = process.env.HOME;
+if (!home || !isAbsolute(home)) throw new Error('HOME must be an absolute path.');
+const bin = join(home, '.local/bin');
+const command = join(bin, 'a0-slim');
+const launcher = join(root, 'bin/a0-slim');
+const quote = (s) => "'" + s.replaceAll("'", "'\"'\"'") + "'";
+const manual = () => console.log(`Start directly: ${quote(launcher)}`);
+function register() {
+  mkdirSync(bin, { recursive: true, mode: 0o755 });
+  let existing;
+  try { existing = lstatSync(command); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (existing && (!existing.isSymbolicLink() || resolve(bin, readlinkSync(command)) !== launcher)) {
+    console.log(`Kept existing command at ${command}; it belongs to another installation.`);
+    manual();
+    return;
+  }
+  if (!existing) symlinkSync(launcher, command);
+  console.log(`Command installed: ${command}`);
+  if ((process.env.PATH ?? '').split(':').includes(bin)) {
+    console.log('To start again, run: a0-slim');
+    return;
+  }
+  const shell = basename(process.env.SHELL || 'sh');
+  let profiles;
+  let body;
+  const posix = `case ":$PATH:" in
+  *:${quote(bin)}:*) ;;
+  *) export PATH=${quote(bin)}:"$PATH" ;;
+esac`;
+  if (shell === 'zsh') {
+    const zdot = process.env.ZDOTDIR || home;
+    if (!isAbsolute(zdot)) throw new Error('ZDOTDIR must be absolute for automatic PATH setup.');
+    profiles = [join(zdot, '.zshrc')];
+    body = posix;
+  } else if (shell === 'bash') {
+    const login = ['.bash_profile', '.bash_login', '.profile'].map((f) => join(home, f)).find(existsSync) || join(home, '.profile');
+    profiles = [join(home, '.bashrc'), login];
+    body = posix;
+  } else if (shell === 'fish') {
+    const config = process.env.XDG_CONFIG_HOME || join(home, '.config');
+    if (!isAbsolute(config)) throw new Error('XDG_CONFIG_HOME must be absolute for automatic PATH setup.');
+    profiles = [join(config, 'fish/conf.d/a0-slim.fish')];
+    const fishQuote = (s) => "'" + s.replaceAll('\\', '\\\\').replaceAll("'", "\\'") + "'";
+    body = `if not contains -- ${fishQuote(bin)} $PATH
+  set -gx PATH ${fishQuote(bin)} $PATH
+end`;
+  } else if (['sh', 'dash', 'ksh'].includes(shell)) {
+    profiles = [join(home, '.profile')];
+    body = posix;
+  } else {
+    console.log(`Automatic PATH setup is unavailable for ${shell}. Add ${bin} to your shell's PATH.`);
+    manual();
+    return;
+  }
+  const marker = '# >>> A0 SLIM PATH >>>';
+  for (const profile of profiles) {
+    mkdirSync(dirname(profile), { recursive: true, mode: 0o700 });
+    // Follow existing dotfile links; append to their target without replacing the link.
+    const target = existsSync(profile) ? realpathSync(profile) : profile;
+    const before = existsSync(target) ? readFileSync(target, 'utf8') : '';
+    if (before.includes(marker)) continue;
+    if (existsSync(target)) {
+      const stat = lstatSync(target);
+      if (!stat.isFile() || stat.uid !== process.getuid()) throw new Error(`Cannot safely update ${profile}.`);
+      try { copyFileSync(target, `${target}.a0-slim.bak`, constants.COPYFILE_EXCL); }
+      catch (error) { if (error.code !== 'EEXIST') throw error; }
+    }
+    appendFileSync(target, `
+${marker}
+${body}
+# <<< A0 SLIM PATH <<<
+`, { mode: 0o600 });
+    console.log(`PATH configured in ${profile}`);
+  }
+  console.log('Open a new terminal, then run: a0-slim');
+  console.log(`For this terminal now: ${shell === 'fish' ? body.replaceAll('\n', '; ') : `export PATH=${quote(bin)}:"$PATH"`}`);
+}
+try { register(); }
+catch (error) {
+  console.log(`Automatic command setup could not finish: ${error.message}`);
+  manual();
+}
+REGISTER
   slim_clean
   slim_stage=; slim_lock=
   trap - EXIT INT TERM HUP
