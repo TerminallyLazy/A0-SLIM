@@ -1828,6 +1828,9 @@ progress {
   padding: 0;
 }
 .inspector .memory-permissions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: 10px;
 }
 .inspector .hub-toolbar label {
