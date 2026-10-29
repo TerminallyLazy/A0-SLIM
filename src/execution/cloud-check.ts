@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { AppError } from '../domain.js';
 import type { Store } from '../storage/store.js';
 import type { Vault } from '../providers/vault.js';
+import { sandboxSizing } from './settings.js';
+import type { SandboxSizing } from './sizing.js';
 
 export const cloudKeyCredentials = z
   .object({ apiKey: z.string().trim().min(1).max(8192) })
@@ -10,7 +12,11 @@ export const cloudKeyCredentials = z
 export type CloudKeyCredentials = z.infer<typeof cloudKeyCredentials>;
 export type CloudIdentity = { id: string; metadata: Record<string, string> };
 export interface CloudCheckDriver {
-  create(name: string, metadata: Record<string, string>): Promise<CloudIdentity>;
+  create(
+    name: string,
+    metadata: Record<string, string>,
+    sizing?: SandboxSizing,
+  ): Promise<CloudIdentity>;
   get(id: string): Promise<CloudIdentity | null>;
   find(name: string, metadata: Record<string, string>): Promise<CloudIdentity[]>;
   execute(id: string): Promise<string>;
@@ -93,6 +99,7 @@ export class CloudCheck {
         'sandbox_unreconciled',
         'Reconcile the previous sandbox before creating another.',
       );
+    const sizing = sandboxSizing(this.store, this.provider);
     this.lock();
     const receipt: Receipt = {
       id: randomUUID(),
@@ -101,6 +108,8 @@ export class CloudCheck {
       status: 'pending',
       cleanup: 'not_created',
       connectionRevision: this.store.meta(`sandbox:${this.provider}:revision`),
+      sizing,
+      lifetimeMs: sizing.sessionTimeoutMinutes * 60_000,
     };
     let driver: CloudCheckDriver | undefined;
     try {
@@ -113,7 +122,7 @@ export class CloudCheck {
       receipt.cleanup = 'unknown';
       this.store.receipt(receipt);
       const resource = await bounded(
-        driver.create(String(receipt.environmentId), this.metadata(receipt)),
+        driver.create(String(receipt.environmentId), this.metadata(receipt), sizing),
         35000,
       );
       this.owns(resource, receipt);

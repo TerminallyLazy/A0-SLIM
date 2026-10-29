@@ -11,12 +11,14 @@ import {
   microsandboxSource,
   type MicroRunner,
 } from '../src/execution/microsandbox-addon.js';
+import { defaultSizing } from '../src/execution/sizing.js';
 import { createApp } from '../src/server/app.js';
 
 async function fixture() {
   const dir = await mkdtemp(join(tmpdir(), 'slim-micro-')),
     store = new Store(dir);
   const f = {
+    sizing: { ...defaultSizing.microsandbox },
     runs: 0,
     cleanups: 0,
     lost: false,
@@ -35,6 +37,7 @@ async function fixture() {
       return { absent: true, observedId: f.absent ? null : 'local:1' };
     }
     f.runs++;
+    assert.deepEqual(r.sizing, f.sizing);
     assert.equal(store.receipts()[0]?.cleanup, 'unknown');
     if (f.lost) throw Error('lost creation reply');
     created!('local:1');
@@ -65,7 +68,7 @@ async function fixture() {
     connectionId: randomUUID(),
     model: 'fixture',
     execution: 'microsandbox',
-    executionRevision: await addon.fingerprint(),
+    executionRevision: (await micro.state()).revision,
     sessionId: 'session',
     status: 'idle',
     createdAt: new Date().toISOString(),
@@ -177,6 +180,10 @@ test('cancellation waits for worker exit and runs independent cleanup; interrupt
     const job = h.micro.run({ code: 'wait' }, { ...h.context, signal: abort.signal });
     while (h.f.runs < 2) await new Promise((r) => setTimeout(r, 5));
     await assert.rejects(h.micro.check(), /already in progress/);
+    await assert.rejects(
+      h.micro.saveSizing({ sessionTimeoutMinutes: 30, vcpus: 2, memoryMiB: 1024 }),
+      /already in progress/,
+    );
     abort.abort();
     const r = await job;
     assert.equal(r.status, 'failed');
@@ -277,7 +284,10 @@ test('absence review requires elapsed lifetime, records evidence and preserves f
       h.micro.reviewAbsence(r.id, 'Inspected exact resource name.'),
       /lifetime limits/,
     );
-    h.store.receipt({ ...r, startedAt: new Date(Date.now() - 180000).toISOString() });
+    h.store.receipt({
+      ...r,
+      startedAt: new Date(Date.now() - (r.lifetimeMs! + 61_000)).toISOString(),
+    });
     const reviewed = await h.micro.reviewAbsence(
       r.id,
       'Inspected exact resource name and stopped creator.',
@@ -286,6 +296,31 @@ test('absence review requires elapsed lifetime, records evidence and preserves f
     assert.equal(reviewed.cleanup, 'deleted');
     assert.equal(h.store.records('microsandbox-absence-review').length, 1);
     assert.equal(h.f.runs, 1);
+  } finally {
+    await h.close();
+  }
+});
+
+test('Microsandbox settings reach the worker and require a fresh check and new chat revision', async () => {
+  const h = await fixture();
+  try {
+    await h.install();
+    await h.micro.proof();
+    const before = (await h.micro.state()).revision;
+    h.f.sizing = { sessionTimeoutMinutes: 30, vcpus: 2, memoryMiB: 1024 };
+    await h.micro.saveSizing(h.f.sizing);
+    assert.notEqual((await h.micro.state()).revision, before);
+    assert.equal((await h.micro.state()).available, false);
+    await h.micro.proof();
+    await assert.rejects(h.micro.run({ code: 'x' }, h.context), /changed|new chat/i);
+    h.store.saveChat({
+      ...h.store.chat(h.chatId),
+      executionRevision: (await h.micro.state()).revision,
+    });
+    const receipt = await h.micro.run({ code: 'console.log(42)' }, h.context);
+    assert.deepEqual(receipt.sizing, h.f.sizing);
+    assert.equal(receipt.lifetimeMs, 30 * 60_000);
+    assert.equal(receipt.cleanup, 'deleted');
   } finally {
     await h.close();
   }

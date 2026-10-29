@@ -49,6 +49,7 @@ type Peer = {
   connection: protocol.ClientConnection;
   sessionId?: string;
   loading: boolean;
+  snapshotText?: boolean;
 };
 type Work = {
   stopped: boolean;
@@ -266,7 +267,10 @@ export class ACPClient {
         }
         const update = params.update;
         if (update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text')
-          this.emit(id, { type: 'text_delta', delta: update.content.text });
+          this.emit(id, {
+            type: peer.snapshotText ? 'text_snapshot' : 'text_delta',
+            delta: update.content.text,
+          });
         else if (update.sessionUpdate === 'tool_call')
           this.emit(id, { type: 'tool_start', name: update.title, toolCallId: update.toolCallId });
         else if (update.sessionUpdate === 'tool_call_update')
@@ -368,6 +372,10 @@ export class ACPClient {
       );
       if (info.protocolVersion !== protocol.PROTOCOL_VERSION)
         throw error('acp_version', 'This agent uses an unsupported ACP protocol version.');
+      // Agent Zero CLI 2.14 forwards complete assistant_message snapshots as ACP chunks.
+      // Scope this workaround to the verified implementation; other agents keep ACP delta semantics.
+      peer.snapshotText =
+        info.agentInfo?.name === 'agent-zero' && info.agentInfo.version === '2.14';
       return { peer, info };
     } catch {
       this.drop(id);

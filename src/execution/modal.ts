@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { Store } from '../storage/store.js';
 import type { Vault } from '../providers/vault.js';
 import { AppError } from '../domain.js';
+import { sandboxSizing } from './settings.js';
 
 export const modalCredentials = z
   .object({
@@ -143,6 +144,7 @@ export class ModalProof {
         'sandbox_unreconciled',
         'Reconcile the previous Modal sandbox before creating another.',
       );
+    const sizing = sandboxSizing(this.store, 'modal');
     this.running = true;
     const receipt: Record<string, unknown> & { id: string } = {
       id: randomUUID(),
@@ -151,7 +153,9 @@ export class ModalProof {
       status: 'pending',
       cleanup: 'not_created',
       connectionRevision: this.store.meta('sandbox:modal:revision'),
+      sizing,
     };
+    receipt.lifetimeMs = sizing.sessionTimeoutMinutes * 60_000;
     let client: Client | undefined, sandbox: Resource | undefined;
     try {
       const credentials = await this.vault.get<Credentials>('sandbox:modal');
@@ -173,11 +177,11 @@ export class ModalProof {
         client.sandboxes.create(app, image, {
           name: String(receipt.environmentId),
           tags: { app: 'a0-slim', proof: receipt.id, host: this.store.meta('host_id')! },
-          cpu: 0.25,
-          cpuLimit: 1,
-          memoryMiB: 128,
-          memoryLimitMiB: 256,
-          timeoutMs: 60000,
+          cpu: sizing.vcpus / 2,
+          cpuLimit: sizing.vcpus / 2,
+          memoryMiB: sizing.memoryMiB,
+          memoryLimitMiB: sizing.memoryMiB,
+          timeoutMs: sizing.sessionTimeoutMinutes * 60_000,
           blockNetwork: true,
           encryptedPorts: [],
           h2Ports: [],

@@ -25,7 +25,7 @@ These are noninteractive scripts, not persistent PTYs. Shell variables and backg
 
 ## Setup
 
-- **Vercel:** retain the existing passing connection check and project cloud-use grant. Bash uses the same 60-second disposable VM, three-call per-turn and ten-call per-ten-minute budgets as Node. No Docker dependency. A Bash failure never selects host execution automatically.
+- **Vercel:** retain the existing passing connection check and project cloud-use grant. Bash uses the same disposable VM with the selected session timeout (15 minutes by default), three-call per-turn and ten-call per-ten-minute budgets as Node. No Docker dependency. A Bash failure never selects host execution automatically.
 - **Docker:** start the local engine and install the separate Bash-capable image: `docker pull node@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d`. The previous Alpine image remains supported for existing Node calls. Bash image presence is shown separately in Environments.
 - **Microsandbox:** update the optional add-on in Environments and rerun its check. The image is now digest-pinned Node 22 Bookworm Slim with real Bash. Existing installed workers remain available to reconcile their original VMs before update. The larger image is an optional runtime download, not part of the core npm archive.
 - **Host:** in Environments, read and select the explicit project permission, then enable host Bash and start a new chat. `/bin/bash` on macOS or Linux is required. Disabling it cancels current host commands and blocks dispatch from old chats. Re-enabling produces a new grant; old chats do not regain access.

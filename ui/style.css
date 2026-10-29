@@ -898,6 +898,7 @@ kbd {
 }
 .setup-command {
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
   font-family: monospace;
 }
 .checkbox {
@@ -2550,4 +2551,22 @@ progress {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-size: 0.8rem;
+}
+
+.settings-form.sandbox-sizing {
+  margin: 16px 0;
+  padding: 16px;
+}
+.sandbox-sizing .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.sandbox-sizing .form-grid label {
+  margin: 0;
+}
+.sandbox-sizing label:has(input[type='number']) {
+  grid-column: 1 / -1;
+}
+.sandbox-sizing .fine {
+  margin: 12px 0;
 }

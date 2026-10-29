@@ -1,0 +1,30 @@
+{
+  "recordedAt": "2026-10-29",
+  "browser": "Chrome on macOS",
+  "server": "Isolated local production build, paired through UI",
+  "catalog": {
+    "source": "agent0ai/a0-plugins",
+    "entries": 221,
+    "fetchedThroughUI": true
+  },
+  "checks": [
+    "DB Hub 1.0.0 exact-source assessment presents Verified tools, with SQLite/status/schema limits and separate lifecycle/UI capabilities",
+    "Use in Agent Zero opens Agents",
+    "Connect companion tools opens the MCP servers tab",
+    "Agent Skills 0.4.0 preview discloses omitted resources, scripts, commands and tool mappings",
+    "Imported api-and-interface-design instructions remain Disabled with 0 enabled skills",
+    "Default session timeout is 15 minutes; Vercel CPU selection 4 selects 8 GB memory",
+    "Saved Vercel timeout 30 minutes, 4 vCPUs and 8 GB survive navigation/reload without credentials",
+    "E2B CPU/memory selectors are disabled; Modal and Daytona explain credit limits",
+    "Corrected Agent Zero CLI 2.14 snapshots display a single final sentence after same-session reload",
+    "Narrow responsive layout: no horizontal overflow in settings container, environment cards or resource forms"
+  ],
+  "cloudResourcesCreated": 0,
+  "skillsEnabled": 0,
+  "pluginInstallHooksExecuted": 0,
+  "screenshotSha256": {
+    "acp-result.jpg": "5d1f2ac33c129b3893bc3b1cb461666fcf1d488a45dfe9b98eace3f1806312a3",
+    "sandbox-mobile.jpg": "fe80abb9a87d6303434b2c332d356de7af727868f461fee59a4d0b2071600570",
+    "sandbox-settings.jpg": "a4581b07e1096c2950a821d37653aeb53f48bd4ce4b8e8c5b14b4c834004e6d8"
+  }
+}

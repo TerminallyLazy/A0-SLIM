@@ -1,4 +1,5 @@
 import { Sandbox, ConnectionConfig, NotFoundError, type SandboxOpts } from 'e2b';
+import { defaultSizing } from './sizing.js';
 import { AppError } from '../domain.js';
 import type { CloudCheckDriver, CloudKeyCredentials, CloudIdentity } from './cloud-check.js';
 
@@ -39,12 +40,12 @@ export function createE2BDriver(
     }
   };
   return {
-    async create(_name, metadata) {
+    async create(_name, metadata, sizing = defaultSizing.e2b) {
       created = await sdk.create({
         ...options,
         template: 'base',
         metadata,
-        timeoutMs: 60000,
+        timeoutMs: sizing.sessionTimeoutMinutes * 60_000,
         allowInternetAccess: false,
         network: { allowPublicTraffic: false },
         envs: {},

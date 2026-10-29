@@ -8,6 +8,7 @@ import type { Store } from '../storage/store.js';
 import type { Vault } from '../providers/vault.js';
 import { SandboxProof, type VercelGetter } from './proof.js';
 import { verifyVercelScope, vercelFailure } from './vercel-auth.js';
+import { sandboxSizing } from './settings.js';
 
 export type VercelFactory = (
   options: Parameters<typeof Sandbox.create>[0],
@@ -21,7 +22,6 @@ export const vercelLimits = {
   callsPerTurn: 3,
   callsPerWindow: 10,
   windowMs: 600_000,
-  lifetimeMs: 60_000,
   codeBytes: 32768,
   inputBytes: 65536,
   outputBytes: 65536,
@@ -227,6 +227,7 @@ export class VercelExecution {
       this.assertAuthorized(chat);
       context.signal?.throwIfAborted();
       const revision = this.revision();
+      const sizing = sandboxSizing(this.store, 'vercel');
       const credentials = await this.proof.credentials();
       // Saving settings or revoking a project while auth was in flight must not grant a stale call.
       this.assertAuthorized(chat);
@@ -260,7 +261,9 @@ export class VercelExecution {
         connectionRevision: revision,
         scope: { teamId: credentials.teamId, projectId: credentials.projectId },
         environmentId: `a0-slim-${id}`,
-        limits: vercelLimits,
+        limits: { ...vercelLimits, lifetimeMs: sizing.sessionTimeoutMinutes * 60_000 },
+        lifetimeMs: sizing.sessionTimeoutMinutes * 60_000,
+        sizing,
         runtime: 'node22',
         tool: context.bash ? 'bash' : 'run_javascript',
         codeBytes: Buffer.byteLength(code),
@@ -298,8 +301,8 @@ export class VercelExecution {
           name: String(receipt.environmentId),
           runtime: 'node22',
           persistent: false,
-          timeout: vercelLimits.lifetimeMs,
-          resources: { vcpus: 1 },
+          timeout: sizing.sessionTimeoutMinutes * 60_000,
+          resources: { vcpus: sizing.vcpus },
           networkPolicy: 'deny-all',
           ports: [],
           env: {},
@@ -371,7 +374,7 @@ export class VercelExecution {
     return {
       name: 'run_javascript',
       description:
-        'Run Node.js in a temporary Vercel sandbox. Code and explicit stdin input go to Vercel and may incur charges. No local Docker, automatic project upload, model keys or network access. Limits: 10-second child process, 60-second sandbox, 64 KiB output, 3 calls per turn. Use write_file to propose returned artifacts for local review.',
+        'Run Node.js in a temporary Vercel sandbox using the session timeout and resources selected in Environments. Code and explicit stdin input go to Vercel and use the account allowance. No automatic project upload, model keys or network access. Limits: 10-second child process, 64 KiB output, 3 calls per turn. Use write_file to propose returned artifacts for local review.',
       inputSchema: {
         type: 'object',
         properties: { code: { type: 'string' }, input: { type: 'string' } },

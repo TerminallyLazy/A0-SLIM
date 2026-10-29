@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { MicrosandboxState } from '../src/execution/microsandbox.js';
 import { api } from './api.js';
+import { SandboxSizingForm } from './sandbox-sizing.js';
 
 export function MicrosandboxEnvironment({
   state,
@@ -62,9 +63,10 @@ export function MicrosandboxEnvironment({
       <p>
         Run Node.js or Bash in a temporary virtual machine on your computer. Guest networking is
         disabled; project folders and model credentials are not mounted. Node calls allow five
-        seconds; Bash allows up to thirty seconds. Each VM has 512 MiB of memory and a 60-second
-        lifetime.
+        seconds; Bash allows up to thirty seconds. Choose the VM resources and maximum session
+        lifetime below; the default is 15 minutes.
       </p>
+      <SandboxSizingForm provider="microsandbox" refresh={refresh} act={act} />
       {!installed && (
         <>
           <p>

@@ -25,7 +25,7 @@ test('synthetic sandbox proof pins isolation and attempts cleanup after command 
         assert.equal(options!.persistent, false);
         assert.equal(options!.networkPolicy, 'deny-all');
         assert.deepEqual(options!.ports, []);
-        assert.equal(options!.timeout, 60_000);
+        assert.equal(options!.timeout, 15 * 60_000);
         return {
           name: options!.name!,
           writeFiles: async (files) => {

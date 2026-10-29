@@ -96,13 +96,9 @@ that tooling difference.
 
 ## Remaining acceptance gates
 
-- **Owner host and real model:** no owner Agent Zero configuration, database,
-  provider account or model task was used. The synthetic model proves native
-  dispatch, not autonomous task quality. Built-in Agent Zero MCP chat delegation
-  and a real ACP plugin task retain their separate owner-instance acceptance gate.
-- **Browser readback:** local browser automation was disabled in Work settings.
-  The UI build passed; visual/interactive review of the new Hub actions has not
-  been claimed. The plan canvas approval was received through its CLI.
+- **Owner-host ACP acceptance completed (2026-10-29):** authenticated Agent Zero 2.14 at the pinned framework commit, CLI 2.14 and DB Hub 1.0.0 (all 84 pinned plugin files matched). A new synthetic project/profile binding was verified before dispatch. Two real-model turns called only `db_status` (once) and `db_schema` (three times), returned the expected table/columns and settled `end_turn`. The second turn reloaded the same remote session after SLIM restart. Before/after database hashes match. The fixture project and transcript are retained; no global configuration was changed. See [owner receipt](plugin-hub-owner-acceptance.json).
+- **Browser acceptance completed (2026-10-29):** Chrome exercised the production UI, 221-entry public catalog, exact-source DB Hub assessment, ACP/MCP navigation, skill preview warnings and disabled import. It also verified saved sandbox settings and the corrected ACP snapshot rendering. See [browser receipt](plugin-hub-browser-acceptance.json).
+- **Separate evidence boundaries:** native MCP companion dispatch remains proven using a synthetic SLIM model with real DB Hub execution in the dedicated disposable host. This owner-host ACP task does not make a new claim about native real-model companion dispatch or built-in Agent Zero MCP chat delegation.
 - **Compatibility breadth:** only two operations and the SQLite/SQLAlchemy path
   are executable through this preview. Other DB Hub drivers, queries/writes,
   memory replacement, other plugins, dynamic skills resources and full plugin UI
@@ -113,5 +109,5 @@ that tooling difference.
   manual updates. Host trust and package-specific dependency validation remain
   necessary.
 
-The approved plan's local prototype and recovery proof are delivered. The real
-ACP/owner-host and browser portions of phase 3 remain open as listed above.
+The approved local prototype, recovery proof, owner-host ACP task and browser
+portions of phases 1–3 are delivered within the bounded capability claims above.

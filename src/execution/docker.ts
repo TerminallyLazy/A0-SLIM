@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { FxAgentHostTool } from 'libfx';
 import type { Store } from '../storage/store.js';
 import { AppError } from '../domain.js';
+import { sandboxSizing } from './settings.js';
 const execute = promisify(execFile);
 export const dockerImage =
   'node@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1';
@@ -195,6 +196,7 @@ export class DockerSandbox {
         throw new AppError(409, 'action_changed', 'A repeated code call changed its input.');
       return previous;
     }
+    const sizing = sandboxSizing(this.store, 'docker');
     this.active = true;
     const receipt: Record<string, unknown> & { id: string } = {
       id: randomUUID(),
@@ -205,6 +207,7 @@ export class DockerSandbox {
       digest,
       projectId: options.projectId,
       image,
+      sizing,
     };
     let created = false;
     try {
@@ -236,11 +239,11 @@ export class DockerSandbox {
           '--pids-limit',
           '64',
           '--memory',
-          '128m',
+          `${sizing.memoryMiB}m`,
           '--memory-swap',
-          '128m',
+          `${sizing.memoryMiB}m`,
           '--cpus',
-          '1',
+          String(sizing.vcpus),
           '--user',
           '65534:65534',
           '--tmpfs',
@@ -319,7 +322,7 @@ export class DockerSandbox {
     return {
       name: 'run_javascript',
       description:
-        'Run Node.js in a disposable local container. No network, no host files, no credentials. Pass optional stdin text as input. Limits: 5 seconds, 128 MiB memory, 64 KiB output. Use write_file to stage any returned artifact for approval.',
+        'Run Node.js in a disposable local container using the resources selected in Environments. No network, no host files, no credentials. Pass optional stdin text as input. Limits: 5 seconds and 64 KiB output. Use write_file to stage any returned artifact for approval.',
       inputSchema: {
         type: 'object',
         properties: { code: { type: 'string' }, input: { type: 'string' } },

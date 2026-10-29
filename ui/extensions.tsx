@@ -27,13 +27,21 @@ export const downloadText = (name: string, text: string, type = 'text/plain') =>
 };
 const sample =
   '---\nname: deliberate-work\ndescription: Inspect, act, and verify project changes with a clear evidence trail.\n---\nRead the relevant project files before changing anything. Break substantial work into a short plan. Use the available tools, check the result, and distinguish completed actions from proposals awaiting approval. Save useful, attributable findings only when project memory writes are enabled. Never claim a check ran unless a tool result supports it.\n';
-export function ExtensionWorkspace({ project, act }: { project?: Project; act: Act }) {
+export function ExtensionWorkspace({
+  project,
+  act,
+  initialSection = 'skills',
+}: {
+  project?: Project;
+  act: Act;
+  initialSection?: 'skills' | 'mcp';
+}) {
   const [data, setData] = useState<{ skills: Skill[]; servers: McpServer[]; calls: McpCall[] }>({
       skills: [],
       servers: [],
       calls: [],
     }),
-    [section, setSection] = useState('skills'),
+    [section, setSection] = useState<string>(initialSection),
     [markdown, setMarkdown] = useState(''),
     [source, setSource] = useState('User import'),
     [editing, setEditing] = useState<string>(),
@@ -639,7 +647,7 @@ export function PluginHubView({
 }: {
   project?: Project;
   act: Act;
-  navigate: (view: 'agents' | 'extensions') => void;
+  navigate: (view: 'agents' | 'extensions', section?: 'skills' | 'mcp') => void;
 }) {
   const [catalog, setCatalog] = useState<HubCatalog | null>(null),
     [query, setQuery] = useState(''),
@@ -779,7 +787,7 @@ export function PluginHubView({
           <div className="button-row">
             <button onClick={() => navigate('agents')}>Use in Agent Zero</button>
             {selected.assessment?.adapter && (
-              <button onClick={() => navigate('extensions')}>Connect companion tools</button>
+              <button onClick={() => navigate('extensions', 'mcp')}>Connect companion tools</button>
             )}
             <a
               href="https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/PLUGIN-COMPANION.md"

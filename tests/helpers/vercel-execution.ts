@@ -8,6 +8,8 @@ const execute = promisify(execFile);
 export function vercelFixture(store: () => Store) {
   const f = {
     creates: 0,
+    lifetimeMs: 15 * 60_000,
+    vcpus: 1,
     commands: 0,
     deletes: 0,
     stops: 0,
@@ -33,8 +35,8 @@ export function vercelFixture(store: () => Store) {
       f.tags = options!.tags!;
       assert.equal(options!.persistent, false);
       assert.equal(options!.networkPolicy, 'deny-all');
-      assert.equal(options!.timeout, 60_000);
-      assert.equal(options!.resources?.vcpus, 1);
+      assert.equal(options!.timeout, f.lifetimeMs);
+      assert.equal(options!.resources?.vcpus, f.vcpus);
       assert.equal(options!.runtime, 'node22');
       assert.deepEqual(options!.ports, []);
       assert.deepEqual(options!.env, {});

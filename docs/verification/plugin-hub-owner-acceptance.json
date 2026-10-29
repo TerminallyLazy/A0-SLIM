@@ -1,0 +1,30 @@
+{
+  "recordedAt": "2026-10-29",
+  "scope": "Synthetic project on authenticated owner Agent Zero host; no existing database or project used",
+  "agentZeroCommit": "ff2a5b9c9c4e490ba38dd7c313e779510bb2071a",
+  "agentZeroCLI": "2.14",
+  "acpSDK": "2.0.2",
+  "dbHubVersion": "1.0.0",
+  "dbHubCommit": "9f3b9926cdd815034b0f9f635c60909107d1f2da",
+  "dbHubPinnedFileHashesMatched": 84,
+  "remoteProject": "slim-acp-acceptance-20261029",
+  "remoteProfile": "default",
+  "projectBindingVerified": true,
+  "model": "Real owner-host model; model credentials remain in Agent Zero",
+  "completedTurns": 2,
+  "remoteToolExecutions": { "db_status": 1, "db_schema": 3 },
+  "unexpectedRemoteTools": [],
+  "schema": { "table": "synthetic_inventory", "columns": ["id", "label"] },
+  "databaseBeforeAndAfterSha256": "963d2db67423275ceb3a3d40a48b1bc41bd001960f875509ac13043c636c21ae",
+  "slimTurnStatus": "complete",
+  "stopReason": "end_turn",
+  "restartReloadSameRemoteSession": true,
+  "replayedHistorySuppressed": true,
+  "snapshotRenderingVerified": true,
+  "finalResponse": "In `slim_fixture`, table `synthetic_inventory` has columns `id` (INTEGER, nullable) and `label` (TEXT, not nullable).",
+  "limitations": [
+    "The native MCP companion remains separately proven with a synthetic SLIM model and real plugin execution in a disposable host.",
+    "ACP acceptance does not prove native plugin UI, memory replacement or every database driver.",
+    "Synthetic owner project and remote transcript retained as evidence; no global settings changed."
+  ]
+}

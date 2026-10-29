@@ -103,6 +103,7 @@ export function App() {
   const [paired, setPaired] = useState<boolean | null>(null),
     [state, setState] = useState<State>(empty);
   const [loaded, setLoaded] = useState(false);
+  const [extensionSection, setExtensionSection] = useState<'skills' | 'mcp'>('skills');
   const [view, setView] = useState<View>('chat'),
     [projectId, setProjectId] = useState(''),
     [connectionId, setConnectionId] = useState(''),
@@ -314,7 +315,8 @@ export function App() {
       previous?.focus();
     };
   }, [projectForm]);
-  const navigate = (next: View) => {
+  const navigate = (next: View, section: 'skills' | 'mcp' = 'skills') => {
+    setExtensionSection(section);
     setView(next);
     setMobileNav(false);
     setError('');
@@ -1001,7 +1003,12 @@ export function App() {
               </>
             )}
             {view === 'extensions' && (
-              <ExtensionWorkspace key={projectId} project={project} act={act} />
+              <ExtensionWorkspace
+                key={projectId}
+                project={project}
+                act={act}
+                initialSection={extensionSection}
+              />
             )}
             {view === 'hub' && <PluginHubView project={project} act={act} navigate={navigate} />}
             {view === 'memory' && <MemoryWorkspace key={projectId} project={project} act={act} />}
@@ -1178,9 +1185,10 @@ function Transcript({
         text: typeof event.input === 'string' ? event.input : '',
         key: cursor,
       });
-    if (event.type === 'text_delta') {
+    if (event.type === 'text_delta' || event.type === 'text_snapshot') {
       const last = entries.at(-1);
-      if (last?.type === 'assistant') last.text += event.delta;
+      if (last?.type === 'assistant')
+        last.text = event.type === 'text_snapshot' ? event.delta : last.text + event.delta;
       else entries.push({ type: 'assistant', text: event.delta, key: cursor });
     }
     if (event.type === 'tool_start')

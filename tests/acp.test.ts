@@ -314,3 +314,28 @@ test('ACP service restart preserves unfinished intent as a hold across profiles'
     await rm(f.project, { recursive: true, force: true });
   }
 });
+
+// Live Agent Zero CLI 2.14 emits full snapshots, including revisions, not deltas.
+test('ACP snapshot compatibility is scoped to Agent Zero 2.14 and preserves raw update text', async () => {
+  for (const flags of [[], ['--a0-snapshots'], ['--a0-snapshots', '--future']]) {
+    const f = await setup(flags);
+    try {
+      await f.prompt('snapshots');
+      const events = f.events().filter((e) => e.type.startsWith('text_'));
+      assert.deepEqual(
+        events.map((e) => e.delta),
+        ['Hel', 'Hello', 'Hi, corrected.'],
+      );
+      const snapshot = flags.includes('--a0-snapshots') && !flags.includes('--future');
+      assert.ok(events.every((e) => e.type === (snapshot ? 'text_snapshot' : 'text_delta')));
+      await f.acp.close();
+      const restored = new ACPClient(f.store);
+      restored.prompt(f.chatId, 'snapshots', randomUUID());
+      await until(() => f.store.chat(f.chatId).status === 'idle');
+      assert.equal(f.events().filter((e) => e.delta === 'REPLAY MUST NOT DUPLICATE').length, 0);
+      await restored.close();
+    } finally {
+      await f.cleanup();
+    }
+  }
+});

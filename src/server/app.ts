@@ -20,6 +20,7 @@ import { vercelCredentials } from '../execution/vercel-auth.js';
 import { environmentStatus } from '../execution/status.js';
 import { ModalProof, modalCredentials } from '../execution/modal.js';
 import { CloudCheck, cloudKeyCredentials } from '../execution/cloud-check.js';
+import { sandboxSizing, saveSandboxSizing, sizingProvider } from '../execution/settings.js';
 import { createE2BDriver } from '../execution/e2b.js';
 import { createDaytonaDriver } from '../execution/daytona.js';
 import { listWorkspace, readWorkspaceFile } from '../tools/files.js';
@@ -76,6 +77,8 @@ export async function createApp(options: {
     store.setMeta(`sandbox:${provider}`, 'configured');
   };
   const session = randomBytes(32).toString('hex');
+  // Cookies are host-scoped, not port-scoped: concurrent local instances must not overwrite pairing.
+  const sessionCookie = `slim_session_${origin.port || '80'}`;
   let pairing: string | null = options.pairingCode,
     attempts = 0;
   const expires = Date.now() + 10 * 60_000;
@@ -98,7 +101,7 @@ export async function createApp(options: {
       throw new AppError(403, 'origin_required', 'A same-origin browser request is required.');
     const path = request.url.split('?')[0];
     if (path?.startsWith('/api/') && path !== '/api/v1/pair' && path !== '/api/v1/status') {
-      if (Date.now() > sessionExpiry || !equal(request.cookies.slim_session ?? '', session))
+      if (Date.now() > sessionExpiry || !equal(request.cookies[sessionCookie] ?? '', session))
         throw new AppError(
           401,
           'pair_required',
@@ -119,7 +122,7 @@ export async function createApp(options: {
     });
   });
   app.get('/api/v1/status', async (request) => ({
-    paired: Date.now() <= sessionExpiry && equal(request.cookies.slim_session ?? '', session),
+    paired: Date.now() <= sessionExpiry && equal(request.cookies[sessionCookie] ?? '', session),
     stage: 'P2 preview · account checks pending',
     version: appVersion,
   }));
@@ -132,7 +135,7 @@ export async function createApp(options: {
         'Pairing code invalid, used, or expired. Restart the local service for a new code.',
       );
     pairing = null;
-    reply.setCookie('slim_session', session, {
+    reply.setCookie(sessionCookie, session, {
       path: '/',
       httpOnly: true,
       sameSite: 'strict',
@@ -504,6 +507,29 @@ export async function createApp(options: {
       .type('application/x-ndjson')
       .header('x-accel-buffering', 'no')
       .send(Readable.from(events()));
+  });
+  app.get('/api/v1/sandbox/:provider/sizing', async (request) => {
+    const { provider } = z.object({ provider: sizingProvider }).parse(request.params);
+    return sandboxSizing(store, provider);
+  });
+  app.post('/api/v1/sandbox/:provider/sizing', async (request) => {
+    const { provider } = z.object({ provider: sizingProvider }).parse(request.params);
+    if (provider === 'microsandbox') return runtime.microsandbox.saveSizing(request.body);
+    if (provider === 'vercel')
+      return sandbox.withLease(async () => saveSandboxSizing(store, provider, request.body));
+    const busy =
+      provider === 'docker'
+        ? runtime.docker.busy
+        : provider === 'modal'
+          ? modal.busy
+          : additionalClouds[provider].busy;
+    if (busy)
+      throw new AppError(
+        409,
+        'sandbox_busy',
+        'Wait for the active sandbox operation before changing its settings.',
+      );
+    return saveSandboxSizing(store, provider, request.body);
   });
   app.post('/api/v1/sandbox/vercel', async (request) =>
     sandbox.withLease(async () => {

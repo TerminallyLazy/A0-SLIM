@@ -32,7 +32,7 @@ export const sandboxProviders: readonly SandboxProvider[] = [
     setup:
       'Create an access token for the team that owns your Vercel project. Enter its Team ID (team_…) or team slug and the Project ID (prj_…) from project settings. A0 SLIM verifies ownership and resolves the team ID before creating a sandbox.',
     lifetime:
-      '60-second lifetime · outbound network denied · stopped, then deleted during reconciliation.',
+      'Configurable session timeout · outbound network denied · stopped, then deleted during reconciliation.',
     fields: [
       ['teamId', 'Team ID or slug', false],
       ['projectId', 'Project ID', false],
@@ -54,7 +54,7 @@ export const sandboxProviders: readonly SandboxProvider[] = [
     setup:
       'Create a token in your Modal workspace settings. Save both the token ID and token secret. The defaults below create or use the a0-slim app in the main environment.',
     lifetime:
-      '60-second lifetime · outbound network denied · compute terminated; app and cached image may remain.',
+      'Configurable session timeout · outbound network denied · compute terminated; app and cached image may remain.',
     fields: [
       ['appName', 'App name', false, 'a0-slim'],
       ['environment', 'Environment', false, 'main'],
@@ -77,7 +77,7 @@ export const sandboxProviders: readonly SandboxProvider[] = [
     setup:
       'Create an E2B account, open API keys in the console, and create a key for A0 SLIM. Paste it below; no CLI installation is needed.',
     lifetime:
-      '60-second kill timeout · outbound network and public traffic denied · deletion verified.',
+      'Configurable session timeout · outbound network and public traffic denied · deletion verified.',
     fields: [['apiKey', 'API key', true]],
   },
   {
@@ -96,7 +96,7 @@ export const sandboxProviders: readonly SandboxProvider[] = [
     setup:
       'Sign in or create an account in Daytona, then create an API key for your organization with write:sandboxes and delete:sandboxes permissions. Paste it below. This check uses the US region.',
     lifetime:
-      'One-minute lifetime · outbound network denied · private preview · automatic deletion and explicit cleanup.',
+      'Configurable session timeout · outbound network denied · private preview · automatic deletion and explicit cleanup.',
     fields: [['apiKey', 'API key', true]],
   },
 ];

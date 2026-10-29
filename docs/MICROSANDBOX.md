@@ -14,9 +14,9 @@ The integration supports Apple Silicon macOS and Linux x64/arm64 with KVM. Local
 
 ## Execution boundary
 
-Each tool call creates a named local microVM with one vCPU, 512 MiB memory, a 512 MiB writable root disk, guest networking disabled, no published ports and no project mounts. The Node process runs as UID/GID 65534 with a restricted guest security profile. Only explicit code and stdin input enter the VM; host credentials, npm configuration and model keys are not inherited. OCI image defaults such as PATH remain present. The host uses an isolated environment and explicitly selects the SDK's local backend.
+Each tool call creates a named local microVM with selectable CPU (1/2/4; default 1) and memory (512/1024/2048/4096 MiB; default 512), a 512 MiB writable root disk, guest networking disabled, no published ports and no project mounts. The Node process runs as UID/GID 65534 with a restricted guest security profile. Only explicit code and stdin input enter the VM; host credentials, npm configuration and model keys are not inherited. OCI image defaults such as PATH remain present. The host uses an isolated environment and explicitly selects the SDK's local backend.
 
-Code is limited to 32 KiB, input to 64 KiB, combined output to 64 KiB, and three calls per turn. The Node supervisor enforces a five-second child timeout and a 128 MiB JavaScript heap limit. The SDK command has an eight-second timeout, the VM has a 60-second maximum duration and a 30-second idle limit. Cleanup is still required: a timeout is not evidence of termination or deletion. Returned text can be proposed through SLIM's existing artifact review; no files are automatically copied back to the project.
+Code is limited to 32 KiB, input to 64 KiB, combined output to 64 KiB, and three calls per turn. The Node supervisor enforces a five-second child timeout and a 128 MiB JavaScript heap limit. The SDK command has an eight-second timeout, the VM has a configurable maximum duration and idle limit, both set to the selected Session Timeout (15 minutes by default; 60-minute cap). Cleanup is still required: a timeout is not evidence of termination or deletion. Returned text can be proposed through SLIM's existing artifact review; no files are automatically copied back to the project.
 
 No arbitrary shell, mounts, networking, snapshots, forks, resume or cloud-backend configuration is exposed in this initial adapter. Those are separate upstream capabilities, not this adapter's accepted contract.
 
@@ -26,7 +26,7 @@ SLIM records creation intent before launching the optional worker. The worker re
 
 Cancellation terminates the worker and independently attempts cleanup. Interrupted service receipts become recovery holds. Use **Recheck and remove** to inspect and remove the original resource. An unresolved outcome blocks new creation, installation changes and runtime removal. Recovery never replays code; identical calls in the same turn return their existing receipt even if the runtime call ID changed after restart.
 
-A lookup failure is not absence. Even a typed not-found result cannot release a creation whose identity was never confirmed. For that case, wait at least two minutes, inspect the runtime for the exact recorded name and any outstanding creation process, then use **Review absent sandbox** to record the inspection. SLIM checks absence again and retains the failed/interrupted execution record plus a separate review record. The review does not establish successful execution.
+A lookup failure is not absence. Even a typed not-found result cannot release a creation whose identity was never confirmed. For that case, wait for the original receipt’s session lifetime plus a one-minute creation margin (legacy receipts retain their two-minute minimum), inspect the runtime for the exact recorded name and any outstanding creation process, then use **Review absent sandbox** to record the inspection. SLIM checks absence again and retains the failed/interrupted execution record plus a separate review record. The review does not establish successful execution.
 
 ## Storage and packaging
 

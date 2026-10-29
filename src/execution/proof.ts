@@ -4,6 +4,7 @@ import type { Store } from '../storage/store.js';
 import type { Vault } from '../providers/vault.js';
 import { AppError } from '../domain.js';
 import { verifyVercelScope, vercelFailure, type SandboxCredentials } from './vercel-auth.js';
+import { sandboxSizing } from './settings.js';
 
 export type { SandboxCredentials } from './vercel-auth.js';
 type ProofSandbox = Pick<
@@ -98,12 +99,12 @@ export class SandboxProof {
       );
     if (
       !Number.isFinite(Date.parse(String(receipt.startedAt))) ||
-      Date.now() - Date.parse(String(receipt.startedAt)) < 60_000
+      Date.now() - Date.parse(String(receipt.startedAt)) < Number(receipt.lifetimeMs ?? 60_000)
     )
       throw new AppError(
         409,
         'sandbox_review',
-        'Wait until the original 60-second lifetime has elapsed before reviewing absence.',
+        'Wait until this sandbox’s recorded session timeout has elapsed before reviewing absence.',
       );
     this.running = true;
     try {
@@ -244,6 +245,7 @@ export class SandboxProof {
         'sandbox_unreconciled',
         'A previous sandbox outcome is unknown. Use Recheck & clean up, or record a provider review if the resource is absent, to reconcile it before creating another sandbox.',
       );
+    const sizing = sandboxSizing(this.store, 'vercel');
     this.running = true;
     let sandbox: ProofSandbox | undefined;
     const receipt: Record<string, unknown> & { id: string } = {
@@ -253,6 +255,8 @@ export class SandboxProof {
       status: 'pending',
       cleanup: 'not_created',
       connectionRevision: this.store.meta('sandbox:vercel:revision'),
+      sizing,
+      lifetimeMs: sizing.sessionTimeoutMinutes * 60_000,
     };
     try {
       const credentials = await this.credentials();
@@ -266,11 +270,11 @@ export class SandboxProof {
       sandbox = await this.create({
         ...credentials,
         name: String(receipt.environmentId),
-        timeout: 60_000,
+        timeout: sizing.sessionTimeoutMinutes * 60_000,
         persistent: false,
         networkPolicy: 'deny-all',
         ports: [],
-        resources: { vcpus: 1 },
+        resources: { vcpus: sizing.vcpus },
         tags: { app: 'a0-slim', proof: receipt.id },
         signal: AbortSignal.timeout(30_000),
         fetch: async (url, init) => {
