@@ -35,6 +35,35 @@ type Recipe = {
   files: Record<string, string>;
 };
 type Artifact = { url: string; sha256: string; bytes: number };
+// Manifests select reviewed artifacts; they cannot supply a network destination.
+// New runtime/plugin revisions require an explicit update to this allowlist.
+const approvedArtifactUrls = [
+  ...[
+    'aarch64-apple-darwin',
+    'x86_64-apple-darwin',
+    'aarch64-unknown-linux-gnu',
+    'x86_64-unknown-linux-gnu',
+  ].map(
+    (target) =>
+      `https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.12.16%2B20261026-${target}-install_only_stripped.tar.gz`,
+  ),
+  ...[
+    'LICENSE',
+    'plugin.yaml',
+    'tools/db_status.py',
+    'tools/db_schema.py',
+    'helpers/base.py',
+    'helpers/config.py',
+    'helpers/secrets_bridge.py',
+    'helpers/registry.py',
+    'helpers/bootstrap.py',
+    'helpers/drivers/__init__.py',
+    'helpers/drivers/sqlalchemy.py',
+  ].map(
+    (file) =>
+      `https://raw.githubusercontent.com/TerminallyLazy/a0-db-hub/9f3b9926cdd815034b0f9f635c60909107d1f2da/${file}`,
+  ),
+];
 type Binding = {
   id: string;
   projectId: string;
@@ -111,7 +140,9 @@ export async function runWorkerProcess(
 }
 
 export async function downloadPinned(artifact: Artifact, signal: AbortSignal) {
-  const response = await fetch(artifact.url, { signal, headers: { 'user-agent': 'A0-SLIM' } });
+  const url = approvedArtifactUrls.find((candidate) => candidate === artifact.url);
+  if (!url) throw problem('The manifest does not identify a reviewed public download.');
+  const response = await fetch(url, { signal, headers: { 'user-agent': 'A0-SLIM' } });
   if (!response.ok || !response.body) throw problem('The pinned public artifact is unavailable.');
   const chunks: Buffer[] = [];
   let size = 0;

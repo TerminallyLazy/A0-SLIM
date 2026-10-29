@@ -29,7 +29,8 @@ unchanged. The worker asserts that Agent Zero's `agent` module is absent.
 - `npm run check`: 199 tests, TypeScript and production build passed. The
   native-runtime, cancellation, per-turn capability and MCP recovery regressions
   remain included. Native-plugin tests cover download opt-in, concurrent install
-  requests, failed/interrupted setup, checksum/size rejection, origin/pairing and
+  requests, failed/interrupted setup, checksum/size rejection, fixed download
+  destinations, origin/pairing and
   project authority.
 - `npm audit --audit-level=high`: zero vulnerabilities.
 - `npm run test:package -- --plugins`: passed against an installed local npm
@@ -62,7 +63,7 @@ The machine-readable synthetic operation receipt is
 runtime directories remain outside the public repository.
 
 The packed candidate SHA-512 integrity was
-`sha512-j9Torj5yC8HDqejqNMmeMw7sYvhvtUQwL34706QDR23gC5IXqcy7tDqn1n2I3vQMLA+Iv+5xgK1Jp0nndwskow==`.
+`sha512-7VBiZG6drFVaQt2Gbd01L/P1RWFSM8Kfdj3TU+k/DUHaykDmzpiQUOllROLYFjwNjkU9LkOvN9cMLUhHRmPm8w==`.
 Its four synthetic operation IDs are retained in the receipt's `packedCandidate`
 section. No public-release or real-provider acceptance is implied by this check.
 

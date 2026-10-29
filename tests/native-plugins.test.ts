@@ -50,11 +50,26 @@ test('pinned public downloads reject modified and oversized content before extra
   const original = globalThis.fetch;
   const expected = Buffer.from('reviewed public bytes');
   const artifact = {
-    url: 'https://example.invalid/fixture',
+    url: 'https://raw.githubusercontent.com/TerminallyLazy/a0-db-hub/9f3b9926cdd815034b0f9f635c60909107d1f2da/LICENSE',
     sha256: createHash('sha256').update(expected).digest('hex'),
     bytes: expected.length,
   };
   try {
+    let networkCalls = 0;
+    globalThis.fetch = async () => {
+      networkCalls++;
+      return new Response(expected);
+    };
+    for (const url of [
+      'https://outside.invalid/private-data',
+      artifact.url + '?private-data',
+      artifact.url.replace('LICENSE', '../../private-data'),
+    ])
+      await assert.rejects(
+        downloadPinned({ ...artifact, url }, AbortSignal.timeout(1000)),
+        /reviewed public/,
+      );
+    assert.equal(networkCalls, 0);
     globalThis.fetch = async () => new Response(expected);
     assert.deepEqual(await downloadPinned(artifact, AbortSignal.timeout(1000)), expected);
     globalThis.fetch = async () => new Response('unreviewed');

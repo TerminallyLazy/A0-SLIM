@@ -25,10 +25,10 @@
     "pluginCommit": "9f3b9926cdd815034b0f9f635c60909107d1f2da",
     "runtime": "Python 3.12.16 · plugin API 0.1.0",
     "operations": [
-      "cf1af9c0-239e-49ee-a893-2d0e6459ec19",
-      "b8d4f4c3-1f74-47e7-972b-281bbc8bd650",
-      "26431f35-0ca1-419f-a290-66ccc7228221",
-      "546abf23-43c1-491b-bb24-d4f99ccbc948"
+      "afae82bc-00fd-4221-8aa5-a370fbb94b68",
+      "84e89eaa-1dcb-49b0-8396-9fb6b152f1a1",
+      "e8c6f110-4761-4155-b444-473ad692d6f6",
+      "6452cbdf-cf74-4883-bb24-ae12af7af31e"
     ],
     "schema": {
       "tables": [
@@ -44,6 +44,6 @@
     "node": "24.22.1",
     "baselineVersion": "0.1.0-alpha.4",
     "published": false,
-    "integrity": "sha512-j9Torj5yC8HDqejqNMmeMw7sYvhvtUQwL34706QDR23gC5IXqcy7tDqn1n2I3vQMLA+Iv+5xgK1Jp0nndwskow=="
+    "integrity": "sha512-7VBiZG6drFVaQt2Gbd01L/P1RWFSM8Kfdj3TU+k/DUHaykDmzpiQUOllROLYFjwNjkU9LkOvN9cMLUhHRmPm8w=="
   }
 }
