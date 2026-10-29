@@ -2,7 +2,7 @@
 
 A local-first agent workspace inspired by Agent Zero. A Node service runs the agent loop, project tools, memory, and extensions; a browser UI exposes their state and permissions.
 
-**Status: alpha 0.1.0-alpha.2 with guided first-run setup, native Bash, P2 extensions, memory and bounded subordinates.** ChatGPT text/functions, reviewed artifacts, optional local Docker execution and bounded Vercel Node.js execution are implemented. Cloud account acceptance and broader release gates remain open. See [P1 evidence and limitations](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P1.md) and [P2 verification](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P2.md).
+**Status: alpha 0.1.0-alpha.3 with guided first-run setup, native Bash, P2 extensions, memory and bounded subordinates.** ChatGPT text/functions, reviewed artifacts, optional local Docker execution and bounded Vercel Node.js execution are implemented. Cloud account acceptance and broader release gates remain open. See [P1 evidence and limitations](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P1.md) and [P2 verification](https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/verification/P2.md).
 
 ## Install and launch with one command
 
@@ -43,7 +43,7 @@ Existing curl users need to rerun the installer once to get these commands. npm 
 Use **Node 24** and npm 11.19 or newer. macOS arm64 and Linux x64 are the tested targets. This is an alpha release.
 
 ```sh
-npm install -g a0-slim@0.1.0-alpha.2 --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+npm install -g a0-slim@0.1.0-alpha.3 --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
 a0-slim
 ```
 
@@ -62,17 +62,17 @@ Closing the tab detaches the viewer; **Stop** cancels the current model turn. St
 Download the exact release tarball:
 
 ```sh
-curl -fL -o a0-slim-0.1.0-alpha.2.tgz https://github.com/TerminallyLazy/A0-SLIM/releases/download/v0.1.0-alpha.2/a0-slim-0.1.0-alpha.2.tgz
+curl -fL -o a0-slim-0.1.0-alpha.3.tgz https://registry.npmjs.org/a0-slim/-/a0-slim-0.1.0-alpha.3.tgz
 ```
 
 Then install it with Node 24 and npm 11.19 or newer:
 
 ```sh
-npm install -g ./a0-slim-0.1.0-alpha.2.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
+npm install -g ./a0-slim-0.1.0-alpha.3.tgz --allow-scripts=better-sqlite3@13.0.3,cbor-extract@2.2.2
 a0-slim
 ```
 
-The download is about 470 KB; npm installs production dependencies separately. The GitHub asset and npm release use the same tested tarball. The exact SHA-256 is in the release’s `SHA256SUMS` asset.
+npm installs production dependencies separately. Release checks and artifact integrity are recorded in `docs/verification/`.
 
 ## What works
 
@@ -89,7 +89,7 @@ The download is about 470 KB; npm installs production dependencies separately. T
 - **Memory:** SQLite/FTS5 project notes in `main`, `fragments`, and `solutions`, with source labels, editing, deletion, portable text import/export, and separate agent read/write permissions. New chats receive bounded lexical recall at turn start and can call `memory_load`, `memory_save`, and `memory_delete`.
 - **Embeddings:** optional local inference runtime installed from Memory → Embeddings & models, followed by an explicit pinned Hugging Face MiniLM download (22.6 MiB). Installation supports cancellation, retry and removal; model files have checksums, progress, pause/retry and offline verification. CPU inference runs in a worker with network fetch disabled. Separate compatible `/embeddings` connections require their own credentials and an explicit project data-sharing choice. Reindexing validates dimensions and switches namespaces only after successful completion; lexical search stays available.
 - **Subordinates:** new chats can delegate read-only research/review through `call_subordinate`, inspect each child transcript, stop its work and continue the same child from its parent. Children inherit the project, model connection and a subset of permitted skills/recall; they cannot write, execute code or call MCP.
-- Graphite/Paper themes, three accents, two densities, responsive file/artifact inspector, and original Agent Zero symbols.
+- Twelve theme presets with dark/light palettes, gradients, custom colors, a live preview with Save/Reset, and two densities. Existing appearance preferences are preserved. Responsive file/artifact inspector and original Agent Zero symbols.
 
 ### Free sandbox choices
 

@@ -35,7 +35,7 @@ Approved by the user in chat on 2026-10-26. The canvas review is closed.
 | Host execution is explicit opt-in | Approved direction | Docker-free need not mean unrestricted execution by default. |
 | Local embeddings optional; lexical recall works first | Approved direction | Fast installation without downloading model weights automatically. |
 | Plugin Hub discovery + explicit compatibility overlay | Approved direction | Existing Python/Alpine plugins do not execute natively in Node. |
-| Graphite/Paper themes, restrained accent, three-pane workspace | Approved direction | Minimal daily workspace with customizable density and inspection. |
+| Twelve themes, custom colors, three-pane workspace | Delivered alpha.3 | Dark/light preview, Save/Reset, readable colors, customizable density and inspection. |
 
 ## Delivery sequence
 
@@ -197,3 +197,7 @@ Connecting MCP discovers/enables its tools automatically; optional tool switches
 ## Automatic managed updates — 2026-10-29
 
 The user requested updates that are extremely easy or automatic. Enable daily startup updates for curl installations, with an explicit command for immediate installation and opt-out controls. Keep the already-running service intact; apply the new release on next startup. Use a fixed npm origin, exact tarball URL and SHA-512 integrity, the managed Node/npm runtime, an empty npm configuration, scripts-disabled installation and native/CLI probes before an atomic current-release switch. Retain the previous release and keep all private app data outside staging. Do not silently modify npm-managed packages or source checkouts. Embed the bootstrap updater and launcher from owned modules with a synchronization check, so an old public package can acquire update support without circular dependency. Record synthetic registry/local-artifact acceptance separately from public release availability.
+
+## Customizable appearance — 2026-10-29
+
+Implement the twelve named palettes and gallery/preview arrangement from the user’s references, with dark/light variants and three gradient presets. Keep editing scoped to the preview until Save, including density; Reset restores the saved preferences. Custom palettes use validated hex colors, readable text and accent contrast across surfaces and gradient interiors, and derived control colors. No executable CSS, remote assets or theme dependencies are introduced. Preserve legacy browser choices as custom palettes. Keep headings plain and omit eyebrow labels. The npm alpha.3 release also includes the previously verified Hub, access, MCP, sandbox, command-registration and automatic-update work.

@@ -1,6 +1,6 @@
 {
   "name": "a0-slim",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "type": "module",
   "description": "A local-first agent workspace built around libfx",
   "engines": {

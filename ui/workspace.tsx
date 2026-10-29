@@ -1,5 +1,7 @@
 import { AccessPicker, AccessApprovals } from './access.js';
 import type { AccessDecision } from '../src/policy/access.js';
+import { AppearanceSettings } from './appearance.js';
+import { applyAppearance, loadAppearance, saveAppearance, type Appearance } from './theme.js';
 import { FirstRun } from './first-run.js';
 import type { FirstRunState } from '../src/server/first-run.js';
 import { BashOutput } from './bash-output.js';
@@ -8,7 +10,6 @@ import {
   BookOpen,
   ArrowUp,
   ArrowUpRight,
-  Check,
   ChevronLeft,
   Circle,
   Folder,
@@ -120,10 +121,12 @@ export function App() {
     [inspector, setInspector] = useState(false),
     [mobileNav, setMobileNav] = useState(false),
     [tab, setTab] = useState('activity');
-  const [projectForm, setProjectForm] = useState(false),
-    [theme, setTheme] = useState(() => localStorage.getItem('slim.theme') ?? 'graphite');
-  const [accent, setAccent] = useState(() => localStorage.getItem('slim.accent') ?? 'sage'),
-    [density, setDensity] = useState(() => localStorage.getItem('slim.density') ?? 'comfortable');
+  const [projectForm, setProjectForm] = useState(false);
+  const [appearance, setAppearance] = useState(loadAppearance);
+  function updateAppearance(next: Appearance) {
+    saveAppearance(next, localStorage);
+    setAppearance(structuredClone(next));
+  }
   const scroll = useRef<HTMLDivElement>(null),
     sendLock = useRef(false);
   const project = state.projects.find((p) => p.id === projectId),
@@ -201,13 +204,8 @@ export function App() {
     return () => clearInterval(timer);
   }, [paired]);
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.dataset.accent = accent;
-    document.documentElement.dataset.density = density;
-    localStorage.setItem('slim.theme', theme);
-    localStorage.setItem('slim.accent', accent);
-    localStorage.setItem('slim.density', density);
-  }, [theme, accent, density]);
+    applyAppearance(appearance, document.documentElement);
+  }, [appearance]);
   useEffect(() => {
     const url = new URL(location.href),
       result = url.searchParams.get('connection');
@@ -436,8 +434,12 @@ export function App() {
       <FirstRun
         notice={error}
         clearNotice={() => setError('')}
-        theme={theme}
-        setTheme={setTheme}
+        theme={appearance.mode === 'light' ? 'paper' : 'graphite'}
+        setTheme={(theme) => {
+          void act(async () =>
+            updateAppearance({ ...appearance, mode: theme === 'paper' ? 'light' : 'dark' }),
+          );
+        }}
         setup={state.firstRun}
         projects={state.projects}
         connections={state.connections}
@@ -969,64 +971,7 @@ export function App() {
             )}
             {view === 'appearance' && (
               <>
-                <Heading title="Appearance">
-                  Choose a theme, accent color, and spacing. Preferences are saved in this browser.
-                </Heading>
-                <div className="setting-row">
-                  <div>
-                    <h3>Appearance</h3>
-                    <p>Choose a workspace that suits your light.</p>
-                  </div>
-                  <div className="segmented">
-                    {['graphite', 'paper'].map((t) => (
-                      <button
-                        className={theme === t ? 'selected' : ''}
-                        aria-pressed={theme === t}
-                        key={t}
-                        onClick={() => setTheme(t)}
-                      >
-                        {t === 'paper' ? 'Paper' : 'Graphite'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="setting-row">
-                  <div>
-                    <h3>Accent</h3>
-                    <p>Choose the color used for controls and selection.</p>
-                  </div>
-                  <div className="swatches">
-                    {['sage', 'sky', 'clay'].map((a) => (
-                      <button
-                        aria-label={`${a} accent`}
-                        aria-pressed={accent === a}
-                        className={`swatch ${a} ${accent === a ? 'active' : ''}`}
-                        key={a}
-                        onClick={() => setAccent(a)}
-                      >
-                        {accent === a && <Check size={16} />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="setting-row">
-                  <div>
-                    <h3>Density</h3>
-                    <p>Space to breathe, or room for more.</p>
-                  </div>
-                  <div className="segmented">
-                    {['comfortable', 'compact'].map((d) => (
-                      <button
-                        key={d}
-                        className={density === d ? 'selected' : ''}
-                        aria-pressed={density === d}
-                        onClick={() => setDensity(d)}
-                      >
-                        {d === 'compact' ? 'Compact' : 'Comfortable'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <AppearanceSettings value={appearance} save={updateAppearance} />
                 <div className="brand-credit">
                   <img src="/a0-horizontal-banner.svg" alt="Agent Zero" width="1500" height="500" />
                   <div>
