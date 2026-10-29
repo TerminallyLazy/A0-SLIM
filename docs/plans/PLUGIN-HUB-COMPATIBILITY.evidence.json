@@ -1,0 +1,88 @@
+{
+  "assessedAt": "2026-10-29T02:32:34Z",
+  "catalog": {
+    "url": "https://github.com/agent0ai/a0-plugins/releases/download/generated-index/index.json",
+    "entries": 221,
+    "sha256": "544853b287858fea56e01de86c55d3cef824d38a07bc1fb702330404faca765b"
+  },
+  "agentZero": {
+    "version": "2.14",
+    "commit": "ff2a5b9c9c4e490ba38dd7c313e779510bb2071a"
+  },
+  "evidenceLevel": "static-source-assessment",
+  "runtimeCompatibilityVerified": false,
+  "samples": [
+    {
+      "id": "db_hub",
+      "version": "1.0.0",
+      "repository": "https://github.com/TerminallyLazy/a0-db-hub",
+      "commit": "9f3b9926cdd815034b0f9f635c60909107d1f2da",
+      "treeComplete": true,
+      "files": 121
+    },
+    {
+      "id": "youcom_search",
+      "version": "1.0.1",
+      "repository": "https://github.com/brainsparker/a0-youcom-search",
+      "commit": "2f543aaf28d6db8a7fce29e3e63b2d6a916c5f40",
+      "treeComplete": true,
+      "files": 14
+    },
+    {
+      "id": "tree_ring_memory",
+      "version": "3.4.2",
+      "repository": "https://github.com/TerminallyLazy/tree-ring-memory-agent-zero",
+      "commit": "ae4c8c8cab6f30172eb2fb26c27722f38249b615",
+      "treeComplete": true,
+      "files": 72
+    },
+    {
+      "id": "openui",
+      "version": "0.2.3",
+      "repository": "https://github.com/TerminallyLazy/a0-openui",
+      "commit": "47899892f1b8bc76e2b1a92aebe80a082866da76",
+      "treeComplete": true,
+      "files": 81
+    },
+    {
+      "id": "selectable_theme",
+      "version": "2.0.0",
+      "repository": "https://github.com/3clyp50/selectable_theme",
+      "commit": "f8fe897bf6a44c706004b7d833b2c9c8de3a7238",
+      "treeComplete": true,
+      "files": 15
+    },
+    {
+      "id": "mattpocock_skills",
+      "version": "1.0.0",
+      "repository": "https://github.com/MarkoSchuetz/a0-mattpocock-skills",
+      "commit": "545f789fdce5fced518f6dc19eef16a9a64107f2",
+      "treeComplete": true,
+      "files": 11
+    },
+    {
+      "id": "realtime_voice",
+      "version": "0.1.3",
+      "repository": "https://github.com/NoHara42/a0-realtime-voice",
+      "commit": "4c8b9466c70bed8b1164fea31eb0c1dd3de759da",
+      "treeComplete": true,
+      "files": 51
+    },
+    {
+      "id": "mech_calendar",
+      "version": "1.1.9",
+      "repository": "https://github.com/twilso24/mech_calendar",
+      "commit": "4c6678c2f25cfd94d39228c3c57d03fd5151a6b0",
+      "treeComplete": true,
+      "files": 21
+    },
+    {
+      "id": "a0_agent_skills",
+      "version": "0.4.0",
+      "repository": "https://github.com/vanja-emichi/a0_agent_skills",
+      "commit": "239ffe10531eed627e66d4a789c287318aafb78c",
+      "treeComplete": true,
+      "files": 67
+    }
+  ]
+}

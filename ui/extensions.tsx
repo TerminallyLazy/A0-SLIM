@@ -449,7 +449,7 @@ export function ExtensionWorkspace({ project, act }: { project?: Project; act: A
                   Transport
                   <select value={transport} onChange={(e) => setTransport(e.target.value)}>
                     <option value="http">Streamable HTTP</option>
-                    <option value="agent-zero">Agent Zero MCP tools · preview</option>
+                    <option value="agent-zero">Agent Zero task delegation · preview</option>
                     <option value="stdio">Local stdio · full trust</option>
                   </select>
                 </label>
@@ -632,13 +632,21 @@ export function ExtensionWorkspace({ project, act }: { project?: Project; act: A
     </>
   );
 }
-export function PluginHubView({ project, act }: { project?: Project; act: Act }) {
+export function PluginHubView({
+  project,
+  act,
+  navigate,
+}: {
+  project?: Project;
+  act: Act;
+  navigate: (view: 'agents' | 'extensions') => void;
+}) {
   const [catalog, setCatalog] = useState<HubCatalog | null>(null),
     [query, setQuery] = useState(''),
     [filter, setFilter] = useState('all'),
     [busy, setBusy] = useState(false),
     [selected, setSelected] = useState<HubEntry>(),
-    [preview, setPreview] = useState<{ markdown: string; source: string }>(),
+    [preview, setPreview] = useState<{ markdown: string; source: string; warnings: string[] }>(),
     [notice, setNotice] = useState('');
   useEffect(() => {
     void act(async () => setCatalog(await api('/hub')));
@@ -661,7 +669,7 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
   };
   const rows = (catalog?.entries ?? []).filter(
     (e) =>
-      (filter === 'all' || (e.assessment?.status ?? 'Compatibility unknown') === filter) &&
+      (filter === 'all' || (e.assessment?.status ?? 'Not assessed') === filter) &&
       `${e.title} ${e.description} ${e.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase()),
   );
   return (
@@ -683,7 +691,13 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
           Compatibility
           <select value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="all">All assessments</option>
-            {['Requires Agent Zero', 'Port available', 'Compatibility unknown'].map((v) => (
+            {[
+              'Verified tools',
+              'Runs in Agent Zero',
+              'Skill import available',
+              'Port required',
+              'Not assessed',
+            ].map((v) => (
               <option key={v}>{v}</option>
             ))}
           </select>
@@ -718,9 +732,9 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
       <div className="permission-note">
         <ShieldCheck size={18} />
         <span>
-          Python plugins run in Agent Zero. Use Agents to connect the whole agent over ACP, or
-          connect its MCP server here for individual remote tools. Agent Zero UI hooks do not become
-          native SLIM screens. Review and import portable SKILL.md instructions separately.
+          Use ACP for an Agent Zero conversation. Its built-in MCP server delegates chat tasks;
+          individual plugin tools need a supported companion adapter. Plugin screens and lifecycle
+          hooks stay in Agent Zero. Review skill instructions and their dependencies separately.
         </span>
       </div>
       {selected && (
@@ -738,8 +752,43 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
           </div>
           <p>{selected.assessment?.reason}</p>
           <small className="wrap">
-            Assessed revision {selected.commit} · {selected.assessment?.checkedAt}
+            Source assessment · {selected.commit} · {selected.assessment?.checkedAt}
           </small>
+          <ul>
+            {selected.assessment?.capabilities.map((capability) => (
+              <li key={capability.kind}>
+                <strong>{capability.kind}</strong>: {capability.detail}
+              </li>
+            ))}
+          </ul>
+          {selected.assessment?.adapter && (
+            <p>
+              Companion {selected.assessment.adapter.version} · Agent Zero{' '}
+              {selected.assessment.adapter.hostVersion} ·{' '}
+              {selected.assessment.adapter.operations.join(', ')} ·{' '}
+              {selected.assessment.adapter.verified
+                ? 'Synthetic-data execution verified; check your host separately.'
+                : 'Prototype; runtime acceptance pending.'}
+            </p>
+          )}
+          {selected.assessment?.adapter && (
+            <p>
+              {selected.assessment.adapter.evidence} · {selected.assessment.adapter.checkedAt}
+            </p>
+          )}
+          <div className="button-row">
+            <button onClick={() => navigate('agents')}>Use in Agent Zero</button>
+            {selected.assessment?.adapter && (
+              <button onClick={() => navigate('extensions')}>Connect companion tools</button>
+            )}
+            <a
+              href="https://github.com/TerminallyLazy/A0-SLIM/blob/main/docs/PLUGIN-COMPANION.md"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Setup and limits
+            </a>
+          </div>
           <div className="button-row">
             {selected.assessment?.skills.map((path) => (
               <button
@@ -755,6 +804,11 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
           </div>
           {preview && (
             <>
+              {preview.warnings.map((warning) => (
+                <p className="permission-note" key={warning}>
+                  {warning}
+                </p>
+              ))}
               <pre>{preview.markdown}</pre>
               <p className="wrap">{preview.source}</p>
               <button
@@ -762,7 +816,10 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
                 disabled={busy || !project}
                 onClick={() =>
                   run(async () => {
-                    await api(`/projects/${project!.id}/skills`, preview);
+                    await api(`/projects/${project!.id}/skills`, {
+                      markdown: preview.markdown,
+                      source: preview.source,
+                    });
                     setNotice(
                       `Imported disabled into ${project!.name}. Enable it from Skills & MCP after reviewing.`,
                     );
@@ -790,7 +847,7 @@ export function PluginHubView({ project, act }: { project?: Project; act: Act })
           <article className="hub-card" key={entry.id}>
             <div className="panel-title">
               <small>{entry.version || 'Unversioned'}</small>
-              <span className="pill">{entry.assessment?.status ?? 'Compatibility unknown'}</span>
+              <span className="pill">{entry.assessment?.status ?? 'Not assessed'}</span>
             </div>
             <h2>{entry.title}</h2>
             <p>{entry.description}</p>

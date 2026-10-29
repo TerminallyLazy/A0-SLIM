@@ -34,12 +34,13 @@ async function setup() {
     },
   };
 }
-async function mcpFixture() {
+async function mcpFixture(companion = false) {
   let calls = 0,
     fail = false,
     changed = false;
   const authorization: string[] = [],
-    paths: string[] = [];
+    paths: string[] = [],
+    metadata: unknown[] = [];
   const server = createServer(async (req, res) => {
     authorization.push(req.headers.authorization ?? '');
     paths.push(req.url ?? '');
@@ -71,12 +72,22 @@ async function mcpFixture() {
               type: 'object',
               properties: { text: { type: 'string' } },
               required: ['text'],
+              ...(companion
+                ? {
+                    'x-a0-slim-companion': {
+                      protocol: 'a0-slim-tools/1',
+                      fingerprint: 'a'.repeat(64),
+                      scopeId: 'b'.repeat(64),
+                    },
+                  }
+                : {}),
             },
           },
         ],
       };
     else if (body.method === 'tools/call') {
       calls++;
+      metadata.push(body.params._meta);
       if (fail) {
         res.destroy();
         return;
@@ -93,6 +104,7 @@ async function mcpFixture() {
     calls: () => calls,
     authorization,
     paths,
+    metadata,
     fail: () => {
       fail = true;
     },
@@ -135,6 +147,47 @@ test('portable skills are disabled on import/update/rollback; immutable turn cat
     f.ext.skills.change(f.projectId, s.id, 'delete');
     assert.equal(f.ext.skills.list(f.projectId).length, 0);
   } finally {
+    await f.close();
+  }
+});
+test('companion receives client-owned operation metadata and unknown holds span endpoint aliases', async () => {
+  const f = await setup(),
+    remote = await mcpFixture(true);
+  try {
+    const first = await f.ext.mcp.add(f.projectId, {
+      name: 'Companion',
+      transport: 'http',
+      url: remote.url,
+    });
+    await f.ext.mcp.discover(f.projectId, first.id);
+    f.ext.mcp.configure(f.projectId, first.id, true, ['lookup']);
+    const approved = f.ext.mcp.stage(
+      f.projectId,
+      first.id,
+      'lookup',
+      { text: 'metadata' },
+      'metadata',
+    );
+    await f.ext.mcp.approve(f.projectId, approved.id, approved.digest);
+    assert.deepEqual(remote.metadata[0], {
+      'io.a0-slim/operation': { id: approved.id, fingerprint: 'a'.repeat(64) },
+    });
+    const alias = await f.ext.mcp.add(f.projectId, {
+      name: 'Alias',
+      transport: 'http',
+      url: remote.url + '/alias',
+    });
+    await f.ext.mcp.discover(f.projectId, alias.id);
+    f.ext.mcp.configure(f.projectId, alias.id, true, ['lookup']);
+    remote.fail();
+    const lost = f.ext.mcp.stage(f.projectId, first.id, 'lookup', { text: 'lost' }, 'lost');
+    assert.equal((await f.ext.mcp.approve(f.projectId, lost.id, lost.digest)).status, 'unknown');
+    assert.throws(
+      () => f.ext.mcp.stage(f.projectId, alias.id, 'lookup', { text: 'bypass' }, 'bypass'),
+      /unknown/,
+    );
+  } finally {
+    await remote.close();
     await f.close();
   }
 });
@@ -271,9 +324,17 @@ test('Hub uses pinned tree evidence, ignores upstream compatibility assertions, 
     await hub.refresh();
     assert.equal(hub.entry('fixture').assessment, undefined);
     const assessment = await hub.assess('fixture');
-    assert.equal(assessment.status, 'Requires Agent Zero');
+    assert.equal(assessment.status, 'Runs in Agent Zero');
     assert.equal(assessment.commit, commit);
-    assert.equal((await hub.skill('fixture', 'skills/foo/SKILL.md')).markdown, md);
+    const preview = await hub.skill('fixture', 'skills/foo/SKILL.md');
+    assert.equal(preview.markdown, md);
+    assert.ok(preview.warnings.length > 0);
+    const imported = f.ext.skills.import(f.projectId, {
+      markdown: preview.markdown,
+      source: preview.source,
+    });
+    assert.equal(imported.enabled, false);
+    assert.ok(imported.current.source.includes(commit));
     await assert.rejects(hub.skill('fixture', '../../private'), /Assess/);
     failure = true;
     await assert.rejects(hub.refresh());

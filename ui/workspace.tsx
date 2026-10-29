@@ -1003,7 +1003,7 @@ export function App() {
             {view === 'extensions' && (
               <ExtensionWorkspace key={projectId} project={project} act={act} />
             )}
-            {view === 'hub' && <PluginHubView project={project} act={act} />}
+            {view === 'hub' && <PluginHubView project={project} act={act} navigate={navigate} />}
             {view === 'memory' && <MemoryWorkspace key={projectId} project={project} act={act} />}
           </div>
         )}

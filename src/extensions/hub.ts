@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { AppError } from '../domain.js';
 import type { Store } from '../storage/store.js';
 import { digest, parseSkill } from './skills.js';
+import { assessCapabilities, assessmentVersion, type Compatibility } from './compatibility.js';
 export const HUB_URL =
   'https://github.com/agent0ai/a0-plugins/releases/download/generated-index/index.json';
 export type HubEntry = {
@@ -12,13 +13,7 @@ export type HubEntry = {
   commit: string;
   version: string;
   tags: string[];
-  assessment?: {
-    status: 'Requires Agent Zero' | 'Port available' | 'Compatibility unknown';
-    reason: string;
-    checkedAt: string;
-    commit: string;
-    skills: string[];
-  };
+  assessment?: Compatibility;
 };
 export type HubCatalog = { entries: HubEntry[]; fetchedAt: string; digest: string; source: string };
 const repo = z.string().regex(/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/?$/);
@@ -73,7 +68,10 @@ export class PluginHub {
     private read: typeof boundedFetch = boundedFetch,
   ) {}
   catalog(): HubCatalog | null {
-    return JSON.parse(this.store.meta('hub:catalog') ?? 'null');
+    const catalog = JSON.parse(this.store.meta('hub:catalog') ?? 'null') as HubCatalog | null;
+    for (const entry of catalog?.entries ?? [])
+      if (entry.assessment?.version !== assessmentVersion) delete entry.assessment;
+    return catalog;
   }
   async refresh() {
     const generation = ++this.generation,
@@ -84,7 +82,7 @@ export class PluginHub {
     const old = this.catalog();
     const entries = Object.entries(plugins).map(([id, item]) => {
       const assessment = old?.entries.find(
-        (e) => e.id === id && e.commit === item.commit,
+        (e) => e.id === id && e.commit === item.commit && e.github === item.github,
       )?.assessment;
       return { id, ...item, ...(assessment ? { assessment } : {}) };
     });
@@ -124,31 +122,13 @@ export class PluginHub {
           ),
         ),
       );
-    const paths = tree.tree.filter((f) => f.type === 'blob').map((f) => f.path),
-      skills = paths.filter((p) => /(^|\/)SKILL\.md$/.test(p)).slice(0, 40);
-    const native = paths.some((p) => p.endsWith('.py') || /(^|\/)(webui|extensions)\//.test(p));
-    const assessment: NonNullable<HubEntry['assessment']> = {
-      status: tree.truncated
-        ? 'Compatibility unknown'
-        : native
-          ? 'Requires Agent Zero'
-          : skills.length
-            ? 'Port available'
-            : 'Compatibility unknown',
-      reason: tree.truncated
-        ? 'Repository tree is incomplete; no compatibility claim.'
-        : native
-          ? 'Contains Python or Agent Zero UI/hooks. Run the full plugin on Agent Zero; separately reviewed Markdown skills may be portable.'
-          : skills.length
-            ? 'Contains SKILL.md instructions that can be reviewed and imported individually. Scripts, resources and plugin hooks are not imported.'
-            : 'No tested Slim adapter or portable skill was found. Browsing does not install code.',
-      checkedAt: new Date().toISOString(),
-      commit: entry.commit,
-      skills,
-    };
+    const paths = tree.tree.filter((f) => f.type === 'blob').map((f) => f.path);
+    const assessment = assessCapabilities(entry, paths, !!tree.truncated);
     const current = this.catalog();
     if (current) {
-      const index = current.entries.findIndex((e) => e.id === id && e.commit === entry.commit);
+      const index = current.entries.findIndex(
+        (e) => e.id === id && e.commit === entry.commit && e.github === entry.github,
+      );
       if (index >= 0) {
         current.entries[index] = { ...current.entries[index]!, assessment };
         this.store.setMeta('hub:catalog', JSON.stringify(current));
@@ -164,6 +144,13 @@ export class PluginHub {
     const url = `https://raw.githubusercontent.com/${repo}/${entry.commit}/${path.split('/').map(encodeURIComponent).join('/')}`;
     const markdown = await this.read(url, 32000);
     parseSkill(markdown);
-    return { markdown, source: url, revision: entry.commit };
+    return {
+      markdown,
+      source: url,
+      revision: entry.commit,
+      warnings: [
+        'Only this Markdown file is imported. Referenced resources, scripts, commands and Agent Zero tool names are not made available automatically. Review and adapt them before enabling.',
+      ],
+    };
   }
 }

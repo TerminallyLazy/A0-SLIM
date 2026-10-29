@@ -62,10 +62,26 @@ export const mcpInput = z
   })
   .strict();
 const error = (code: string, message: string) => new AppError(409, code, message);
+const companionSchema = z
+  .object({
+    protocol: z.literal('a0-slim-tools/1'),
+    fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+    scopeId: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();
+export function companionDescriptor(tool: Pick<McpTool, 'inputSchema'>) {
+  const raw = tool.inputSchema['x-a0-slim-companion'];
+  if (raw === undefined) return undefined;
+  const parsed = companionSchema.safeParse(raw);
+  if (!parsed.success) throw error('companion_contract', 'Invalid companion identity.');
+  return parsed.data;
+}
 export class McpConnections {
   private active = new Map<string, AbortController>();
   private activeScopes = new Set<string>();
   private scope(server: McpServer) {
+    const companion = server.tools.map(companionDescriptor).find(Boolean);
+    if (companion) return digest({ companionScope: companion.scopeId });
     return digest({
       transport: server.transport,
       url: server.url,
@@ -253,6 +269,12 @@ export class McpConnections {
         seen.add(cursor);
       }
     } while (cursor);
+    const companions = tools.map(companionDescriptor);
+    if (
+      companions.some(Boolean) &&
+      (companions.some((c) => !c) || new Set(companions.map((c) => JSON.stringify(c))).size !== 1)
+    )
+      throw error('companion_contract', 'Companion catalog must share one scope and revision.');
     return tools;
   }
   async discover(projectId: string, id: string) {
@@ -386,10 +408,26 @@ export class McpConnections {
         const adapter = await createMcpAdapter({
           listTools: () => ({ tools: [tool] }),
           callTool: (params, _schema, options) =>
-            client.callTool(params as Parameters<Client['callTool']>[0], undefined, {
-              ...options,
-              timeout: 20000,
-            }),
+            client.callTool(
+              {
+                ...params,
+                ...(companionDescriptor(tool)
+                  ? {
+                      _meta: {
+                        'io.a0-slim/operation': {
+                          id: call.id,
+                          fingerprint: companionDescriptor(tool)!.fingerprint,
+                        },
+                      },
+                    }
+                  : {}),
+              } as Parameters<Client['callTool']>[0],
+              undefined,
+              {
+                ...options,
+                timeout: 20000,
+              },
+            ),
         } as McpClient);
         // The durable intent precedes the only external tool invocation. Never retry an ambiguous result.
         this.store.record('mcp-call', { ...call, status: 'running' });
