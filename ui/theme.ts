@@ -226,6 +226,11 @@ export function themeTokens(p: Palette): Record<string, string> {
     : p.text;
   const errorCandidate = mix('#a03028', p.surface, 0.15);
   return {
+    '--brand-filter':
+      luminance(p.text) > luminance(p.surface)
+        ? 'grayscale(1) contrast(2) invert(1)'
+        : 'grayscale(1) contrast(2)',
+    '--brand-blend': luminance(p.text) > luminance(p.surface) ? 'screen' : 'multiply',
     '--bg': p.background,
     '--surface': p.surface,
     '--text': p.text,

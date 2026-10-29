@@ -10,7 +10,7 @@ The two SVG symbols in `docs/review/assets/` and `ui/public/` were copied unchan
 
 Brand names and logos identify their respective projects. This project does not claim upstream endorsement. Confirm any separate brand-use requirements before a public product launch.
 
-Additional owner-supplied square, horizontal and centered logo artwork and the Illustrator master are preserved unchanged in `docs/brand/agent-zero/`, with source paths and hashes in its `sources.json`. The horizontal banner is also copied unchanged to `ui/public/a0-horizontal-banner.svg` and used in the Appearance attribution area.
+Additional owner-supplied square, horizontal and centered logo artwork and the Illustrator master are preserved unchanged in `docs/brand/agent-zero/`, with source paths and hashes in its `sources.json`. These source files remain preserved for provenance. The current app uses the owner-supplied A0 SLIM wordmark and banners in `ui/public/brand/`; its manifest records original filenames, SHA-256 hashes, dimensions and WebP optimization. CSS frames the horizontal artwork and adapts its monochrome presentation to the selected theme. The Appearance area retains the Agent Zero attribution and link.
 
 ## libfx
 

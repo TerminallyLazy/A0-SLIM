@@ -201,3 +201,7 @@ The user requested updates that are extremely easy or automatic. Enable daily st
 ## Customizable appearance — 2026-10-29
 
 Implement the twelve named palettes and gallery/preview arrangement from the user’s references, with dark/light variants and three gradient presets. Keep editing scoped to the preview until Save, including density; Reset restores the saved preferences. Custom palettes use validated hex colors, readable text and accent contrast across surfaces and gradient interiors, and derived control colors. No executable CSS, remote assets or theme dependencies are introduced. Preserve legacy browser choices as custom palettes. Keep headings plain and omit eyebrow labels. The npm alpha.3 release also includes the previously verified Hub, access, MCP, sandbox, command-registration and automatic-update work.
+
+## Owner-supplied branding and New Chat polish — 2026-10-29
+
+Use the supplied slashed-zero wordmark for the persistent app identity and its matching banners in Appearance. Optimize the original compositions as WebP without redrawing the artwork. Keep the old Agent Zero vector sources and their notices for provenance and remaining compact uses. Remove the decorative tilted New Chat logo tile; align its heading and task starters with the composer, preserve the existing copy and theme system, and focus the composer when a starter inserts a draft. The authored interaction does not send the message or add animation.

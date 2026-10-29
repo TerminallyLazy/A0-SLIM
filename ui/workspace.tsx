@@ -2,6 +2,7 @@ import { AccessPicker, AccessApprovals } from './access.js';
 import type { AccessDecision } from '../src/policy/access.js';
 import { AppearanceSettings } from './appearance.js';
 import { applyAppearance, loadAppearance, saveAppearance, type Appearance } from './theme.js';
+import { Brand, BrandBanner } from './brand.js';
 import { FirstRun } from './first-run.js';
 import type { FirstRunState } from '../src/server/first-run.js';
 import { BashOutput } from './bash-output.js';
@@ -127,6 +128,7 @@ export function App() {
     saveAppearance(next, localStorage);
     setAppearance(structuredClone(next));
   }
+  const composerInput = useRef<HTMLTextAreaElement>(null);
   const scroll = useRef<HTMLDivElement>(null),
     sendLock = useRef(false);
   const project = state.projects.find((p) => p.id === projectId),
@@ -325,6 +327,10 @@ export function App() {
     setMobileNav(false);
     setError('');
   };
+  const useStarter = (text: string) => {
+    setPrompt(text);
+    composerInput.current?.focus();
+  };
   const newChat = () => {
     setChatId('');
     setLines([]);
@@ -371,7 +377,7 @@ export function App() {
   if (paired === null)
     return (
       <main className="pair">
-        <Logo />
+        <Brand />
         <h1>Opening your workspace</h1>
         <p>{error || 'Connecting to the local service…'}</p>
       </main>
@@ -380,7 +386,7 @@ export function App() {
     return (
       <main className="pair">
         <div className="brand">
-          <Logo /> A0 SLIM <span className="pill">Local alpha</span>
+          <Brand /> <span className="pill">Local alpha</span>
         </div>
         <div className="pair-card">
           <h1>Connect this browser</h1>
@@ -425,7 +431,7 @@ export function App() {
   if (!loaded)
     return (
       <main className="pair">
-        <Logo />
+        <Brand />
         <p>{error || 'Loading your workspace…'}</p>
       </main>
     );
@@ -457,10 +463,7 @@ export function App() {
     <div className={`app ${inspector ? 'inspecting' : ''} ${mobileNav ? 'nav-open' : ''}`}>
       <aside className="sidebar">
         <div className="brand">
-          <Logo />
-          <span>
-            A0 <b>SLIM</b>
-          </span>
+          <Brand />
           <button
             className="icon mobile-only"
             aria-label="Close navigation"
@@ -656,14 +659,7 @@ export function App() {
               )}
               {!lines.length ? (
                 <div className="welcome">
-                  <div className="welcome-symbol">
-                    <Logo />
-                  </div>
-                  <h1>
-                    What are we
-                    <br />
-                    working on?
-                  </h1>
+                  <h1>What are we working on?</h1>
                   <p>
                     {project && connection
                       ? `Working in ${project.name} with ${connection.name}. Describe the task.`
@@ -672,7 +668,7 @@ export function App() {
                   <div className="suggestions">
                     <button
                       onClick={() =>
-                        setPrompt(
+                        useStarter(
                           'Explore this project and explain how the main pieces fit together.',
                         )
                       }
@@ -681,11 +677,10 @@ export function App() {
                       <span>
                         Explore a project<small>Read files and explain the structure</small>
                       </span>
-                      <ArrowUpRight size={15} />
                     </button>
                     <button
                       onClick={() =>
-                        setPrompt(
+                        useStarter(
                           'Read the project documentation and identify the most useful next steps.',
                         )
                       }
@@ -694,7 +689,6 @@ export function App() {
                       <span>
                         Find the next step<small>Review documentation and next steps</small>
                       </span>
-                      <ArrowUpRight size={15} />
                     </button>
                   </div>
                   {(!project || (!connection && !agent)) && (
@@ -814,6 +808,7 @@ export function App() {
                     {external ? `Message ${agent?.name ?? 'agent'}` : 'Message A0 SLIM'}
                   </label>
                   <textarea
+                    ref={composerInput}
                     id="prompt"
                     value={prompt}
                     onChange={(event) => setPrompt(event.target.value)}
@@ -973,9 +968,9 @@ export function App() {
               <>
                 <AppearanceSettings value={appearance} save={updateAppearance} />
                 <div className="brand-credit">
-                  <img src="/a0-horizontal-banner.svg" alt="Agent Zero" width="1500" height="500" />
+                  <BrandBanner />
                   <div>
-                    <h3>Agent Zero</h3>
+                    <h3>A0 SLIM</h3>
                     <p>A0 SLIM is an independent project inspired by Agent Zero.</p>
                     <a
                       href="https://github.com/agent0ai/agent-zero"
